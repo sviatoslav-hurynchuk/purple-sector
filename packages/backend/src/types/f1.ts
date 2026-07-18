@@ -3,10 +3,16 @@
  * These mirror the structures returned by Jolpica F1 API.
  */
 
-// ── Race ────────────────────────────────────────────────────────────────────
+export interface F1Session {
+  date: string;
+  time?: string;
+}
+
+// ── Circuit ──────────────────────────────────────────────────────────────────
 
 export interface Circuit {
   circuitId: string;
+  url: string;
   circuitName: string;
   Location: {
     country: string;
@@ -16,19 +22,28 @@ export interface Circuit {
   };
 }
 
+// ── Race ────────────────────────────────────────────────────────────────────
+
 export interface Race {
   season: string;
   round: string;
+  url: string;
   raceName: string;
   Circuit: Circuit;
   date: string;
   time?: string;
+  FirstPractice?: F1Session;
+  SecondPractice?: F1Session;
+  ThirdPractice?: F1Session;
+  Qualifying?: F1Session;
+  Sprint?: F1Session;
 }
 
 // ── Driver ──────────────────────────────────────────────────────────────────
 
 export interface Driver {
   driverId: string;
+  url: string;
   permanentNumber?: string;
   code?: string;
   givenName: string;
@@ -41,6 +56,7 @@ export interface Driver {
 
 export interface Constructor {
   constructorId: string;
+  url: string;
   name: string;
   nationality: string;
 }
