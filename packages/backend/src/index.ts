@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 
 import racesRouter from './routes/races';
 import standingsRouter from './routes/standings';
+import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
 
@@ -22,9 +23,12 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/races', racesRouter);
 app.use('/api/standings', standingsRouter);
 
+// ── Error Handler (must be last) ─────────────────────────────────────────────
+app.use(errorHandler);
+
 // ── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🏎️  F1 Backend running on http://localhost:${PORT}`);
+  console.log(`-> F1 Backend running on http://localhost:${PORT}`);
 });
 
 export default app;
