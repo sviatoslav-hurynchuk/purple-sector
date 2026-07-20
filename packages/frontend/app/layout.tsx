@@ -39,6 +39,9 @@ export default function RootLayout({
                         <Link href="/calendar" className="text-sm font-semibold hover:text-primary transition-colors">
                             Calendar
                         </Link>
+                        <Link href="/standings" className="text-sm font-semibold hover:text-primary transition-colors">
+                            Standings
+                        </Link>
                     </nav>
                 </div>
                 <div className="flex items-center gap-2">

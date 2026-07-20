@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 interface SeasonSelectorProps {
@@ -15,9 +15,10 @@ interface SeasonSelectorProps {
  */
 export function SeasonSelector({ currentSeason, allYears }: SeasonSelectorProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleSeasonChange = (year: number) => {
-    router.push(`/calendar?season=${year}`);
+    router.push(`${pathname}?season=${year}`);
   };
 
   // Sort ascending and take a 5-year window centered around currentSeason

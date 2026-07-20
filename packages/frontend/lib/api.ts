@@ -63,18 +63,20 @@ async function apiFetchNullable<T>(path: string, revalidate = 60): Promise<T | n
 
 // ── Standings ────────────────────────────────────────────────────────────────
 
-export async function getDriverStandings(season?: number): Promise<DriverStanding[]> {
+export async function getDriverStandings(season?: number, round?: number): Promise<DriverStanding[]> {
   const year = season ?? new Date().getFullYear();
+  const roundParam = round ? `&round=${round}` : '';
   const data = await apiFetch<StandingsResponse<DriverStanding>>(
-    `/api/standings/drivers?season=${year}`
+    `/api/standings/drivers?season=${year}${roundParam}`
   );
   return data.standings;
 }
 
-export async function getConstructorStandings(season?: number): Promise<ConstructorStanding[]> {
+export async function getConstructorStandings(season?: number, round?: number): Promise<ConstructorStanding[]> {
   const year = season ?? new Date().getFullYear();
+  const roundParam = round ? `&round=${round}` : '';
   const data = await apiFetch<StandingsResponse<ConstructorStanding>>(
-    `/api/standings/constructors?season=${year}`
+    `/api/standings/constructors?season=${year}${roundParam}`
   );
   return data.standings;
 }
