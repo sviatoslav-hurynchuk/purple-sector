@@ -90,9 +90,9 @@ export async function getRaceSchedule(season?: number): Promise<Race[]> {
 export async function getRaceDetail(
   season: number,
   round: number
-): Promise<RaceResult | null> {
+): Promise<RaceResult | Race | null> {
   // 404 = race hasn't happened yet or doesn't exist — return null, not an error
-  return apiFetchNullable<RaceResult>(`/api/races/${season}/${round}`);
+  return apiFetchNullable<RaceResult | Race>(`/api/races/${season}/${round}`);
 }
 
 // ── Next Race ────────────────────────────────────────────────────────────────

@@ -37,6 +37,8 @@ export interface Race {
   ThirdPractice?: F1Session;
   Qualifying?: F1Session;
   Sprint?: F1Session;
+  SprintQualifying?: F1Session;
+  SprintShootout?: F1Session;
 }
 
 // ── Driver ──────────────────────────────────────────────────────────────────

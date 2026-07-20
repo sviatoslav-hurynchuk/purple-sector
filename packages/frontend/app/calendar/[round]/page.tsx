@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getRaceDetail } from '@/lib/api';
+import { RaceSchedule } from '@/components/f1/race-schedule';
 import {
     Card,
     CardContent,
@@ -71,45 +72,69 @@ export default async function RaceDetailPage({ params, searchParams }: RaceDetai
                 </Badge>
             </div>
 
-            {/* Session dates */}
-            {(race.FirstPractice || race.Qualifying || race.Sprint) && (
-                <Card>
+            {/* Interactive Session Schedule with My Time / Track Time toggle */}
+            <RaceSchedule race={race} />
+
+            {/* Sprint results if present */}
+            {'SprintResults' in race && Array.isArray(race.SprintResults) && race.SprintResults.length > 0 && (
+                <Card className="border-primary/20">
                     <CardHeader>
-                        <CardTitle>Weekend Schedule</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            {race.FirstPractice && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">FP1</p>
-                                    <p className="font-semibold text-sm mt-0.5">{race.FirstPractice.date}</p>
-                                </div>
-                            )}
-                            {race.SecondPractice && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">FP2</p>
-                                    <p className="font-semibold text-sm mt-0.5">{race.SecondPractice.date}</p>
-                                </div>
-                            )}
-                            {race.ThirdPractice && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">FP3</p>
-                                    <p className="font-semibold text-sm mt-0.5">{race.ThirdPractice.date}</p>
-                                </div>
-                            )}
-                            {race.Sprint && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Sprint</p>
-                                    <p className="font-semibold text-sm mt-0.5">{race.Sprint.date}</p>
-                                </div>
-                            )}
-                            {race.Qualifying && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Qualifying</p>
-                                    <p className="font-semibold text-sm mt-0.5">{race.Qualifying.date}</p>
-                                </div>
-                            )}
+                        <div className="flex items-center gap-2">
+                            <Badge className="bg-primary text-primary-foreground">Sprint</Badge>
+                            <CardTitle>Sprint Results</CardTitle>
                         </div>
+                        <CardDescription>Saturday sprint race classification and points.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-12 text-center">Pos</TableHead>
+                                    <TableHead>Driver</TableHead>
+                                    <TableHead>Team</TableHead>
+                                    <TableHead className="text-center">Grid</TableHead>
+                                    <TableHead className="text-center">Laps</TableHead>
+                                    <TableHead>Time / Status</TableHead>
+                                    <TableHead className="text-right">Pts</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {race.SprintResults.map((result, idx) => (
+                                    <TableRow key={`${result.Driver.driverId}-${result.positionText}-${idx}`}>
+                                        <TableCell className="text-center font-mono font-semibold">
+                                            {result.positionText}
+                                        </TableCell>
+                                        <TableCell>
+                                          <span className="font-semibold">
+                                            {result.Driver.givenName} {result.Driver.familyName}
+                                          </span>
+                                            {result.Driver.code && (
+                                                <span className="ml-2 text-xs font-mono text-muted-foreground">
+                                                  {result.Driver.code}
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground text-sm">
+                                            {result.Constructor.name}
+                                        </TableCell>
+                                        <TableCell className="text-center tabular-nums text-muted-foreground">
+                                            {result.grid}
+                                        </TableCell>
+                                        <TableCell className="text-center tabular-nums text-muted-foreground">
+                                            {result.laps}
+                                        </TableCell>
+                                        <TableCell className="text-sm tabular-nums">
+                                            {result.Time?.time ?? (
+                                                <span className="text-muted-foreground">{result.status}</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold tabular-nums text-primary">
+                                            {result.points}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             )}
@@ -135,8 +160,8 @@ export default async function RaceDetailPage({ params, searchParams }: RaceDetai
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {race.Results.map((result) => (
-                                    <TableRow key={result.Driver.driverId}>
+                                {race.Results.map((result, idx) => (
+                                    <TableRow key={`${result.Driver.driverId}-${result.positionText}-${idx}`}>
                                         <TableCell className="text-center font-mono font-semibold">
                                             {result.positionText}
                                         </TableCell>

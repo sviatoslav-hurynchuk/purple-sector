@@ -8,33 +8,36 @@ import type {
 
 const BASE_URL = process.env.JOLPICA_BASE_URL ?? 'https://api.jolpi.ca/ergast/f1';
 
-export interface RaceResult extends Race {
-  Results: Array<{
-    number: string;
-    position: string;
-    positionText: string;
-    points: string;
-    Driver: Driver;
-    Constructor: Constructor;
-    grid: string;
-    laps: string;
-    status: string;
-    Time?: {
-      millis: string;
+export interface RaceResultEntry {
+  number: string;
+  position: string;
+  positionText: string;
+  points: string;
+  Driver: Driver;
+  Constructor: Constructor;
+  grid: string;
+  laps: string;
+  status: string;
+  Time?: {
+    millis: string;
+    time: string;
+  };
+  FastestLap?: {
+    rank: string;
+    lap: string;
+    Time: {
       time: string;
     };
-    FastestLap?: {
-      rank: string;
-      lap: string;
-      Time: {
-        time: string;
-      };
-      AverageSpeed: {
-        units: string;
-        speed: string;
-      };
+    AverageSpeed: {
+      units: string;
+      speed: string;
     };
-  }>;
+  };
+}
+
+export interface RaceResult extends Race {
+  Results?: RaceResultEntry[];
+  SprintResults?: RaceResultEntry[];
 }
 
 // ── Jolpica API Response Schema Definitions ──────────────────────────────────
@@ -100,14 +103,42 @@ export async function getRaceSchedule(season: string | number): Promise<Race[]> 
   return data.MRData.RaceTable.Races;
 }
 
-// ── Race Result ──────────────────────────────────────────────────────────────
+// ── Race Result / Detail ─────────────────────────────────────────────────────
 
 export async function getRaceResult(
     season: string | number,
     round: string | number
-): Promise<RaceResult | null> {
-  const data = await jolpicaFetch<JolpicaRaceResultsResponse>(`/${season}/${round}/results`);
-  return data.MRData.RaceTable.Races[0] ?? null;
+): Promise<RaceResult | Race | null> {
+  // Fetch schedule, results, and sprint results in parallel
+  const [scheduleRes, resultsRes, sprintRes] = await Promise.all([
+    jolpicaFetch<JolpicaRacesResponse>(`/${season}/${round}`).catch(() => null),
+    jolpicaFetch<JolpicaRaceResultsResponse>(`/${season}/${round}/results`).catch(() => null),
+    jolpicaFetch<JolpicaResponse<'RaceTable', { season: string; round?: string; Races: RaceResult[] }>>(`/${season}/${round}/sprint`).catch(() => null),
+  ]);
+
+  const scheduleRace = scheduleRes?.MRData.RaceTable.Races[0];
+  const resultsRace = resultsRes?.MRData.RaceTable.Races[0];
+  const sprintRace = sprintRes?.MRData.RaceTable.Races[0];
+
+  if (!scheduleRace && !resultsRace && !sprintRace) {
+    return null;
+  }
+
+  // Merge schedule information with results
+  const merged: RaceResult = {
+    ...(scheduleRace || {}),
+    ...(resultsRace || {}),
+  } as RaceResult;
+
+  if (resultsRace?.Results && resultsRace.Results.length > 0) {
+    merged.Results = resultsRace.Results;
+  }
+
+  if (sprintRace?.SprintResults && sprintRace.SprintResults.length > 0) {
+    merged.SprintResults = sprintRace.SprintResults;
+  }
+
+  return merged;
 }
 
 // ── Driver Standings ─────────────────────────────────────────────────────────

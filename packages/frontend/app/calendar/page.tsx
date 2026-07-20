@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getRaceSchedule } from '@/lib/api';
 import type { Race } from '@/types/f1';
+import { SeasonSelector } from '@/components/f1/season-selector';
 import {
     Card,
     CardHeader,
@@ -31,33 +32,28 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
     const races = await getRaceSchedule(year);
 
+    const FIRST_SEASON = 1950;
     const currentYear = new Date().getFullYear();
-    const years = [currentYear - 1, currentYear, currentYear + 1];
+
+    // Check if next year (currentYear + 1) schedule has been published yet
+    const nextYearSchedule = await getRaceSchedule(currentYear + 1).catch(() => []);
+    const maxYear = nextYearSchedule.length > 0 ? currentYear + 1 : currentYear;
+
+    const allYears = Array.from(
+        { length: maxYear - FIRST_SEASON + 1 },
+        (_, i) => maxYear - i
+    );
 
     return (
         <div className="space-y-8">
 
-            {/* Header with year switcher */}
+            {/* Header with full season selector dropdown and recent tabs */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight">{year} Race Calendar</h1>
                     <p className="text-muted-foreground mt-1">{races.length} races scheduled.</p>
                 </div>
-                <div className="flex gap-2">
-                    {years.map((y) => (
-                        <Link
-                            key={y}
-                            href={`/calendar?season=${y}`}
-                            className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
-                                y === year
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : 'border-border hover:border-primary hover:text-primary'
-                            }`}
-                        >
-                            {y}
-                        </Link>
-                    ))}
-                </div>
+                <SeasonSelector currentSeason={year} allYears={allYears} />
             </div>
 
             {/* Race list */}

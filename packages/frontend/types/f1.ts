@@ -37,6 +37,8 @@ export interface Race {
     ThirdPractice?: F1Session;
     Qualifying?: F1Session;
     Sprint?: F1Session;
+    SprintQualifying?: F1Session;
+    SprintShootout?: F1Session;
 }
 
 // ── Driver ──────────────────────────────────────────────────────────────────
@@ -80,31 +82,34 @@ export interface ConstructorStanding {
 
 // ── Detailed Race Results ───────────────────────────────────────────────────
 
-export interface RaceResult extends Race {
-    Results: Array<{
-        number: string;
-        position: string;
-        positionText: string;
-        points: string;
-        Driver: Driver;
-        Constructor: Constructor;
-        grid: string;
-        laps: string;
-        status: string;
-        Time?: {
-            millis: string;
+export interface RaceResultEntry {
+    number: string;
+    position: string;
+    positionText: string;
+    points: string;
+    Driver: Driver;
+    Constructor: Constructor;
+    grid: string;
+    laps: string;
+    status: string;
+    Time?: {
+        millis: string;
+        time: string;
+    };
+    FastestLap?: {
+        rank: string;
+        lap: string;
+        Time: {
             time: string;
         };
-        FastestLap?: {
-            rank: string;
-            lap: string;
-            Time: {
-                time: string;
-            };
-            AverageSpeed: {
-                units: string;
-                speed: string;
-            };
+        AverageSpeed: {
+            units: string;
+            speed: string;
         };
-    }>;
+    };
+}
+
+export interface RaceResult extends Race {
+    Results?: RaceResultEntry[];
+    SprintResults?: RaceResultEntry[];
 }

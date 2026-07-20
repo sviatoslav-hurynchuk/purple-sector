@@ -112,8 +112,8 @@ export default async function DashboardPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {driverStandings.map((s: DriverStanding) => (
-                                    <TableRow key={s.Driver.driverId}>
+                                {driverStandings.map((s: DriverStanding, idx: number) => (
+                                    <TableRow key={`${s.Driver.driverId}-${s.position}-${idx}`}>
                                         <TableCell className="text-center font-mono text-muted-foreground">
                                             {s.position}
                                         </TableCell>
@@ -158,8 +158,8 @@ export default async function DashboardPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {constructorStandings.map((s: ConstructorStanding) => (
-                                    <TableRow key={s.Constructor.constructorId}>
+                                {constructorStandings.map((s: ConstructorStanding, idx: number) => (
+                                    <TableRow key={`${s.Constructor.constructorId}-${s.position}-${idx}`}>
                                         <TableCell className="text-center font-mono text-muted-foreground">
                                             {s.position}
                                         </TableCell>
