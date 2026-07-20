@@ -1,7 +1,24 @@
+import type { Metadata } from 'next';
 import { getDriverStandings, getConstructorStandings, getNextRace } from '@/lib/api';
-import type { DriverStanding, ConstructorStanding, Race } from '@/types/f1';
+import type { DriverStanding, ConstructorStanding } from '@/types/f1';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+} from '@/components/ui/card';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
-export const metadata = {
+export const metadata: Metadata = {
     title: 'Dashboard',
 };
 
@@ -13,67 +30,156 @@ export default async function DashboardPage() {
     ]);
 
     return (
-        <div>
-            <h1>F1 Dashboard</h1>
+        <div className="space-y-8">
 
+            {/* Page header */}
+            <div>
+                <h1 className="text-3xl font-black tracking-tight">Dashboard</h1>
+                <p className="text-muted-foreground mt-1">
+                    Current season standings and upcoming race.
+                </p>
+            </div>
+
+            {/* Next Race card */}
             {nextRace && (
-                <section>
-                    <h2>Next Race</h2>
-                    <p>{nextRace.raceName}</p>
-                    <p>{nextRace.Circuit.circuitName}, {nextRace.Circuit.Location.country}</p>
-                    <p>{nextRace.date} {nextRace.time ?? ''}</p>
-                </section>
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <CardDescription className="mb-1 uppercase tracking-widest text-xs font-semibold text-primary">
+                                    Next Race
+                                </CardDescription>
+                                <CardTitle className="text-2xl font-black">
+                                    {nextRace.raceName}
+                                </CardTitle>
+                                <p className="text-muted-foreground text-sm mt-1">
+                                    {nextRace.Circuit.circuitName} — {nextRace.Circuit.Location.locality},{' '}
+                                    {nextRace.Circuit.Location.country}
+                                </p>
+                            </div>
+                            <Badge variant="outline" className="text-sm shrink-0 border-primary text-primary">
+                                Round {nextRace.round}
+                            </Badge>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                            {nextRace.Qualifying && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Qualifying</p>
+                                    <p className="font-semibold text-sm mt-0.5">{nextRace.Qualifying.date}</p>
+                                </div>
+                            )}
+                            {nextRace.Sprint && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Sprint</p>
+                                    <p className="font-semibold text-sm mt-0.5">{nextRace.Sprint.date}</p>
+                                </div>
+                            )}
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Race Day</p>
+                                <p className="font-semibold text-sm mt-0.5">{nextRace.date}</p>
+                            </div>
+                            {nextRace.time && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Start Time</p>
+                                    <p className="font-semibold text-sm mt-0.5">{nextRace.time.replace('Z', ' UTC')}</p>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
             )}
 
-            <section>
-                <h2>Driver Standings</h2>
-                <table>
-                    <thead>
-                    <tr>
-                        <th>Pos</th>
-                        <th>Driver</th>
-                        <th>Team</th>
-                        <th>Points</th>
-                        <th>Wins</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {driverStandings.map((standing: DriverStanding) => (
-                        <tr key={standing.Driver.driverId}>
-                            <td>{standing.position}</td>
-                            <td>{standing.Driver.givenName} {standing.Driver.familyName}</td>
-                            <td>{standing.Constructors[0]?.name ?? '—'}</td>
-                            <td>{standing.points}</td>
-                            <td>{standing.wins}</td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-            </section>
+            {/* Standings grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-            <section>
-                <h2>Constructor Standings</h2>
-                <table>
-                    <thead>
-                    <tr>
-                        <th>Pos</th>
-                        <th>Team</th>
-                        <th>Points</th>
-                        <th>Wins</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {constructorStandings.map((standing: ConstructorStanding) => (
-                        <tr key={standing.Constructor.constructorId}>
-                            <td>{standing.position}</td>
-                            <td>{standing.Constructor.name}</td>
-                            <td>{standing.points}</td>
-                            <td>{standing.wins}</td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-            </section>
+                {/* Driver Standings */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Driver Standings</CardTitle>
+                        <CardDescription>Points after the latest round.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-12 text-center">Pos</TableHead>
+                                    <TableHead>Driver</TableHead>
+                                    <TableHead>Team</TableHead>
+                                    <TableHead className="text-right">Pts</TableHead>
+                                    <TableHead className="text-right">Wins</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {driverStandings.map((s: DriverStanding) => (
+                                    <TableRow key={s.Driver.driverId}>
+                                        <TableCell className="text-center font-mono text-muted-foreground">
+                                            {s.position}
+                                        </TableCell>
+                                        <TableCell className="font-semibold">
+                                            {s.Driver.givenName} {s.Driver.familyName}
+                                            {s.Driver.code && (
+                                                <span className="ml-2 text-xs text-muted-foreground font-mono">
+                          {s.Driver.code}
+                        </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground text-sm">
+                                            {s.Constructors[0]?.name ?? '—'}
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold tabular-nums">
+                                            {s.points}
+                                        </TableCell>
+                                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                                            {s.wins}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+
+                {/* Constructor Standings */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Constructor Standings</CardTitle>
+                        <CardDescription>Team points after the latest round.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-12 text-center">Pos</TableHead>
+                                    <TableHead>Team</TableHead>
+                                    <TableHead className="text-right">Pts</TableHead>
+                                    <TableHead className="text-right">Wins</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {constructorStandings.map((s: ConstructorStanding) => (
+                                    <TableRow key={s.Constructor.constructorId}>
+                                        <TableCell className="text-center font-mono text-muted-foreground">
+                                            {s.position}
+                                        </TableCell>
+                                        <TableCell className="font-semibold">
+                                            {s.Constructor.name}
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold tabular-nums">
+                                            {s.points}
+                                        </TableCell>
+                                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                                            {s.wins}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+
+            </div>
         </div>
     );
 }

@@ -9,7 +9,7 @@ import type {
   RaceResult,
   DriverStanding,
   ConstructorStanding,
-} from '../types/f1';
+} from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -25,12 +25,34 @@ interface RaceScheduleResponse {
   races: Race[];
 }
 
-// ── HTTP helper ───────────────────────────────────────────────────────────────
+// ── HTTP helpers ──────────────────────────────────────────────────────────────
 
+/**
+ * Fetches a resource that is expected to exist.
+ * Throws on any non-2xx response.
+ */
 async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
   const res = await fetch(`${BACKEND_URL}${path}`, {
     next: { revalidate },
   });
+
+  if (!res.ok) {
+    throw new Error(`Backend API error: ${res.status} ${res.statusText} — ${path}`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+/**
+ * Fetches a resource that may not exist.
+ * Returns null on 404. Throws on other non-2xx responses.
+ */
+async function apiFetchNullable<T>(path: string, revalidate = 60): Promise<T | null> {
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    next: { revalidate },
+  });
+
+  if (res.status === 404) return null;
 
   if (!res.ok) {
     throw new Error(`Backend API error: ${res.status} ${res.statusText} — ${path}`);
@@ -44,7 +66,7 @@ async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
 export async function getDriverStandings(season?: number): Promise<DriverStanding[]> {
   const year = season ?? new Date().getFullYear();
   const data = await apiFetch<StandingsResponse<DriverStanding>>(
-      `/api/standings/drivers?season=${year}`
+    `/api/standings/drivers?season=${year}`
   );
   return data.standings;
 }
@@ -52,7 +74,7 @@ export async function getDriverStandings(season?: number): Promise<DriverStandin
 export async function getConstructorStandings(season?: number): Promise<ConstructorStanding[]> {
   const year = season ?? new Date().getFullYear();
   const data = await apiFetch<StandingsResponse<ConstructorStanding>>(
-      `/api/standings/constructors?season=${year}`
+    `/api/standings/constructors?season=${year}`
   );
   return data.standings;
 }
@@ -66,15 +88,17 @@ export async function getRaceSchedule(season?: number): Promise<Race[]> {
 }
 
 export async function getRaceDetail(
-    season: number,
-    round: number
+  season: number,
+  round: number
 ): Promise<RaceResult | null> {
-  return apiFetch<RaceResult | null>(`/api/races/${season}/${round}`);
+  // 404 = race hasn't happened yet or doesn't exist — return null, not an error
+  return apiFetchNullable<RaceResult>(`/api/races/${season}/${round}`);
 }
 
 // ── Next Race ────────────────────────────────────────────────────────────────
 
 export async function getNextRace(): Promise<Race | null> {
   // Revalidate every 5 minutes — next race data changes when a session ends
-  return apiFetch<Race | null>('/api/races/next', 300);
+  // 404 = no upcoming races found (end of season) — not an error
+  return apiFetchNullable<Race>('/api/races/next', 300);
 }
