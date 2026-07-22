@@ -44,10 +44,6 @@ export default function RootLayout({
                         </Link>
                     </nav>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="text-xs text-muted-foreground font-mono">Live Timing Connection Ready</span>
-                </div>
             </div>
         </header>
 
