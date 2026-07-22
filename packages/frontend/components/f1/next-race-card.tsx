@@ -5,42 +5,10 @@ import type { Race } from '@/types/f1';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatTimeInTimezone } from '@/lib/timezones';
+import { formatDateDDMMYYYY, formatDateInTimezone } from '@/lib/utils';
 
 interface NextRaceCardProps {
   race: Race;
-}
-
-/**
- * Formats YYYY-MM-DD date string to DD.MM.YYYY format.
- */
-function formatDateDDMMYYYY(dateStr: string): string {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
-    const [year, month, day] = parts;
-    return `${day}.${month}.${year}`;
-  }
-  return dateStr;
-}
-
-/**
- * Formats a Date object into DD.MM.YYYY string in a given timezone.
- */
-function formatDateInTimezone(date: Date, timeZone: string): string {
-  try {
-    const formatter = new Intl.DateTimeFormat('uk-UA', {
-      timeZone,
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-    return formatter.format(date);
-  } catch {
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}.${month}.${year}`;
-  }
 }
 
 export function NextRaceCard({ race }: NextRaceCardProps) {
