@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import type { Race } from '@/types/f1';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatTimeInTimezone } from '@/lib/timezones';
 import { formatDateDDMMYYYY, formatDateInTimezone } from '@/lib/utils';
+import { getCountryFlagUrl } from '@/lib/country-flags';
+import { CountdownWidget } from '@/components/f1/countdown-widget';
 
 interface NextRaceCardProps {
   race: Race;
@@ -29,7 +32,6 @@ export function NextRaceCard({ race }: NextRaceCardProps) {
     return () => clearTimeout(initTimer);
   }, []);
 
-  // Helper to get formatted date & time for a session
   const getSessionInfo = (dateStr?: string, timeStr?: string) => {
     if (!dateStr) return null;
 
@@ -52,31 +54,47 @@ export function NextRaceCard({ race }: NextRaceCardProps) {
   const qualyInfo = race.Qualifying ? getSessionInfo(race.Qualifying.date, race.Qualifying.time) : null;
   const sprintInfo = race.Sprint ? getSessionInfo(race.Sprint.date, race.Sprint.time) : null;
 
+  const flagUrl = getCountryFlagUrl(race.Circuit.Location.country);
+
   return (
-    <Card>
+    <Card className="border-border">
       <CardHeader>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <CardDescription className="mb-1 uppercase tracking-widest text-xs font-semibold text-primary">
-              Next Race
-            </CardDescription>
-            <CardTitle className="text-2xl font-black">
-              {race.raceName}
-            </CardTitle>
+            <div className="flex items-center gap-2 mb-1">
+              <CardDescription className="uppercase tracking-widest text-xs font-semibold text-primary">
+                Next Race
+              </CardDescription>
+              <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+                Round {race.round}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <CardTitle className="text-2xl sm:text-3xl font-black flex items-center gap-3">
+                <span>{race.raceName}</span>
+                {flagUrl && (
+                  <Image
+                    src={flagUrl}
+                    alt={`${race.Circuit.Location.country} flag`}
+                    width={28}
+                    height={20}
+                    className="w-7 h-5 object-cover rounded-xs border border-zinc-700/60 shadow-sm shrink-0"
+                  />
+                )}
+              </CardTitle>
+              <CountdownWidget race={race} size="sm" showCountry={false} />
+              <div className="flex items-end shrink-0">
+                {isClient && (
+                    <span className="text-[11px] text-muted-foreground font-mono">
+                Local Time ({userTimeZone.split('/')[1]?.replace('_', ' ') ?? userTimeZone})
+              </span>
+                )}
+              </div>
+            </div>
             <p className="text-muted-foreground text-sm mt-1">
               {race.Circuit.circuitName} — {race.Circuit.Location.locality},{' '}
               {race.Circuit.Location.country}
             </p>
-          </div>
-          <div className="flex flex-col items-end gap-2 shrink-0">
-            <Badge variant="outline" className="text-sm border-primary text-primary">
-              Round {race.round}
-            </Badge>
-            {isClient && (
-              <span className="text-[11px] text-muted-foreground font-mono">
-                Local Time ({userTimeZone.split('/')[1]?.replace('_', ' ') ?? userTimeZone})
-              </span>
-            )}
           </div>
         </div>
       </CardHeader>
