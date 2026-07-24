@@ -11,8 +11,9 @@ const router: Router = Router();
 router.get('/drivers', async (req: Request, res: Response) => {
   try {
     const season = (req.query['season'] as string) ?? new Date().getFullYear().toString();
-    const standings = await getDriverStandings(season);
-    res.json({ season, standings });
+    const round = req.query['round'] as string | undefined;
+    const standings = await getDriverStandings(season, round);
+    res.json({ season, round, standings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -20,15 +21,16 @@ router.get('/drivers', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/standings/constructors?season=2025
- * Returns the constructors championship standings for a given season.
+ * GET /api/standings/constructors?season=2025&round=5
+ * Returns the constructors championship standings for a given season and optional round.
  * Defaults to the current year if no season is provided.
  */
 router.get('/constructors', async (req: Request, res: Response) => {
   try {
     const season = (req.query['season'] as string) ?? new Date().getFullYear().toString();
-    const standings = await getConstructorStandings(season);
-    res.json({ season, standings });
+    const round = req.query['round'] as string | undefined;
+    const standings = await getConstructorStandings(season, round);
+    res.json({ season, round, standings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });

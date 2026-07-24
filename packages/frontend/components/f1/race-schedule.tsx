@@ -9,6 +9,7 @@ import {
 } from '@/lib/timezones';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
+import { CountdownWidget } from '@/components/f1/countdown-widget';
 
 interface RaceScheduleProps {
   race: Race | RaceResult;
@@ -74,8 +75,11 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
           </h2>
         </div>
 
-        {/* Clock Box widget*/}
-        <div className="flex items-center gap-4 bg-zinc-900/90 border border-zinc-800 rounded-xl px-4 py-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-4 shrink-0">
+          <CountdownWidget race={race as Race} size="sm" showCountry={true} />
+
+          {/* Clock Box widget*/}
+          <div className="flex items-center gap-4 bg-zinc-900/90 border border-zinc-800 rounded-xl px-4 py-3 shrink-0">
           <div className="space-y-1 text-xs font-mono">
             <div className="flex items-center justify-between gap-6">
               <span className={cn('flex items-center gap-1.5 font-bold', mode === 'my' ? 'text-primary' : 'text-zinc-400')}>
@@ -110,6 +114,7 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
           </div>
         </div>
       </div>
+    </div>
 
       {/* Controls Bar: Add to calendar + Timezone Pill Switcher */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">

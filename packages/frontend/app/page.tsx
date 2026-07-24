@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getDriverStandings, getConstructorStandings, getNextRace } from '@/lib/api';
 import type { DriverStanding, ConstructorStanding } from '@/types/f1';
+import { NextRaceCard } from '@/components/f1/next-race-card';
 import {
     Card,
     CardContent,
@@ -16,7 +17,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 
 export const metadata: Metadata = {
     title: 'Dashboard',
@@ -41,55 +41,7 @@ export default async function DashboardPage() {
             </div>
 
             {/* Next Race card */}
-            {nextRace && (
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <CardDescription className="mb-1 uppercase tracking-widest text-xs font-semibold text-primary">
-                                    Next Race
-                                </CardDescription>
-                                <CardTitle className="text-2xl font-black">
-                                    {nextRace.raceName}
-                                </CardTitle>
-                                <p className="text-muted-foreground text-sm mt-1">
-                                    {nextRace.Circuit.circuitName} — {nextRace.Circuit.Location.locality},{' '}
-                                    {nextRace.Circuit.Location.country}
-                                </p>
-                            </div>
-                            <Badge variant="outline" className="text-sm shrink-0 border-primary text-primary">
-                                Round {nextRace.round}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-                            {nextRace.Qualifying && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Qualifying</p>
-                                    <p className="font-semibold text-sm mt-0.5">{nextRace.Qualifying.date}</p>
-                                </div>
-                            )}
-                            {nextRace.Sprint && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Sprint</p>
-                                    <p className="font-semibold text-sm mt-0.5">{nextRace.Sprint.date}</p>
-                                </div>
-                            )}
-                            <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Race Day</p>
-                                <p className="font-semibold text-sm mt-0.5">{nextRace.date}</p>
-                            </div>
-                            {nextRace.time && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Start Time</p>
-                                    <p className="font-semibold text-sm mt-0.5">{nextRace.time.replace('Z', ' UTC')}</p>
-                                </div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+            {nextRace && <NextRaceCard race={nextRace} />}
 
             {/* Standings grid */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

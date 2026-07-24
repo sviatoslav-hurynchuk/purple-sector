@@ -1,0 +1,25 @@
+language: "en-US"
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  collapse_walkthrough: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+
+  path_filters:
+    - "!**/node_modules/**"
+    - "!.next/**"
+    - "!pnpm-lock.yaml"
+    - "!**/dist/**"
+    - "!**/build/**"
+
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        - Focus strictly on potential bugs, performance bottlenecks, security vulnerabilities, and TypeScript type safety.
+        - Keep comments concise, direct, and actionable. Avoid nitpicking minor formatting or obvious code style.
+        - Ensure all suggested commit messages adhere strictly to Conventional Commits specification.

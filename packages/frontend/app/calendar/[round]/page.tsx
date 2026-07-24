@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getRaceDetail } from '@/lib/api';
 import { RaceSchedule } from '@/components/f1/race-schedule';
+import { formatDateDDMMYYYY } from '@/lib/utils';
 import {
     Card,
     CardContent,
@@ -68,7 +69,7 @@ export default async function RaceDetailPage({ params, searchParams }: RaceDetai
                     </p>
                 </div>
                 <Badge variant="outline" className="self-start border-border text-muted-foreground">
-                    {race.date}
+                    {formatDateDDMMYYYY(race.date)}
                 </Badge>
             </div>
 
