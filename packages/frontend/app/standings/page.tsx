@@ -34,8 +34,10 @@ interface StandingsPageProps {
 export default async function StandingsPage({ searchParams }: StandingsPageProps) {
   const { season, round } = await searchParams;
 
-  const year = season ? parseInt(season, 10) : new Date().getFullYear();
-  const selectedRound = round ? parseInt(round, 10) : undefined;
+  const parsedYear = season ? parseInt(season, 10) : NaN;
+  const year = Number.isNaN(parsedYear) ? new Date().getFullYear() : parsedYear;
+  const parsedRound = round ? parseInt(round, 10) : NaN;
+  const selectedRound = Number.isNaN(parsedRound) ? undefined : parsedRound;
 
   // Fetch standings and full race schedule for the selected season in parallel
   const [driverStandings, constructorStandings, races] = await Promise.all([

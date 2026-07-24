@@ -11,34 +11,42 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatDateDDMMYYYY(dateStr: string): string {
   if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
-    const [year, month, day] = parts;
-    return `${day}.${month}.${year}`;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (!match) return dateStr;
+
+  const [, year, month, day] = match;
+  const parsed = new Date(`${dateStr}T00:00:00Z`);
+  if (
+    parsed.getUTCFullYear() !== Number(year) ||
+    parsed.getUTCMonth() + 1 !== Number(month) ||
+    parsed.getUTCDate() !== Number(day)
+  ) {
+    return dateStr;
   }
-  return dateStr;
+
+  return `${day}.${month}.${year}`;
 }
 
 /**
  * Formats a Date object or date string into DD.MM.YYYY string in a given timezone.
  */
 export function formatDateInTimezone(date: Date | string, timeZone: string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return typeof date === 'string' ? formatDateDDMMYYYY(date) : '';
+
   try {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(d.getTime())) return typeof date === 'string' ? formatDateDDMMYYYY(date) : '';
-    const formatter = new Intl.DateTimeFormat('uk-UA', {
+    return new Intl.DateTimeFormat('uk-UA', {
       timeZone,
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-    });
-    return formatter.format(d);
+    }).format(d);
   } catch {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(d.getTime())) return typeof date === 'string' ? formatDateDDMMYYYY(date) : '';
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}.${month}.${year}`;
+    return new Intl.DateTimeFormat('uk-UA', {
+      timeZone: 'UTC',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(d);
   }
 }
