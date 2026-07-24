@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Race } from '@/types/f1';
 import { useCountdown } from '@/hooks/useCountdown';
-import { getNextSessionForRace } from '@/lib/sessions';
+import { getNextSessionForRace, resolveQualifyingSegment } from '@/lib/sessions';
 import { getCountryFlagUrl } from '@/lib/country-flags';
+import { getCircuitDetails } from '@/lib/circuit-details';
 import { cn } from '@/lib/utils';
 
 interface CountdownWidgetProps {
@@ -22,8 +23,17 @@ export function CountdownWidget({
   showCountry = true,
   size = 'md',
 }: CountdownWidgetProps) {
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const nextSession = race ? getNextSessionForRace(race) : null;
   const countdown = useCountdown(nextSession?.rawDate);
+
+  useEffect(() => {
+    if (!nextSession?.isOngoing) return;
+    const interval = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [nextSession?.isOngoing]);
 
   if (!race) return null;
 
@@ -53,22 +63,75 @@ export function CountdownWidget({
   const pad = (num: number) => num.toString().padStart(2, '0');
 
   if (nextSession?.isOngoing) {
+    if (nextSession.code === 'RACE') {
+      const circuitInfo = getCircuitDetails(race.Circuit.circuitId);
+      const totalLaps = circuitInfo?.numberOfLaps ?? '70';
+      const elapsedMs = Math.max(0, nowMs - nextSession.rawDate.getTime());
+      const estLap = Math.min(Number(totalLaps) || 70, Math.max(1, Math.floor(elapsedMs / 90000) + 1));
+
+      return (
+        <Link
+          href={eventUrl}
+          className={cn(
+            'group inline-flex items-center gap-3 p-2.5 sm:p-3 rounded-xl bg-zinc-950/95 border border-red-800/60 hover:border-red-500 hover:bg-zinc-900/90 shadow-lg backdrop-blur-sm transition-all cursor-pointer',
+            className
+          )}
+        >
+          <span className="flex items-center gap-1.5 bg-red-600/25 text-red-500 font-bold px-2 py-0.5 rounded text-xs border border-red-500/40">
+            <span className="size-2 rounded-full bg-red-500 animate-pulse" />
+            LIVE
+          </span>
+
+          <div className="flex items-center gap-2 font-mono text-sm sm:text-base font-black text-foreground tracking-tight">
+            <span>RACE</span>
+            <span className="font-mono text-primary font-black">LAP {estLap}/{totalLaps}</span>
+          </div>
+
+          <svg
+            className="size-4 text-zinc-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 ml-auto"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </Link>
+      );
+    }
+
+    let displayCode = nextSession.code;
+    let remainingMs = Math.max(0, nextSession.rawDate.getTime() + nextSession.durationMinutes * 60 * 1000 - nowMs);
+
+    if (nextSession.code === 'QUALY' || nextSession.code === 'SQ') {
+      const qSegment = resolveQualifyingSegment(nextSession.code, nextSession.rawDate, new Date(nowMs));
+      if (qSegment) {
+        displayCode = qSegment.segmentCode;
+        remainingMs = Math.max(0, qSegment.remainingSeconds * 1000);
+      }
+    }
+
+    const remMinutes = Math.floor(remainingMs / (1000 * 60));
+    const remSeconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
+    const formattedLiveTimer = `${pad(remMinutes)}:${pad(remSeconds)}`;
+
     return (
       <Link
         href={eventUrl}
         className={cn(
-          'group inline-flex items-center gap-3 p-3 sm:p-3.5 rounded-xl bg-zinc-950/90 border border-red-900/40 hover:border-red-600/80 hover:bg-zinc-900/90 shadow-lg backdrop-blur-sm transition-all cursor-pointer',
+          'group inline-flex items-center gap-3 p-2.5 sm:p-3 rounded-xl bg-zinc-950/95 border border-red-800/60 hover:border-red-500 hover:bg-zinc-900/90 shadow-lg backdrop-blur-sm transition-all cursor-pointer',
           className
         )}
       >
-        <span className="flex items-center gap-1.5 bg-red-600/20 text-red-500 font-bold px-2 py-0.5 rounded text-xs border border-red-500/30">
+        <span className="flex items-center gap-1.5 bg-red-600/25 text-red-500 font-bold px-2 py-0.5 rounded text-xs border border-red-500/40">
           <span className="size-2 rounded-full bg-red-500 animate-pulse" />
           LIVE
         </span>
 
-        <span className="font-mono text-xs sm:text-sm font-black text-zinc-200 uppercase tracking-tight">
-          {nextSession.code} IN PROGRESS
-        </span>
+        <div className="flex items-center gap-2 font-mono text-sm sm:text-base font-black text-foreground tracking-tight">
+          <span>{displayCode}</span>
+          <span className="font-mono text-primary font-black">{formattedLiveTimer}</span>
+        </div>
 
         <svg
           className="size-4 text-zinc-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 ml-auto"
