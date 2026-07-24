@@ -143,15 +143,23 @@ export async function getRaceResult(
 
 // ── Driver Standings ─────────────────────────────────────────────────────────
 
-export async function getDriverStandings(season: string | number): Promise<DriverStanding[]> {
-  const data = await jolpicaFetch<JolpicaStandingsResponse>(`/${season}/driverStandings`);
+export async function getDriverStandings(
+  season: string | number,
+  round?: string | number
+): Promise<DriverStanding[]> {
+  const path = round ? `/${season}/${round}/driverStandings` : `/${season}/driverStandings`;
+  const data = await jolpicaFetch<JolpicaStandingsResponse>(path);
   return data.MRData.StandingsTable.StandingsLists[0]?.DriverStandings ?? [];
 }
 
 // ── Constructor Standings ────────────────────────────────────────────────────
 
-export async function getConstructorStandings(season: string | number): Promise<ConstructorStanding[]> {
-  const data = await jolpicaFetch<JolpicaStandingsResponse>(`/${season}/constructorStandings`);
+export async function getConstructorStandings(
+  season: string | number,
+  round?: string | number
+): Promise<ConstructorStanding[]> {
+  const path = round ? `/${season}/${round}/constructorStandings` : `/${season}/constructorStandings`;
+  const data = await jolpicaFetch<JolpicaStandingsResponse>(path);
   return data.MRData.StandingsTable.StandingsLists[0]?.ConstructorStandings ?? [];
 }
 

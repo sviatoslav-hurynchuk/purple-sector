@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import { getDriverStandings, getConstructorStandings, getNextRace } from '@/lib/api';
 import type { DriverStanding, ConstructorStanding } from '@/types/f1';
+import { NextRaceCard } from '@/components/f1/next-race-card';
+import { CircuitDetailsCard } from '@/components/f1/circuit-details-card';
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
-    CardDescription,
 } from '@/components/ui/card';
 import {
     Table,
@@ -16,7 +17,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 
 export const metadata: Metadata = {
     title: 'Dashboard',
@@ -31,74 +31,21 @@ export default async function DashboardPage() {
 
     return (
         <div className="space-y-8">
-
-            {/* Page header */}
             <div>
                 <h1 className="text-3xl font-black tracking-tight">Dashboard</h1>
-                <p className="text-muted-foreground mt-1">
-                    Current season standings and upcoming race.
-                </p>
             </div>
 
-            {/* Next Race card */}
             {nextRace && (
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <CardDescription className="mb-1 uppercase tracking-widest text-xs font-semibold text-primary">
-                                    Next Race
-                                </CardDescription>
-                                <CardTitle className="text-2xl font-black">
-                                    {nextRace.raceName}
-                                </CardTitle>
-                                <p className="text-muted-foreground text-sm mt-1">
-                                    {nextRace.Circuit.circuitName} — {nextRace.Circuit.Location.locality},{' '}
-                                    {nextRace.Circuit.Location.country}
-                                </p>
-                            </div>
-                            <Badge variant="outline" className="text-sm shrink-0 border-primary text-primary">
-                                Round {nextRace.round}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-                            {nextRace.Qualifying && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Qualifying</p>
-                                    <p className="font-semibold text-sm mt-0.5">{nextRace.Qualifying.date}</p>
-                                </div>
-                            )}
-                            {nextRace.Sprint && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Sprint</p>
-                                    <p className="font-semibold text-sm mt-0.5">{nextRace.Sprint.date}</p>
-                                </div>
-                            )}
-                            <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Race Day</p>
-                                <p className="font-semibold text-sm mt-0.5">{nextRace.date}</p>
-                            </div>
-                            {nextRace.time && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Start Time</p>
-                                    <p className="font-semibold text-sm mt-0.5">{nextRace.time.replace('Z', ' UTC')}</p>
-                                </div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                <>
+                    <NextRaceCard race={nextRace} />
+                    <CircuitDetailsCard circuitId={nextRace.Circuit.circuitId} />
+                </>
             )}
 
-            {/* Standings grid */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-
-                {/* Driver Standings */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Driver Standings</CardTitle>
-                        <CardDescription>Points after the latest round.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
@@ -112,27 +59,25 @@ export default async function DashboardPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {driverStandings.map((s: DriverStanding, idx: number) => (
-                                    <TableRow key={`${s.Driver.driverId}-${s.position}-${idx}`}>
-                                        <TableCell className="text-center font-mono text-muted-foreground">
-                                            {s.position}
+                                {driverStandings.slice(0, 10).map((item: DriverStanding) => (
+                                    <TableRow key={`${item.Driver.driverId}-${item.position}`}>
+                                        <TableCell className="text-center font-bold font-mono">
+                                            {item.position}
                                         </TableCell>
-                                        <TableCell className="font-semibold">
-                                            {s.Driver.givenName} {s.Driver.familyName}
-                                            {s.Driver.code && (
-                                                <span className="ml-2 text-xs text-muted-foreground font-mono">
-                          {s.Driver.code}
-                        </span>
-                                            )}
+                                        <TableCell className="font-medium">
+                                            {item.Driver.givenName} {item.Driver.familyName}{' '}
+                                            <span className="text-xs text-muted-foreground uppercase font-mono">
+                                                {item.Driver.code}
+                                            </span>
                                         </TableCell>
-                                        <TableCell className="text-muted-foreground text-sm">
-                                            {s.Constructors[0]?.name ?? '—'}
+                                        <TableCell className="text-muted-foreground text-xs">
+                                            {item.Constructors[0]?.name ?? '—'}
                                         </TableCell>
-                                        <TableCell className="text-right font-bold tabular-nums">
-                                            {s.points}
+                                        <TableCell className="text-right font-mono font-bold">
+                                            {item.points}
                                         </TableCell>
-                                        <TableCell className="text-right tabular-nums text-muted-foreground">
-                                            {s.wins}
+                                        <TableCell className="text-right font-mono text-muted-foreground">
+                                            {item.wins}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -141,11 +86,9 @@ export default async function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                {/* Constructor Standings */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Constructor Standings</CardTitle>
-                        <CardDescription>Team points after the latest round.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
@@ -158,19 +101,19 @@ export default async function DashboardPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {constructorStandings.map((s: ConstructorStanding, idx: number) => (
-                                    <TableRow key={`${s.Constructor.constructorId}-${s.position}-${idx}`}>
-                                        <TableCell className="text-center font-mono text-muted-foreground">
-                                            {s.position}
+                                {constructorStandings.map((item: ConstructorStanding) => (
+                                    <TableRow key={`${item.Constructor.constructorId}-${item.position}`}>
+                                        <TableCell className="text-center font-bold font-mono">
+                                            {item.position}
                                         </TableCell>
-                                        <TableCell className="font-semibold">
-                                            {s.Constructor.name}
+                                        <TableCell className="font-medium">
+                                            {item.Constructor.name}
                                         </TableCell>
-                                        <TableCell className="text-right font-bold tabular-nums">
-                                            {s.points}
+                                        <TableCell className="text-right font-mono font-bold">
+                                            {item.points}
                                         </TableCell>
-                                        <TableCell className="text-right tabular-nums text-muted-foreground">
-                                            {s.wins}
+                                        <TableCell className="text-right font-mono text-muted-foreground">
+                                            {item.wins}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -178,7 +121,6 @@ export default async function DashboardPage() {
                         </Table>
                     </CardContent>
                 </Card>
-
             </div>
         </div>
     );

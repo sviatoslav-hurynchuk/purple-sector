@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getRaceSchedule } from '@/lib/api';
 import type { Race } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
+import { formatDateDDMMYYYY } from '@/lib/utils';
 import {
     Card,
     CardHeader,
@@ -82,7 +83,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                                                 <Badge variant="secondary" className="text-xs">Sprint</Badge>
                                             )}
                                             <Badge variant={past ? 'secondary' : 'outline'} className={!past ? 'border-primary text-primary' : ''}>
-                                                {race.date}
+                                                {formatDateDDMMYYYY(race.date)}
                                             </Badge>
                                         </div>
                                     </div>
