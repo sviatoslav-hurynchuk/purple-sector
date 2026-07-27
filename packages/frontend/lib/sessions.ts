@@ -9,6 +9,8 @@ export interface TargetSessionInfo {
 }
 
 export function getNextSessionForRace(race: Race, now: Date = new Date()): TargetSessionInfo | null {
+  const isRaceFinished = 'Results' in race && Array.isArray(race.Results) && race.Results.length > 0;
+
   const sessionList: Array<{
     code: string;
     name: string;
@@ -21,7 +23,7 @@ export function getNextSessionForRace(race: Race, now: Date = new Date()): Targe
     { code: 'SQ', name: 'SPRINT QUALY', session: race.SprintQualifying || race.SprintShootout, durationMinutes: 45 },
     { code: 'SPRINT', name: 'SPRINT', session: race.Sprint, durationMinutes: 60 },
     { code: 'QUALY', name: 'QUALIFYING', session: race.Qualifying, durationMinutes: 60 },
-    { code: 'RACE', name: 'RACE', session: { date: race.date, time: race.time }, durationMinutes: 120 },
+    { code: 'RACE', name: 'RACE', session: { date: race.date, time: race.time }, durationMinutes: 180 },
   ];
 
   const validSessions: Array<{ code: string; name: string; rawDate: Date; durationMinutes: number }> = [];
@@ -52,6 +54,8 @@ export function getNextSessionForRace(race: Race, now: Date = new Date()): Targe
   const currentTime = now.getTime();
 
   for (const s of validSessions) {
+    if (s.code === 'RACE' && isRaceFinished) continue;
+
     const startTime = s.rawDate.getTime();
     const endTime = startTime + s.durationMinutes * 60 * 1000;
     if (currentTime >= startTime && currentTime <= endTime) {
@@ -66,6 +70,8 @@ export function getNextSessionForRace(race: Race, now: Date = new Date()): Targe
   }
 
   for (const s of validSessions) {
+    if (s.code === 'RACE' && isRaceFinished) continue;
+
     if (s.rawDate.getTime() > currentTime) {
       return {
         code: s.code,
