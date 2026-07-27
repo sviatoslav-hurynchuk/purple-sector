@@ -6,14 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-/**
- * Error boundary for calendar routes.
- * Must be a Client Component.
- */
 export default function CalendarError({
-                                          error,
-                                          reset,
-                                      }: {
+    error,
+    reset,
+}: {
     error: Error & { digest?: string };
     reset: () => void;
 }) {
@@ -24,7 +20,9 @@ export default function CalendarError({
                     <CardTitle className="text-destructive">Failed to load calendar</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">{error.message}</p>
+                    <p className="text-sm text-muted-foreground">
+                        An unexpected error occurred while loading the race calendar. Please try again.
+                    </p>
                     {error.digest && (
                         <p className="text-xs font-mono text-muted-foreground">
                             Error ID: {error.digest}
