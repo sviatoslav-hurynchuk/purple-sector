@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation';
-import { getRaceDetail } from '@/lib/api';
+import { getRaceDetail, getRaceSchedule } from '@/lib/api';
 import { RaceSchedule } from '@/components/f1/race-schedule';
 import { CircuitDetailsCard } from '@/components/f1/circuit-details-card';
 import { RaceResultsTable } from '@/components/f1/race-results-table';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
+import type { Race } from '@/types/f1';
 import {
     Card,
     CardContent,
@@ -30,7 +31,12 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
         notFound();
     }
 
-    const race = await getRaceDetail(year, parsedRound);
+    let race: Race | null = await getRaceDetail(year, parsedRound);
+
+    if (!race) {
+        const schedule = await getRaceSchedule(year).catch(() => [] as Race[]);
+        race = schedule.find((r) => parseInt(r.round, 10) === parsedRound) ?? null;
+    }
 
     if (!race) notFound();
 

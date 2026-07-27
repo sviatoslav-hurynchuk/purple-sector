@@ -11,7 +11,7 @@ export function getMaxYear(): number {
 }
 
 export function parseYear(season?: string, maxYear: number = getMaxYear()): number {
-  if (!season) return new Date().getFullYear();
+  if (!season || !/^\d+$/.test(season.trim())) return new Date().getFullYear();
   const parsed = parseInt(season, 10);
   if (!Number.isFinite(parsed)) return new Date().getFullYear();
   if (parsed < 1950) return 1950;
@@ -20,7 +20,7 @@ export function parseYear(season?: string, maxYear: number = getMaxYear()): numb
 }
 
 export function parseRound(round?: string): number | null {
-  if (!round) return null;
+  if (!round || !/^\d+$/.test(round.trim())) return null;
   const parsed = parseInt(round, 10);
   return Number.isFinite(parsed) && parsed > 0 && parsed <= 50 ? parsed : null;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 interface SeasonSelectorProps {
@@ -11,11 +11,12 @@ interface SeasonSelectorProps {
 
 export function SeasonSelector({ currentSeason, allYears }: SeasonSelectorProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
   const handleSeasonChange = (year: number) => {
     startTransition(() => {
-      router.push(`/calendar?season=${year}`);
+      router.push(`${pathname}?season=${year}`);
     });
   };
 
