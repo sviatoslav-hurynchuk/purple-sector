@@ -5,16 +5,24 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function parseYear(season?: string): number {
+export function getMaxYear(): number {
+  const now = new Date();
+  return now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear();
+}
+
+export function parseYear(season?: string, maxYear: number = getMaxYear()): number {
   if (!season) return new Date().getFullYear();
   const parsed = parseInt(season, 10);
-  return Number.isFinite(parsed) && parsed >= 1950 ? parsed : new Date().getFullYear();
+  if (!Number.isFinite(parsed)) return new Date().getFullYear();
+  if (parsed < 1950) return 1950;
+  if (parsed > maxYear) return maxYear;
+  return parsed;
 }
 
 export function parseRound(round?: string): number | null {
   if (!round) return null;
   const parsed = parseInt(round, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  return Number.isFinite(parsed) && parsed > 0 && parsed <= 50 ? parsed : null;
 }
 
 export function formatDateDDMMYYYY(dateStr: string): string {
