@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { CalendarRaceList } from '@/components/f1/sections/calendar-race-list';
 import { CalendarListSkeleton } from '@/components/f1/skeletons/calendar-list-skeleton';
+import { parseYear } from '@/lib/utils';
 
 export const metadata: Metadata = {
     title: 'Race Calendar',
@@ -18,7 +19,7 @@ function getMaxYear(): number {
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
     const { season } = await searchParams;
-    const year = season ? parseInt(season, 10) : new Date().getFullYear();
+    const year = parseYear(season);
 
     const FIRST_SEASON = 1950;
     const maxYear = getMaxYear();

@@ -5,10 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/**
- * Formats a YYYY-MM-DD date string to DD.MM.YYYY format.
- * Example: "2026-07-26" -> "26.07.2026"
- */
+export function parseYear(season?: string): number {
+  if (!season) return new Date().getFullYear();
+  const parsed = parseInt(season, 10);
+  return Number.isFinite(parsed) && parsed >= 1950 ? parsed : new Date().getFullYear();
+}
+
+export function parseRound(round?: string): number | null {
+  if (!round) return null;
+  const parsed = parseInt(round, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 export function formatDateDDMMYYYY(dateStr: string): string {
   if (!dateStr) return '';
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
@@ -27,9 +35,6 @@ export function formatDateDDMMYYYY(dateStr: string): string {
   return `${day}.${month}.${year}`;
 }
 
-/**
- * Formats a Date object or date string into DD.MM.YYYY string in a given timezone.
- */
 export function formatDateInTimezone(date: Date | string, timeZone: string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return typeof date === 'string' ? formatDateDDMMYYYY(date) : '';

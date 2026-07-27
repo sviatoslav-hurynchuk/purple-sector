@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { StandingsContent } from '@/components/f1/sections/standings-content';
 import { StandingsPageSkeleton } from '@/components/f1/skeletons/standings-page-skeleton';
+import { parseYear, parseRound } from '@/lib/utils';
 
 export const metadata: Metadata = {
     title: 'Championship Standings',
@@ -19,10 +20,8 @@ function getMaxYear(): number {
 export default async function StandingsPage({ searchParams }: StandingsPageProps) {
     const { season, round } = await searchParams;
 
-    const parsedYear = season ? parseInt(season, 10) : NaN;
-    const year = Number.isNaN(parsedYear) ? new Date().getFullYear() : parsedYear;
-    const parsedRound = round ? parseInt(round, 10) : NaN;
-    const selectedRound = Number.isNaN(parsedRound) ? undefined : parsedRound;
+    const year = parseYear(season);
+    const selectedRound = parseRound(round) ?? undefined;
 
     const FIRST_SEASON = 1950;
     const maxYear = getMaxYear();
