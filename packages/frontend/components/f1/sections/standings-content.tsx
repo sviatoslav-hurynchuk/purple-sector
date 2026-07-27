@@ -6,6 +6,7 @@ import {
 import type { DriverStanding, ConstructorStanding, Race } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { RoundSelector } from '@/components/f1/round-selector';
+import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 import {
     Card,
     CardContent,
@@ -23,12 +24,17 @@ import {
 } from '@/components/ui/table';
 
 interface StandingsContentProps {
-    year: number;
-    selectedRound?: number;
+    searchParams: Promise<{ season?: string; round?: string }>;
     allYears: number[];
 }
 
-export async function StandingsContent({ year, selectedRound, allYears }: StandingsContentProps) {
+export async function StandingsContent({ searchParams, allYears }: StandingsContentProps) {
+    const { season, round } = await searchParams;
+
+    const maxYear = getMaxYear();
+    const year = parseYear(season, maxYear);
+    const selectedRound = parseRound(round) ?? undefined;
+
     const [driverStandings, constructorStandings, races] = await Promise.all([
         getDriverStandings(year, selectedRound),
         getConstructorStandings(year, selectedRound),

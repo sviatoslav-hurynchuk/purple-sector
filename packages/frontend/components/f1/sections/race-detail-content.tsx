@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { getRaceDetail } from '@/lib/api';
 import { RaceSchedule } from '@/components/f1/race-schedule';
 import { CircuitDetailsCard } from '@/components/f1/circuit-details-card';
+import { RaceResultsTable } from '@/components/f1/race-results-table';
+import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 import {
     Card,
     CardContent,
@@ -9,23 +11,26 @@ import {
     CardTitle,
     CardDescription,
 } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 
 interface RaceDetailContentProps {
-    year: number;
-    round: number;
+    params: Promise<{ round: string }>;
+    searchParams: Promise<{ season?: string }>;
 }
 
-export async function RaceDetailContent({ year, round }: RaceDetailContentProps) {
-    const race = await getRaceDetail(year, round);
+export async function RaceDetailContent({ params, searchParams }: RaceDetailContentProps) {
+    const { round } = await params;
+    const { season } = await searchParams;
+
+    const parsedRound = parseRound(round);
+    const maxYear = getMaxYear();
+    const year = parseYear(season, maxYear);
+
+    if (parsedRound === null) {
+        notFound();
+    }
+
+    const race = await getRaceDetail(year, parsedRound);
 
     if (!race) notFound();
 
@@ -61,55 +66,7 @@ export async function RaceDetailContent({ year, round }: RaceDetailContentProps)
                         <CardDescription>Saturday sprint race classification and points.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-12 text-center">Pos</TableHead>
-                                    <TableHead>Driver</TableHead>
-                                    <TableHead>Team</TableHead>
-                                    <TableHead className="text-center">Grid</TableHead>
-                                    <TableHead className="text-center">Laps</TableHead>
-                                    <TableHead>Time / Status</TableHead>
-                                    <TableHead className="text-right">Pts</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {race.SprintResults.map((result, idx) => (
-                                    <TableRow key={`${result.Driver.driverId}-${result.positionText}-${idx}`}>
-                                        <TableCell className="text-center font-mono font-semibold">
-                                            {result.positionText}
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="font-semibold">
-                                                {result.Driver.givenName} {result.Driver.familyName}
-                                            </span>
-                                            {result.Driver.code && (
-                                                <span className="ml-2 text-xs font-mono text-muted-foreground">
-                                                    {result.Driver.code}
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground text-sm">
-                                            {result.Constructor.name}
-                                        </TableCell>
-                                        <TableCell className="text-center tabular-nums text-muted-foreground">
-                                            {result.grid}
-                                        </TableCell>
-                                        <TableCell className="text-center tabular-nums text-muted-foreground">
-                                            {result.laps}
-                                        </TableCell>
-                                        <TableCell className="text-sm tabular-nums">
-                                            {result.Time?.time ?? (
-                                                <span className="text-muted-foreground">{result.status}</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right font-bold tabular-nums text-primary">
-                                            {result.points}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                        <RaceResultsTable results={race.SprintResults} highlightPoints />
                     </CardContent>
                 </Card>
             )}
@@ -121,55 +78,7 @@ export async function RaceDetailContent({ year, round }: RaceDetailContentProps)
                         <CardDescription>Final classified order.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-12 text-center">Pos</TableHead>
-                                    <TableHead>Driver</TableHead>
-                                    <TableHead>Team</TableHead>
-                                    <TableHead className="text-center">Grid</TableHead>
-                                    <TableHead className="text-center">Laps</TableHead>
-                                    <TableHead>Time / Status</TableHead>
-                                    <TableHead className="text-right">Pts</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {race.Results.map((result, idx) => (
-                                    <TableRow key={`${result.Driver.driverId}-${result.positionText}-${idx}`}>
-                                        <TableCell className="text-center font-mono font-semibold">
-                                            {result.positionText}
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="font-semibold">
-                                                {result.Driver.givenName} {result.Driver.familyName}
-                                            </span>
-                                            {result.Driver.code && (
-                                                <span className="ml-2 text-xs font-mono text-muted-foreground">
-                                                    {result.Driver.code}
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground text-sm">
-                                            {result.Constructor.name}
-                                        </TableCell>
-                                        <TableCell className="text-center tabular-nums text-muted-foreground">
-                                            {result.grid}
-                                        </TableCell>
-                                        <TableCell className="text-center tabular-nums text-muted-foreground">
-                                            {result.laps}
-                                        </TableCell>
-                                        <TableCell className="text-sm tabular-nums">
-                                            {result.Time?.time ?? (
-                                                <span className="text-muted-foreground">{result.status}</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right font-bold tabular-nums">
-                                            {result.points}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                        <RaceResultsTable results={race.Results} />
                     </CardContent>
                 </Card>
             ) : (

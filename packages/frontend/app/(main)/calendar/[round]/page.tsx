@@ -1,10 +1,8 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { RaceDetailContent } from '@/components/f1/sections/race-detail-content';
 import { RaceDetailSkeleton } from '@/components/f1/skeletons/race-detail-skeleton';
-import { parseYear, parseRound } from '@/lib/utils';
+import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 
 interface RaceDetailPageProps {
     params: Promise<{ round: string }>;
@@ -15,7 +13,8 @@ export async function generateMetadata({ params, searchParams }: RaceDetailPageP
     const { round } = await params;
     const { season } = await searchParams;
     const parsedRound = parseRound(round);
-    const year = parseYear(season);
+    const maxYear = getMaxYear();
+    const year = parseYear(season, maxYear);
 
     if (parsedRound === null) {
         return {
@@ -28,27 +27,11 @@ export async function generateMetadata({ params, searchParams }: RaceDetailPageP
     };
 }
 
-export default async function RaceDetailPage({ params, searchParams }: RaceDetailPageProps) {
-    const { round } = await params;
-    const { season } = await searchParams;
-    const parsedRound = parseRound(round);
-    const year = parseYear(season);
-
-    if (parsedRound === null) {
-        notFound();
-    }
-
+export default function RaceDetailPage({ params, searchParams }: RaceDetailPageProps) {
     return (
         <div className="space-y-8">
-            <Link
-                href={`/calendar?season=${year}`}
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-                ← Back to {year} Calendar
-            </Link>
-
             <Suspense fallback={<RaceDetailSkeleton />}>
-                <RaceDetailContent year={year} round={parsedRound} />
+                <RaceDetailContent params={params} searchParams={searchParams} />
             </Suspense>
         </div>
     );

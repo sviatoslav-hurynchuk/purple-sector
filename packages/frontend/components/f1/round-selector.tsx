@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Race } from '@/types/f1';
-import { isRacePast } from '@/lib/utils';
+import { isRacePast, cn } from '@/lib/utils';
 
 interface RoundSelectorProps {
   currentSeason: number;
@@ -13,19 +13,23 @@ interface RoundSelectorProps {
 
 export function RoundSelector({ currentSeason, currentRound, races }: RoundSelectorProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   const handleRoundChange = (roundValue: string) => {
-    if (!roundValue || roundValue === 'all') {
-      router.push(`/standings?season=${currentSeason}`);
-    } else {
-      router.push(`/standings?season=${currentSeason}&round=${roundValue}`);
-    }
+    startTransition(() => {
+      if (!roundValue || roundValue === 'all') {
+        router.push(`/standings?season=${currentSeason}`);
+      } else {
+        router.push(`/standings?season=${currentSeason}&round=${roundValue}`);
+      }
+    });
   };
 
   return (
-    <div className="relative">
+    <div className={cn('relative transition-opacity duration-200', isPending && 'opacity-60 pointer-events-none')}>
       <select
         aria-label="Select Race Round for Standings"
+        disabled={isPending}
         value={currentRound ?? 'all'}
         onChange={(e) => handleRoundChange(e.target.value)}
         className="appearance-none bg-zinc-900 border border-border hover:border-primary text-foreground text-sm font-semibold px-4 py-1.5 pr-8 rounded-full cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"

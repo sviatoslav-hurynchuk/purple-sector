@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getRaceSchedule } from '@/lib/api';
 import type { Race } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
-import { formatDateDDMMYYYY, isRacePast } from '@/lib/utils';
+import { formatDateDDMMYYYY, isRacePast, parseYear, getMaxYear } from '@/lib/utils';
 import {
     Card,
     CardHeader,
@@ -12,11 +12,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 
 interface CalendarRaceListProps {
-    year: number;
+    searchParams: Promise<{ season?: string }>;
     allYears: number[];
 }
 
-export async function CalendarRaceList({ year, allYears }: CalendarRaceListProps) {
+export async function CalendarRaceList({ searchParams, allYears }: CalendarRaceListProps) {
+    const { season } = await searchParams;
+    const maxYear = getMaxYear();
+    const year = parseYear(season, maxYear);
     const races = await getRaceSchedule(year);
 
     return (
