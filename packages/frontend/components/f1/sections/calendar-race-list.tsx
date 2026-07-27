@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getRaceSchedule } from '@/lib/api';
 import type { Race } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
-import { formatDateDDMMYYYY } from '@/lib/utils';
+import { formatDateDDMMYYYY, isRacePast } from '@/lib/utils';
 import {
     Card,
     CardHeader,
@@ -14,10 +14,6 @@ import { Badge } from '@/components/ui/badge';
 interface CalendarRaceListProps {
     year: number;
     allYears: number[];
-}
-
-function isRacePast(dateStr: string): boolean {
-    return new Date(dateStr) < new Date();
 }
 
 export async function CalendarRaceList({ year, allYears }: CalendarRaceListProps) {
@@ -35,7 +31,7 @@ export async function CalendarRaceList({ year, allYears }: CalendarRaceListProps
 
             <div className="grid grid-cols-1 gap-3">
                 {races.map((race: Race) => {
-                    const past = isRacePast(race.date);
+                    const past = isRacePast(race.date, race.time);
                     return (
                         <Link key={race.round} href={`/calendar/${race.round}?season=${year}`}>
                             <Card className={`transition-all hover:ring-primary/50 hover:ring-2 cursor-pointer ${past ? 'opacity-60' : ''}`}>

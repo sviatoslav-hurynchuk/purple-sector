@@ -25,6 +25,19 @@ export function parseRound(round?: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 && parsed <= 50 ? parsed : null;
 }
 
+export function isRacePast(dateStr: string, timeStr?: string): boolean {
+  if (!dateStr) return false;
+  if (timeStr) {
+    const cleanTime = timeStr.endsWith('Z') ? timeStr : `${timeStr}Z`;
+    const fullDate = new Date(`${dateStr}T${cleanTime}`);
+    if (!isNaN(fullDate.getTime())) {
+      return fullDate.getTime() < Date.now();
+    }
+  }
+  const endOfDay = new Date(`${dateStr}T23:59:59Z`);
+  return !isNaN(endOfDay.getTime()) ? endOfDay.getTime() < Date.now() : false;
+}
+
 export function formatDateDDMMYYYY(dateStr: string): string {
   if (!dateStr) return '';
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
