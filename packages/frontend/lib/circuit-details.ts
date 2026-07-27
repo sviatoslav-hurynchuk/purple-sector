@@ -149,8 +149,8 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
     officialMapUrl:
       'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Monaco_Circuit.png',
   },
-  canada: {
-    circuitId: 'canada',
+  villeneuve: {
+    circuitId: 'villeneuve',
     country: 'Canada',
     circuitLength: '4.361km',
     firstGrandPrix: '1978',

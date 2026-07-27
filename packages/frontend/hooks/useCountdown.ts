@@ -12,23 +12,22 @@ export interface CountdownTime {
   isReady: boolean;
 }
 
-/**
- * Custom React hook that calculates time remaining until a target Date.
- * Updates live every second. Safe against SSR hydration mismatches.
- */
 export function useCountdown(targetDate?: Date | null): CountdownTime {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
-    // Initial sync
     setNow(new Date());
+
+    if (!targetDate || targetDate.getTime() <= Date.now()) {
+      return;
+    }
 
     const timer = setInterval(() => {
       setNow(new Date());
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [targetDate?.getTime()]);
 
   if (!targetDate || !now) {
     return {

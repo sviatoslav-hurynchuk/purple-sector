@@ -30,8 +30,8 @@ interface StandingsContentProps {
 
 export async function StandingsContent({ year, selectedRound, allYears }: StandingsContentProps) {
     const [driverStandings, constructorStandings, races] = await Promise.all([
-        getDriverStandings(year, selectedRound).catch(() => [] as DriverStanding[]),
-        getConstructorStandings(year, selectedRound).catch(() => [] as ConstructorStanding[]),
+        getDriverStandings(year, selectedRound),
+        getConstructorStandings(year, selectedRound),
         getRaceSchedule(year).catch(() => [] as Race[]),
     ]);
 
