@@ -59,7 +59,7 @@ export function NextRaceCard({ race }: NextRaceCardProps) {
   return (
     <Card className="border-border">
       <CardHeader>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <CardDescription className="uppercase tracking-widest text-xs font-semibold text-primary">
@@ -83,18 +83,16 @@ export function NextRaceCard({ race }: NextRaceCardProps) {
                 )}
               </CardTitle>
               <CountdownWidget race={race} size="sm" showCountry={false} />
-              <div className="flex items-end shrink-0">
-                {isClient && (
-                    <span className="text-[11px] text-muted-foreground font-mono">
-                Local Time ({userTimeZone.split('/')[1]?.replace('_', ' ') ?? userTimeZone})
-              </span>
-                )}
-              </div>
             </div>
             <p className="text-muted-foreground text-sm mt-1">
               {race.Circuit.circuitName} — {race.Circuit.Location.locality},{' '}
               {race.Circuit.Location.country}
             </p>
+            {isClient && (
+              <span className="text-[11px] text-muted-foreground font-mono mt-1 inline-block">
+                Local Time ({userTimeZone.split('/')[1]?.replace('_', ' ') ?? userTimeZone})
+              </span>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -118,14 +116,16 @@ export function NextRaceCard({ race }: NextRaceCardProps) {
               )}
             </div>
           )}
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Race Day</p>
-            <p className="font-semibold text-sm mt-0.5">{mainRaceInfo?.formattedDate}</p>
-          </div>
+          {mainRaceInfo && (
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Race Day</p>
+              <p className="font-semibold text-sm mt-0.5">{mainRaceInfo.formattedDate}</p>
+            </div>
+          )}
           {mainRaceInfo?.formattedTime && (
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Race Start</p>
-              <p className="font-semibold text-sm mt-0.5 text-primary font-mono">{mainRaceInfo.formattedTime}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Race Start</p>
+              <p className="font-semibold text-sm text-primary font-mono mt-0.5">{mainRaceInfo.formattedTime}</p>
             </div>
           )}
         </div>

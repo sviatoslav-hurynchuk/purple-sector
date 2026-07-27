@@ -1,9 +1,6 @@
 import { Card, CardHeader } from '@/components/ui/card';
 
-/**
- * Skeleton loader for the Race Calendar page.
- */
-export default function CalendarLoading() {
+export function CalendarListSkeleton() {
     return (
         <div className="space-y-8 animate-pulse">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -12,7 +9,7 @@ export default function CalendarLoading() {
                     <div className="h-4 w-36 bg-muted rounded mt-2" />
                 </div>
                 <div className="flex gap-2">
-                    {[0, 1, 2].map((i) => (
+                    {[0, 1, 2, 3].map((i) => (
                         <div key={i} className="h-8 w-16 bg-muted rounded-full" />
                     ))}
                 </div>

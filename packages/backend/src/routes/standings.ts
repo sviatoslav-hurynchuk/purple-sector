@@ -3,6 +3,19 @@ import { getDriverStandings, getConstructorStandings } from '../services/jolpica
 
 const router: Router = Router();
 
+function parseRound(raw: unknown): { isValid: boolean; value?: string } {
+  if (raw === undefined) {
+    return { isValid: true, value: undefined };
+  }
+  if (typeof raw !== 'string') {
+    return { isValid: false };
+  }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    return { isValid: false };
+  }
+  return { isValid: true, value: raw };
+}
+
 /**
  * GET /api/standings/drivers?season=2025
  * Returns the drivers championship standings for a given season.
@@ -11,9 +24,13 @@ const router: Router = Router();
 router.get('/drivers', async (req: Request, res: Response) => {
   try {
     const season = (req.query['season'] as string) ?? new Date().getFullYear().toString();
-    const round = req.query['round'] as string | undefined;
-    const standings = await getDriverStandings(season, round);
-    res.json({ season, round, standings });
+    const roundResult = parseRound(req.query['round']);
+    if (!roundResult.isValid) {
+      res.status(400).json({ error: 'Invalid round parameter. Must be a positive integer.' });
+      return;
+    }
+    const standings = await getDriverStandings(season, roundResult.value);
+    res.json({ season, round: roundResult.value, standings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -28,9 +45,13 @@ router.get('/drivers', async (req: Request, res: Response) => {
 router.get('/constructors', async (req: Request, res: Response) => {
   try {
     const season = (req.query['season'] as string) ?? new Date().getFullYear().toString();
-    const round = req.query['round'] as string | undefined;
-    const standings = await getConstructorStandings(season, round);
-    res.json({ season, round, standings });
+    const roundResult = parseRound(req.query['round']);
+    if (!roundResult.isValid) {
+      res.status(400).json({ error: 'Invalid round parameter. Must be a positive integer.' });
+      return;
+    }
+    const standings = await getConstructorStandings(season, roundResult.value);
+    res.json({ season, round: roundResult.value, standings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });

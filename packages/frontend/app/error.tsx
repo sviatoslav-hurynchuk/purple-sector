@@ -4,14 +4,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-/**
- * Root error boundary for the dashboard route.
- * Must be a Client Component.
- */
 export default function RootError({
-                                      error,
-                                      reset,
-                                  }: {
+    error,
+    reset,
+}: {
     error: Error & { digest?: string };
     reset: () => void;
 }) {
@@ -22,7 +18,9 @@ export default function RootError({
                     <CardTitle className="text-destructive">Something went wrong</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">{error.message}</p>
+                    <p className="text-sm text-muted-foreground">
+                        An unexpected error occurred. Please try again.
+                    </p>
                     {error.digest && (
                         <p className="text-xs font-mono text-muted-foreground">
                             Error ID: {error.digest}

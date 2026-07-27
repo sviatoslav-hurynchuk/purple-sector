@@ -1,13 +1,8 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
-/**
- * Skeleton loader for the Race Detail page.
- */
-export default function RaceDetailLoading() {
+export function RaceDetailSkeleton() {
     return (
         <div className="space-y-8 animate-pulse">
-            <div className="h-4 w-32 bg-muted rounded" />
-
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
                     <div className="h-3 w-24 bg-muted rounded" />
@@ -17,7 +12,6 @@ export default function RaceDetailLoading() {
                 <div className="h-6 w-20 bg-muted rounded-full" />
             </div>
 
-            {/* Schedule skeleton */}
             <Card>
                 <CardHeader>
                     <div className="h-5 w-40 bg-muted rounded" />
@@ -34,7 +28,6 @@ export default function RaceDetailLoading() {
                 </CardContent>
             </Card>
 
-            {/* Results table skeleton */}
             <Card>
                 <CardHeader>
                     <div className="h-5 w-32 bg-muted rounded" />
