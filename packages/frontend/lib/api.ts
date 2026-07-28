@@ -1,5 +1,5 @@
 /**
- * API client for the F1 Data Hub Express backend.
+ * API client for the Purple Sector Express backend.
  * All data requests are routed through our backend server (port 3001),
  * which handles caching, aggregation, and Jolpica/OpenF1 rate limits.
  */

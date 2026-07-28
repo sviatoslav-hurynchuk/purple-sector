@@ -11,8 +11,8 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
     title: {
-        default: 'F1 Data Hub',
-        template: '%s | F1 Data Hub',
+        default: 'Purple Sector',
+        template: '%s | Purple Sector',
     },
     description: 'Formula 1 statistics, race results, standings and telemetry analytics.',
 };
@@ -53,7 +53,7 @@ export default function RootLayout({
 
         <footer className="border-t border-border py-8 bg-card/25 mt-auto">
             <div className="max-w-7xl mx-auto px-4 text-center text-xs text-muted-foreground">
-                F1 Data Hub is an unofficial pet project and is not affiliated with the Formula 1 companies.
+                Purple Sector is an unofficial pet project and is not affiliated with the Formula 1 companies.
             </div>
         </footer>
         </body>

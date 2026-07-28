@@ -1,4 +1,4 @@
-# F1 Data Hub 🏎️
+# Purple Sector 🏎️
 
 Interactive analytics and data platform for Formula 1, built with Node.js, Express, and Next.js monorepo architecture.
 
