@@ -17,6 +17,7 @@ interface ICacheService {
   get<T>(key: string): Promise<T | null>;
   set(key: string, value: unknown, ttlSeconds: number): Promise<void>;
   del(key: string): Promise<void>;
+  flush(pattern?: string): Promise<number>;
   isConnected(): boolean;
   getStats(): CacheStats;
 }
@@ -28,6 +29,7 @@ abstract class BaseCacheService implements ICacheService {
   abstract get<T>(key: string): Promise<T | null>;
   abstract set(key: string, value: unknown, ttlSeconds: number): Promise<void>;
   abstract del(key: string): Promise<void>;
+  abstract flush(pattern?: string): Promise<number>;
   abstract isConnected(): boolean;
 
   getStats(): CacheStats {
@@ -74,6 +76,26 @@ class MemoryCacheService extends BaseCacheService {
 
   async del(key: string): Promise<void> {
     this.store.delete(key);
+  }
+
+  async flush(pattern?: string): Promise<number> {
+    if (!pattern || pattern === '*') {
+      const count = this.store.size;
+      this.store.clear();
+      return count;
+    }
+
+    const prefix = pattern.replace('*', '');
+    let deletedCount = 0;
+
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        this.store.delete(key);
+        deletedCount++;
+      }
+    }
+
+    return deletedCount;
   }
 
   isConnected(): boolean {
@@ -141,6 +163,23 @@ class RedisCacheService extends BaseCacheService {
     }
   }
 
+  async flush(pattern?: string): Promise<number> {
+    try {
+      const queryPattern = pattern ?? 'f1:*';
+      const keys = await this.client.keys(queryPattern);
+
+      if (!keys || keys.length === 0) {
+        return 0;
+      }
+
+      await this.client.del(...keys);
+      return keys.length;
+    } catch (err) {
+      console.warn('[Cache] Redis FLUSH failed:', err instanceof Error ? err.message : err);
+      return 0;
+    }
+  }
+
   isConnected(): boolean {
     return this.connected;
   }
@@ -179,6 +218,9 @@ export const cache: ICacheService = {
   },
   del(key: string) {
     return cacheInstance.del(key);
+  },
+  flush(pattern?: string) {
+    return cacheInstance.flush(pattern);
   },
   isConnected() {
     return cacheInstance.isConnected();

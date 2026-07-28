@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 
 import racesRouter from './routes/races';
 import standingsRouter from './routes/standings';
+import adminRouter from './routes/admin';
 import { errorHandler } from './middleware/errorHandler';
 import { connectRedis, cache } from './services/cache';
 import { warmCache } from './services/jolpica';
@@ -31,6 +32,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/races', racesRouter);
 app.use('/api/standings', standingsRouter);
+app.use('/api/admin', adminRouter);
 
 // ── Error Handler (must be last) ─────────────────────────────────────────────
 app.use(errorHandler);
