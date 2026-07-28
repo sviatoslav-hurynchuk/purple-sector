@@ -6,6 +6,7 @@ import racesRouter from './routes/races';
 import standingsRouter from './routes/standings';
 import { errorHandler } from './middleware/errorHandler';
 import { connectRedis, cache } from './services/cache';
+import { warmCache } from './services/jolpica';
 
 dotenv.config();
 
@@ -34,6 +35,9 @@ app.use(errorHandler);
 // ── Start ────────────────────────────────────────────────────────────────────
 async function start(): Promise<void> {
   await connectRedis();
+
+  // Asynchronously warm cache without blocking HTTP server listen
+  warmCache().catch((err) => console.warn('[CacheWarming] Error:', err));
 
   app.listen(PORT, () => {
     console.log(`-> F1 Backend running on http://localhost:${PORT}`);

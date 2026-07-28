@@ -241,3 +241,22 @@ export async function getNextRace(): Promise<Race | null> {
     return data.MRData.RaceTable.Races[0] ?? null;
   });
 }
+
+// ── Cache Warming ─────────────────────────────────────────────────────────────
+
+export async function warmCache(): Promise<void> {
+  console.log('[CacheWarming] Pre-fetching core F1 data...');
+  const start = Date.now();
+
+  try {
+    await Promise.all([
+      getNextRace().catch((err) => console.warn('[CacheWarming] Failed next race:', err instanceof Error ? err.message : err)),
+      getRaceSchedule(CURRENT_SEASON).catch((err) => console.warn('[CacheWarming] Failed schedule:', err instanceof Error ? err.message : err)),
+      getDriverStandings(CURRENT_SEASON).catch((err) => console.warn('[CacheWarming] Failed driver standings:', err instanceof Error ? err.message : err)),
+      getConstructorStandings(CURRENT_SEASON).catch((err) => console.warn('[CacheWarming] Failed constructor standings:', err instanceof Error ? err.message : err)),
+    ]);
+    console.log(`[CacheWarming] Completed in ${Date.now() - start}ms`);
+  } catch (err) {
+    console.warn('[CacheWarming] Unexpected error:', err instanceof Error ? err.message : err);
+  }
+}
