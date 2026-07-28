@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getDriverStandings, getConstructorStandings } from '../services/jolpica';
+import { getDriverStandings, getConstructorStandings, isRaceWeekend } from '../services/jolpica';
 
 const router: Router = Router();
 
@@ -16,6 +16,13 @@ function parseRound(raw: unknown): { isValid: boolean; value?: string } {
   return { isValid: true, value: raw };
 }
 
+function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
+  res.setHeader(
+    'Cache-Control',
+    `public, max-age=${maxAgeSeconds}, s-maxage=${maxAgeSeconds}, stale-while-revalidate=30`
+  );
+}
+
 /**
  * GET /api/standings/drivers?season=2025
  * Returns the drivers championship standings for a given season.
@@ -30,6 +37,7 @@ router.get('/drivers', async (req: Request, res: Response) => {
       return;
     }
     const standings = await getDriverStandings(season, roundResult.value);
+    setCacheHeaders(res, isRaceWeekend() ? 60 : 300);
     res.json({ season, round: roundResult.value, standings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -51,6 +59,7 @@ router.get('/constructors', async (req: Request, res: Response) => {
       return;
     }
     const standings = await getConstructorStandings(season, roundResult.value);
+    setCacheHeaders(res, isRaceWeekend() ? 60 : 300);
     res.json({ season, round: roundResult.value, standings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
