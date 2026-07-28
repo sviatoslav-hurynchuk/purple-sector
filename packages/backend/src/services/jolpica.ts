@@ -110,15 +110,33 @@ async function jolpicaFetch<T>(path: string): Promise<T> {
   return data as T;
 }
 
-// ── Cache-Aside Wrapper ──────────────────────────────────────────────────────
+// ── Cache-Aside Wrapper with Stampede Protection ────────────────────────────
+
+const inFlight = new Map<string, Promise<unknown>>();
 
 async function cachedFetch<T>(key: string, ttlSeconds: number, fetcher: () => Promise<T>): Promise<T> {
   const cached = await cache.get<T>(key);
   if (cached !== null) return cached;
 
-  const fresh = await fetcher();
-  await cache.set(key, fresh, ttlSeconds);
-  return fresh;
+  const existing = inFlight.get(key);
+  if (existing) {
+    console.log(`[Cache] Deduplicating in-flight request for key: ${key}`);
+    return existing as Promise<T>;
+  }
+
+  const promise = fetcher()
+    .then(async (fresh) => {
+      await cache.set(key, fresh, ttlSeconds);
+      inFlight.delete(key);
+      return fresh;
+    })
+    .catch((err: unknown) => {
+      inFlight.delete(key);
+      throw err;
+    });
+
+  inFlight.set(key, promise);
+  return promise;
 }
 
 // ── Race Schedule ────────────────────────────────────────────────────────────
