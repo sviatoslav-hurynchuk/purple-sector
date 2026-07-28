@@ -187,10 +187,14 @@ Cache-aside pattern at the service level (`services/jolpica.ts`). All five Jolpi
 Key features:
 - **Upstash Redis** (serverless, REST-based) as the primary backend.
 - **In-memory `Map` fallback** with TTL expiration when Redis credentials are not configured.
+- **Startup Ping Timeout (3s)**: `RedisCacheService.ping()` is bounded by a 3-second timeout (`Promise.race`), preventing server boot hangs if the Redis endpoint is unresponsive.
+- **Upstream Fetch Timeout (10s)**: `jolpicaFetch()` uses `AbortSignal.timeout(10000)` to ensure hung upstream requests reject and release `inFlight` deduplication locks promptly.
 - **Graceful degradation**: all `cache.get()` and `cache.set()` calls are wrapped in try/catch. If Redis is unreachable, the system falls through to direct Jolpica API calls without interruption.
 - **In-flight request deduplication** (stampede protection): concurrent requests for the same uncached key share a single upstream fetch rather than triggering parallel requests to the external API.
+- **Negative Caching**: non-existent or 404 race lookups are cached for 5 minutes (`NEGATIVE_CACHE`), preventing invalid route params from bypassing the cache.
 - **Cache warming on startup**: the server asynchronously pre-fetches the current season schedule, next race, and current standings immediately after boot, so the first visitor receives cached data.
-- **Dynamic TTLs**: TTL values automatically shorten during race weekends (Friday-Sunday UTC) when data volatility is higher.
+- **Dynamic TTLs & Season Evaluation**: TTL values automatically shorten during race weekends (Friday-Sunday UTC). All current-year comparisons use dynamic evaluation helpers (`getCurrentYear()`, `getCurrentSeason()`) to ensure process stability across year transitions.
+- **Season-Aware Standings**: historical driver and constructor standings (past seasons) utilize a 24-hour TTL (`86400s`) at both Express and Next.js layers, preventing unnecessary minute-by-minute revalidations for static historical data.
 
 ### Layer 2: Next.js Fetch Cache (Frontend)
 

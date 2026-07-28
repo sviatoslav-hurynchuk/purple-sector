@@ -2,7 +2,9 @@ import { Router, Request, Response } from 'express';
 import { getRaceSchedule, getRaceResult, getNextRace, isRaceWeekend } from '../services/jolpica';
 
 const router: Router = Router();
-const CURRENT_SEASON = new Date().getFullYear().toString();
+function getCurrentSeason(): string {
+  return new Date().getFullYear().toString();
+}
 
 function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
   res.setHeader(
@@ -39,7 +41,7 @@ router.get('/:season', async (req: Request, res: Response) => {
   try {
     const { season } = req.params;
     const races = await getRaceSchedule(season);
-    const maxAge = season === CURRENT_SEASON ? 21600 : 86400; // 6h vs 24h
+    const maxAge = season === getCurrentSeason() ? 21600 : 86400; // 6h vs 24h
     setCacheHeaders(res, maxAge);
     res.json({ season, races });
   } catch (err) {

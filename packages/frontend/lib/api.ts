@@ -12,7 +12,10 @@ import type {
 } from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-const CURRENT_YEAR = new Date().getFullYear();
+
+function getCurrentYear(): number {
+  return new Date().getFullYear();
+}
 
 // ── Response wrapper shapes (match Express route response format) ─────────────
 
@@ -65,21 +68,25 @@ async function apiFetchNullable<T>(path: string, revalidate = 60): Promise<T | n
 // ── Standings ────────────────────────────────────────────────────────────────
 
 export async function getDriverStandings(season?: number, round?: number): Promise<DriverStanding[]> {
-  const year = season ?? CURRENT_YEAR;
+  const currentYear = getCurrentYear();
+  const year = season ?? currentYear;
   const roundParam = round ? `&round=${round}` : '';
+  const revalidate = year < currentYear ? 86400 : 60; // 24h for past seasons, 60s for current season
   const data = await apiFetch<StandingsResponse<DriverStanding>>(
     `/api/standings/drivers?season=${year}${roundParam}`,
-    60
+    revalidate
   );
   return data.standings;
 }
 
 export async function getConstructorStandings(season?: number, round?: number): Promise<ConstructorStanding[]> {
-  const year = season ?? CURRENT_YEAR;
+  const currentYear = getCurrentYear();
+  const year = season ?? currentYear;
   const roundParam = round ? `&round=${round}` : '';
+  const revalidate = year < currentYear ? 86400 : 60; // 24h for past seasons, 60s for current season
   const data = await apiFetch<StandingsResponse<ConstructorStanding>>(
     `/api/standings/constructors?season=${year}${roundParam}`,
-    60
+    revalidate
   );
   return data.standings;
 }
@@ -87,8 +94,9 @@ export async function getConstructorStandings(season?: number, round?: number): 
 // ── Races ────────────────────────────────────────────────────────────────────
 
 export async function getRaceSchedule(season?: number): Promise<Race[]> {
-  const year = season ?? CURRENT_YEAR;
-  const revalidate = year === CURRENT_YEAR ? 3600 : 86400; // 1h for current year, 24h for past years
+  const currentYear = getCurrentYear();
+  const year = season ?? currentYear;
+  const revalidate = year === currentYear ? 3600 : 86400; // 1h for current year, 24h for past years
   const data = await apiFetch<RaceScheduleResponse>(`/api/races/${year}`, revalidate);
   return data.races;
 }
@@ -97,8 +105,9 @@ export async function getRaceDetail(
   season: number,
   round: number
 ): Promise<RaceResult | Race | null> {
-  // Past seasons get long revalidate (24h); current season gets 1h
-  const revalidate = season < CURRENT_YEAR ? 86400 : 3600;
+  const currentYear = getCurrentYear();
+  // Current season gets 1h revalidate; all non-current seasons (past & future) get 24h
+  const revalidate = season === currentYear ? 3600 : 86400;
   return apiFetchNullable<RaceResult | Race>(`/api/races/${season}/${round}`, revalidate);
 }
 

@@ -30,7 +30,7 @@ export default function RootLayout({
                 <div className="flex items-center gap-8">
                     <Link href="/" className="font-black tracking-tighter text-xl flex items-center gap-2">
                         <span className="bg-primary text-primary-foreground px-2 py-0.5 rounded italic font-extrabold text-sm">F1</span>
-                        <span className="hover:text-primary transition-colors">DATA HUB</span>
+                        <span className="hover:text-primary transition-colors">PURPLE SECTOR</span>
                     </Link>
                     <nav className="flex gap-6">
                         <Link href="/" className="text-sm font-semibold hover:text-primary transition-colors">

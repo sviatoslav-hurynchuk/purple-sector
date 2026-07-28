@@ -9,7 +9,9 @@ import { cache } from './cache';
 
 const BASE_URL = process.env.JOLPICA_BASE_URL ?? 'https://api.jolpi.ca/ergast/f1';
 
-const CURRENT_SEASON = new Date().getFullYear().toString();
+function getCurrentSeason(): string {
+  return new Date().getFullYear().toString();
+}
 
 // ── Dynamic Race Weekend TTL Helpers ─────────────────────────────────────────
 
@@ -112,10 +114,12 @@ type JolpicaStandingsResponse = JolpicaResponse<'StandingsTable', StandingsTable
 
 // ── HTTP Fetch Helper ────────────────────────────────────────────────────────
 
-async function jolpicaFetch<T>(path: string): Promise<T> {
+async function jolpicaFetch<T>(path: string, timeoutMs = 10000): Promise<T> {
   // According to Jolpica docs: all endpoints must end with .json or /
   const url = `${BASE_URL}${path}.json`;
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(timeoutMs),
+  });
 
   if (!res.ok) {
     throw new Error(`Jolpica API error: ${res.status} — ${url}`);
@@ -170,7 +174,7 @@ async function cachedFetch<T>(
 
 export async function getRaceSchedule(season: string | number): Promise<Race[]> {
   const s = String(season);
-  const ttl = s === CURRENT_SEASON ? TTL.SCHEDULE_CURRENT : TTL.SCHEDULE_PAST;
+  const ttl = s === getCurrentSeason() ? TTL.SCHEDULE_CURRENT : TTL.SCHEDULE_PAST;
 
   return cachedFetch(`f1:schedule:${s}`, ttl, async () => {
     const data = await jolpicaFetch<JolpicaRacesResponse>(`/${s}`);
@@ -277,13 +281,14 @@ export async function getNextRace(): Promise<Race | null> {
 export async function warmCache(): Promise<void> {
   console.log('[CacheWarming] Pre-fetching core F1 data...');
   const start = Date.now();
+  const currentSeason = getCurrentSeason();
 
   try {
     await Promise.all([
       getNextRace().catch((err) => console.warn('[CacheWarming] Failed next race:', err instanceof Error ? err.message : err)),
-      getRaceSchedule(CURRENT_SEASON).catch((err) => console.warn('[CacheWarming] Failed schedule:', err instanceof Error ? err.message : err)),
-      getDriverStandings(CURRENT_SEASON).catch((err) => console.warn('[CacheWarming] Failed driver standings:', err instanceof Error ? err.message : err)),
-      getConstructorStandings(CURRENT_SEASON).catch((err) => console.warn('[CacheWarming] Failed constructor standings:', err instanceof Error ? err.message : err)),
+      getRaceSchedule(currentSeason).catch((err) => console.warn('[CacheWarming] Failed schedule:', err instanceof Error ? err.message : err)),
+      getDriverStandings(currentSeason).catch((err) => console.warn('[CacheWarming] Failed driver standings:', err instanceof Error ? err.message : err)),
+      getConstructorStandings(currentSeason).catch((err) => console.warn('[CacheWarming] Failed constructor standings:', err instanceof Error ? err.message : err)),
     ]);
     console.log(`[CacheWarming] Completed in ${Date.now() - start}ms`);
   } catch (err) {
