@@ -11,15 +11,29 @@ const BASE_URL = process.env.JOLPICA_BASE_URL ?? 'https://api.jolpi.ca/ergast/f1
 
 const CURRENT_SEASON = new Date().getFullYear().toString();
 
-// ── TTL Constants (seconds) ──────────────────────────────────────────────────
+// ── Dynamic Race Weekend TTL Helpers ─────────────────────────────────────────
+
+export function isRaceWeekend(now = new Date()): boolean {
+  const day = now.getUTCDay(); // 0 = Sunday, 5 = Friday, 6 = Saturday
+  return day === 0 || day === 5 || day === 6;
+}
+
+function getNextRaceTTL(): number {
+  return isRaceWeekend() ? 20 : 60; // 20s during race weekend vs 60s mid-week
+}
+
+function getStandingsTTL(): number {
+  return isRaceWeekend() ? 60 : 5 * 60; // 60s during race weekend vs 5min mid-week
+}
+
+function getUpcomingRaceTTL(): number {
+  return isRaceWeekend() ? 60 : 5 * 60; // 60s during race weekend vs 5min mid-week
+}
 
 const TTL = {
-  NEXT_RACE: 60,
   SCHEDULE_CURRENT: 6 * 60 * 60,   // 6 hours
   SCHEDULE_PAST: 24 * 60 * 60,     // 24 hours
   RACE_WITH_RESULTS: 24 * 60 * 60, // 24 hours (immutable data)
-  RACE_UPCOMING: 5 * 60,           // 5 minutes
-  STANDINGS: 5 * 60,               // 5 minutes
 } as const;
 
 export interface RaceResultEntry {
@@ -116,7 +130,12 @@ const inFlight = new Map<string, Promise<unknown>>();
 
 async function cachedFetch<T>(key: string, ttlSeconds: number, fetcher: () => Promise<T>): Promise<T> {
   const cached = await cache.get<T>(key);
-  if (cached !== null) return cached;
+  if (cached !== null) {
+    console.log(`[Cache HIT] ${key}`);
+    return cached;
+  }
+
+  console.log(`[Cache MISS] ${key}`);
 
   const existing = inFlight.get(key);
   if (existing) {
@@ -193,9 +212,9 @@ export async function getRaceResult(
     merged.SprintResults = sprintRace.SprintResults;
   }
 
-  // Immutable results get long TTL; upcoming races get short TTL
+  // Immutable results get long TTL; upcoming races get dynamic short TTL
   const hasResults = merged.Results && merged.Results.length > 0;
-  const ttl = hasResults ? TTL.RACE_WITH_RESULTS : TTL.RACE_UPCOMING;
+  const ttl = hasResults ? TTL.RACE_WITH_RESULTS : getUpcomingRaceTTL();
 
   await cache.set(cacheKey, merged, ttl);
   return merged;
@@ -210,7 +229,7 @@ export async function getDriverStandings(
   const s = String(season);
   const cacheKey = round ? `f1:standings:drivers:${s}:${round}` : `f1:standings:drivers:${s}`;
 
-  return cachedFetch(cacheKey, TTL.STANDINGS, async () => {
+  return cachedFetch(cacheKey, getStandingsTTL(), async () => {
     const path = round ? `/${s}/${round}/driverStandings` : `/${s}/driverStandings`;
     const data = await jolpicaFetch<JolpicaStandingsResponse>(path);
     return data.MRData.StandingsTable.StandingsLists[0]?.DriverStandings ?? [];
@@ -226,7 +245,7 @@ export async function getConstructorStandings(
   const s = String(season);
   const cacheKey = round ? `f1:standings:constructors:${s}:${round}` : `f1:standings:constructors:${s}`;
 
-  return cachedFetch(cacheKey, TTL.STANDINGS, async () => {
+  return cachedFetch(cacheKey, getStandingsTTL(), async () => {
     const path = round ? `/${s}/${round}/constructorStandings` : `/${s}/constructorStandings`;
     const data = await jolpicaFetch<JolpicaStandingsResponse>(path);
     return data.MRData.StandingsTable.StandingsLists[0]?.ConstructorStandings ?? [];
@@ -236,7 +255,7 @@ export async function getConstructorStandings(
 // ── Next Race ────────────────────────────────────────────────────────────────
 
 export async function getNextRace(): Promise<Race | null> {
-  return cachedFetch('f1:next-race', TTL.NEXT_RACE, async () => {
+  return cachedFetch('f1:next-race', getNextRaceTTL(), async () => {
     const data = await jolpicaFetch<JolpicaRacesResponse>('/current/next');
     return data.MRData.RaceTable.Races[0] ?? null;
   });

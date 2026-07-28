@@ -22,7 +22,10 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    cache: cache.isConnected() ? 'redis' : 'memory',
+    cache: {
+      backend: cache.isConnected() ? 'redis' : 'memory',
+      stats: cache.getStats(),
+    },
   });
 });
 
