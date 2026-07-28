@@ -63,7 +63,7 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
     }
 
     const hasResults = 'Results' in race && Array.isArray(race.Results) && race.Results.length > 0;
-    setCacheHeaders(res, hasResults ? 86400 : 60);
+    setCacheHeaders(res, hasResults ? 86400 : (isRaceWeekend() ? 60 : 300));
     res.json(race);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

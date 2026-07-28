@@ -34,6 +34,7 @@ const TTL = {
   SCHEDULE_CURRENT: 6 * 60 * 60,   // 6 hours
   SCHEDULE_PAST: 24 * 60 * 60,     // 24 hours
   RACE_WITH_RESULTS: 24 * 60 * 60, // 24 hours (immutable data)
+  NEGATIVE_CACHE: 5 * 60,          // 5 minutes for non-existent races
 } as const;
 
 export interface RaceResultEntry {
@@ -128,7 +129,13 @@ async function jolpicaFetch<T>(path: string): Promise<T> {
 
 const inFlight = new Map<string, Promise<unknown>>();
 
-async function cachedFetch<T>(key: string, ttlSeconds: number, fetcher: () => Promise<T>): Promise<T> {
+type TTLResolver<T> = number | ((data: T) => number);
+
+async function cachedFetch<T>(
+  key: string,
+  ttl: TTLResolver<T>,
+  fetcher: () => Promise<T>
+): Promise<T> {
   const cached = await cache.get<T>(key);
   if (cached !== null) {
     console.log(`[Cache HIT] ${key}`);
@@ -145,7 +152,8 @@ async function cachedFetch<T>(key: string, ttlSeconds: number, fetcher: () => Pr
 
   const promise = fetcher()
     .then(async (fresh) => {
-      await cache.set(key, fresh, ttlSeconds);
+      const computedTtl = typeof ttl === 'function' ? ttl(fresh) : ttl;
+      await cache.set(key, fresh, computedTtl);
       inFlight.delete(key);
       return fresh;
     })
@@ -173,51 +181,54 @@ export async function getRaceSchedule(season: string | number): Promise<Race[]> 
 // ── Race Result / Detail ─────────────────────────────────────────────────────
 
 export async function getRaceResult(
-    season: string | number,
-    round: string | number
+  season: string | number,
+  round: string | number
 ): Promise<RaceResult | Race | null> {
   const s = String(season);
   const r = String(round);
   const cacheKey = `f1:race:${s}:${r}`;
 
-  const cached = await cache.get<RaceResult | Race | null>(cacheKey);
-  if (cached !== null) return cached;
+  return cachedFetch<RaceResult | Race | null>(
+    cacheKey,
+    (data) => {
+      if (!data) return TTL.NEGATIVE_CACHE;
+      const hasResults = 'Results' in data && Array.isArray(data.Results) && data.Results.length > 0;
+      return hasResults ? TTL.RACE_WITH_RESULTS : getUpcomingRaceTTL();
+    },
+    async () => {
+      // 1. Fetch race schedule details (let upstream errors propagate for outages)
+      const scheduleRes = await jolpicaFetch<JolpicaRacesResponse>(`/${s}/${r}`);
+      const scheduleRace = scheduleRes.MRData.RaceTable.Races[0];
 
-  // Fetch schedule, results, and sprint results in parallel
-  const [scheduleRes, resultsRes, sprintRes] = await Promise.all([
-    jolpicaFetch<JolpicaRacesResponse>(`/${s}/${r}`).catch(() => null),
-    jolpicaFetch<JolpicaRaceResultsResponse>(`/${s}/${r}/results`).catch(() => null),
-    jolpicaFetch<JolpicaResponse<'RaceTable', { season: string; round?: string; Races: RaceResult[] }>>(`/${s}/${r}/sprint`).catch(() => null),
-  ]);
+      if (!scheduleRace) {
+        return null;
+      }
 
-  const scheduleRace = scheduleRes?.MRData.RaceTable.Races[0];
-  const resultsRace = resultsRes?.MRData.RaceTable.Races[0];
-  const sprintRace = sprintRes?.MRData.RaceTable.Races[0];
+      // 2. Fetch results & sprint in parallel (optional sub-requests)
+      const [resultsRes, sprintRes] = await Promise.all([
+        jolpicaFetch<JolpicaRaceResultsResponse>(`/${s}/${r}/results`).catch(() => null),
+        jolpicaFetch<JolpicaResponse<'RaceTable', { season: string; round?: string; Races: RaceResult[] }>>(`/${s}/${r}/sprint`).catch(() => null),
+      ]);
 
-  if (!scheduleRace && !resultsRace && !sprintRace) {
-    return null;
-  }
+      const resultsRace = resultsRes?.MRData.RaceTable.Races[0];
+      const sprintRace = sprintRes?.MRData.RaceTable.Races[0];
 
-  // Merge schedule information with results
-  const merged: RaceResult = {
-    ...(scheduleRace || {}),
-    ...(resultsRace || {}),
-  } as RaceResult;
+      const merged: RaceResult = {
+        ...scheduleRace,
+        ...(resultsRace || {}),
+      } as RaceResult;
 
-  if (resultsRace?.Results && resultsRace.Results.length > 0) {
-    merged.Results = resultsRace.Results;
-  }
+      if (resultsRace?.Results && resultsRace.Results.length > 0) {
+        merged.Results = resultsRace.Results;
+      }
 
-  if (sprintRace?.SprintResults && sprintRace.SprintResults.length > 0) {
-    merged.SprintResults = sprintRace.SprintResults;
-  }
+      if (sprintRace?.SprintResults && sprintRace.SprintResults.length > 0) {
+        merged.SprintResults = sprintRace.SprintResults;
+      }
 
-  // Immutable results get long TTL; upcoming races get dynamic short TTL
-  const hasResults = merged.Results && merged.Results.length > 0;
-  const ttl = hasResults ? TTL.RACE_WITH_RESULTS : getUpcomingRaceTTL();
-
-  await cache.set(cacheKey, merged, ttl);
-  return merged;
+      return merged;
+    }
+  );
 }
 
 // ── Driver Standings ─────────────────────────────────────────────────────────

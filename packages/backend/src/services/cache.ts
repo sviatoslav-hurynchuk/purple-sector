@@ -114,9 +114,13 @@ class RedisCacheService extends BaseCacheService {
     this.client = new Redis({ url, token });
   }
 
-  async ping(): Promise<boolean> {
+  async ping(timeoutMs = 3000): Promise<boolean> {
     try {
-      const result = await this.client.ping();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Redis ping timed out after ${timeoutMs}ms`)), timeoutMs)
+      );
+
+      const result = await Promise.race([this.client.ping(), timeoutPromise]);
       this.connected = result === 'PONG';
       return this.connected;
     } catch (err) {

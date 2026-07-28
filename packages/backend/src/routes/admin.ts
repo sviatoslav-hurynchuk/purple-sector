@@ -4,7 +4,11 @@ import { warmCache } from '../services/jolpica';
 
 const router: Router = Router();
 
-const ADMIN_TOKEN = process.env.ADMIN_CACHE_KEY ?? 'secret-admin-key';
+const ADMIN_TOKEN = process.env.ADMIN_CACHE_KEY;
+
+if (!ADMIN_TOKEN) {
+  throw new Error('ADMIN_CACHE_KEY must be set to enable admin cache endpoints');
+}
 
 function adminAuth(req: Request, res: Response, next: NextFunction): void {
   const token =
