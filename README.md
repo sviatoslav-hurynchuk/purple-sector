@@ -117,7 +117,7 @@ Required variables in `packages/backend/.env`:
 | `PORT` | No | Backend port (default: `3001`) |
 | `UPSTASH_REDIS_REST_URL` | No | Upstash Redis REST endpoint. Falls back to in-memory cache if empty. |
 | `UPSTASH_REDIS_REST_TOKEN` | No | Upstash Redis auth token. Falls back to in-memory cache if empty. |
-| `ADMIN_CACHE_KEY` | No | Token for admin cache management endpoints (default: `secret-admin-key`) |
+| `ADMIN_CACHE_KEY` | **Yes (for admin)** | Secret token for admin cache endpoints (`x-admin-token` or `Authorization: Bearer`). Must be set in `.env`. |
 
 ### Running
 

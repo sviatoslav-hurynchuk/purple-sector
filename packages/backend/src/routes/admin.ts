@@ -5,7 +5,13 @@ import { warmCache } from '../services/jolpica';
 const router: Router = Router();
 
 function adminAuth(req: Request, res: Response, next: NextFunction): void {
-  const adminKey = process.env.ADMIN_CACHE_KEY ?? 'secret-admin-key';
+  const adminKey = process.env.ADMIN_CACHE_KEY;
+
+  if (!adminKey) {
+    res.status(500).json({ error: 'Server misconfiguration: ADMIN_CACHE_KEY is not configured' });
+    return;
+  }
+
   let token: string | undefined;
 
   const xToken = req.headers['x-admin-token'];
