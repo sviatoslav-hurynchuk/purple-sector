@@ -104,6 +104,7 @@ export interface FormattedSessionItem {
   dateParts: { day: string; month: string };
   timeString: string;
   rawDate: Date;
+  durationMinutes: number;
 }
 
 /**
@@ -130,7 +131,7 @@ export function getFormattedSessions(
     { id: 'sprint-qualifying', name: 'SPRINT QUALIFYING', session: race.SprintQualifying || race.SprintShootout, durationMinutes: 45 },
     { id: 'sprint', name: 'SPRINT', session: race.Sprint, durationMinutes: 60 },
     { id: 'qualifying', name: 'QUALIFYING', session: race.Qualifying, durationMinutes: 60 },
-    { id: 'race', name: 'RACE', session: { date: race.date, time: race.time } },
+    { id: 'race', name: 'RACE', session: { date: race.date, time: race.time }, durationMinutes: 120 },
   ];
 
   const results: FormattedSessionItem[] = [];
@@ -154,7 +155,7 @@ export function getFormattedSessions(
     let timeString = '';
     if (item.session.time) {
       const startTime = formatTimeInTimezone(rawDate, timeZone);
-      if (item.durationMinutes) {
+      if (item.durationMinutes && item.id !== 'race') {
         const endDate = new Date(rawDate.getTime() + item.durationMinutes * 60 * 1000);
         const endTime = formatTimeInTimezone(endDate, timeZone);
         timeString = `${startTime} - ${endTime}`;
@@ -171,6 +172,7 @@ export function getFormattedSessions(
       dateParts,
       timeString,
       rawDate,
+      durationMinutes: item.durationMinutes ?? 0,
     });
   }
 
