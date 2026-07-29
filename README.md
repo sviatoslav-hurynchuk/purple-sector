@@ -147,7 +147,7 @@ pnpm dev:frontend   # Next.js app at http://localhost:3000
 
 ### Admin Endpoints (token-protected)
 
-All admin endpoints require the `x-admin-token` header, `Authorization: Bearer <token>`, or `?token=` query parameter matching `ADMIN_CACHE_KEY`.
+All admin endpoints require the `x-admin-token` header or `Authorization: Bearer <token>` matching `ADMIN_CACHE_KEY`. Token query parameters in URLs are not permitted for security reasons.
 
 | Method | Path | Description |
 |---|---|---|
