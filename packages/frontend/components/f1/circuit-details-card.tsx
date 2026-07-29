@@ -29,6 +29,7 @@ export function CircuitDetailsCard({ circuitId, className }: CircuitDetailsCardP
               width={600}
               height={400}
               className="w-full h-auto max-h-[340px] object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.08)]"
+              priority
               unoptimized
             />
           </div>

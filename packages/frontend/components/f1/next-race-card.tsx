@@ -78,6 +78,7 @@ export function NextRaceCard({ race }: NextRaceCardProps) {
                     alt={`${race.Circuit.Location.country} flag`}
                     width={28}
                     height={20}
+                    priority
                     className="w-7 h-5 object-cover rounded-xs border border-zinc-700/60 shadow-sm shrink-0"
                   />
                 )}

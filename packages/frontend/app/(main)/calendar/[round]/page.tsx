@@ -18,12 +18,12 @@ export async function generateMetadata({ params, searchParams }: RaceDetailPageP
 
     if (parsedRound === null) {
         return {
-            title: 'Race Not Found | F1 Data Hub',
+            title: 'Race Not Found',
         };
     }
 
     return {
-        title: `Round ${parsedRound} · ${year} | F1 Data Hub`,
+        title: `Round ${parsedRound} · ${year}`,
     };
 }
 

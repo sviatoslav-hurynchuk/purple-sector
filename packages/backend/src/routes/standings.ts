@@ -1,7 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { getDriverStandings, getConstructorStandings } from '../services/jolpica';
+import { getDriverStandings, getConstructorStandings, isRaceWeekend } from '../services/jolpica';
 
 const router: Router = Router();
+
+function getCurrentSeason(): string {
+  return new Date().getFullYear().toString();
+}
 
 function parseRound(raw: unknown): { isValid: boolean; value?: string } {
   if (raw === undefined) {
@@ -16,6 +20,13 @@ function parseRound(raw: unknown): { isValid: boolean; value?: string } {
   return { isValid: true, value: raw };
 }
 
+function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
+  res.setHeader(
+    'Cache-Control',
+    `public, max-age=${maxAgeSeconds}, s-maxage=${maxAgeSeconds}, stale-while-revalidate=30`
+  );
+}
+
 /**
  * GET /api/standings/drivers?season=2025
  * Returns the drivers championship standings for a given season.
@@ -23,13 +34,16 @@ function parseRound(raw: unknown): { isValid: boolean; value?: string } {
  */
 router.get('/drivers', async (req: Request, res: Response) => {
   try {
-    const season = (req.query['season'] as string) ?? new Date().getFullYear().toString();
+    const currentSeason = getCurrentSeason();
+    const season = (req.query['season'] as string) ?? currentSeason;
     const roundResult = parseRound(req.query['round']);
     if (!roundResult.isValid) {
       res.status(400).json({ error: 'Invalid round parameter. Must be a positive integer.' });
       return;
     }
     const standings = await getDriverStandings(season, roundResult.value);
+    const maxAge = season === currentSeason ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
+    setCacheHeaders(res, maxAge);
     res.json({ season, round: roundResult.value, standings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -44,13 +58,16 @@ router.get('/drivers', async (req: Request, res: Response) => {
  */
 router.get('/constructors', async (req: Request, res: Response) => {
   try {
-    const season = (req.query['season'] as string) ?? new Date().getFullYear().toString();
+    const currentSeason = getCurrentSeason();
+    const season = (req.query['season'] as string) ?? currentSeason;
     const roundResult = parseRound(req.query['round']);
     if (!roundResult.isValid) {
       res.status(400).json({ error: 'Invalid round parameter. Must be a positive integer.' });
       return;
     }
     const standings = await getConstructorStandings(season, roundResult.value);
+    const maxAge = season === currentSeason ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
+    setCacheHeaders(res, maxAge);
     res.json({ season, round: roundResult.value, standings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
