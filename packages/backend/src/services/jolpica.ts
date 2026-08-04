@@ -4,6 +4,7 @@ import type {
   ConstructorStanding,
   Driver,
   Constructor,
+  QualifyingResultEntry,
 } from '../types/f1';
 import { cache } from './cache';
 
@@ -69,6 +70,7 @@ export interface RaceResultEntry {
 export interface RaceResult extends Race {
   Results?: RaceResultEntry[];
   SprintResults?: RaceResultEntry[];
+  QualifyingResults?: QualifyingResultEntry[];
 }
 
 // ── Jolpica API Response Schema Definitions ──────────────────────────────────
@@ -208,14 +210,16 @@ export async function getRaceResult(
         return null;
       }
 
-      // 2. Fetch results & sprint in parallel (optional sub-requests)
-      const [resultsRes, sprintRes] = await Promise.all([
+      // 2. Fetch results, sprint, and qualifying in parallel (optional sub-requests)
+      const [resultsRes, sprintRes, qualyRes] = await Promise.all([
         jolpicaFetch<JolpicaRaceResultsResponse>(`/${s}/${r}/results`).catch(() => null),
         jolpicaFetch<JolpicaResponse<'RaceTable', { season: string; round?: string; Races: RaceResult[] }>>(`/${s}/${r}/sprint`).catch(() => null),
+        jolpicaFetch<JolpicaResponse<'RaceTable', { season: string; round?: string; Races: { QualifyingResults?: QualifyingResultEntry[] }[] }>>(`/${s}/${r}/qualifying`).catch(() => null),
       ]);
 
       const resultsRace = resultsRes?.MRData.RaceTable.Races[0];
       const sprintRace = sprintRes?.MRData.RaceTable.Races[0];
+      const qualyRace = qualyRes?.MRData.RaceTable.Races[0];
 
       const merged: RaceResult = {
         ...scheduleRace,
@@ -228,6 +232,10 @@ export async function getRaceResult(
 
       if (sprintRace?.SprintResults && sprintRace.SprintResults.length > 0) {
         merged.SprintResults = sprintRace.SprintResults;
+      }
+
+      if (qualyRace?.QualifyingResults && qualyRace.QualifyingResults.length > 0) {
+        merged.QualifyingResults = qualyRace.QualifyingResults;
       }
 
       return merged;

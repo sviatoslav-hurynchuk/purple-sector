@@ -2,16 +2,9 @@ import { notFound } from 'next/navigation';
 import { getRaceDetail, getRaceSchedule } from '@/lib/api';
 import { RaceSchedule } from '@/components/f1/race-schedule';
 import { CircuitDetailsCard } from '@/components/f1/circuit-details-card';
-import { RaceResultsTable } from '@/components/f1/race-results-table';
+import { CountryFlag } from '@/components/f1/country-flag';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 import type { Race } from '@/types/f1';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 interface RaceDetailContentProps {
@@ -47,7 +40,10 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
                     <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-1">
                         Round {race.round} · {year}
                     </p>
-                    <h1 className="text-3xl font-black tracking-tight">{race.raceName}</h1>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <h1 className="text-3xl font-black tracking-tight">{race.raceName}</h1>
+                        <CountryFlag countryName={race.Circuit.Location.country} preload />
+                    </div>
                     <p className="text-muted-foreground mt-1">
                         {race.Circuit.circuitName} — {race.Circuit.Location.locality},{' '}
                         {race.Circuit.Location.country}
@@ -61,39 +57,6 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
             <RaceSchedule race={race} />
 
             <CircuitDetailsCard circuitId={race.Circuit.circuitId} />
-
-            {'SprintResults' in race && Array.isArray(race.SprintResults) && race.SprintResults.length > 0 && (
-                <Card className="border-primary/20">
-                    <CardHeader>
-                        <div className="flex items-center gap-2">
-                            <Badge className="bg-primary text-primary-foreground">Sprint</Badge>
-                            <CardTitle>Sprint Results</CardTitle>
-                        </div>
-                        <CardDescription>Saturday sprint race classification and points.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <RaceResultsTable results={race.SprintResults} highlightPoints />
-                    </CardContent>
-                </Card>
-            )}
-
-            {'Results' in race && Array.isArray(race.Results) && race.Results.length > 0 ? (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Race Results</CardTitle>
-                        <CardDescription>Final classified order.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <RaceResultsTable results={race.Results} />
-                    </CardContent>
-                </Card>
-            ) : (
-                <Card>
-                    <CardContent className="py-12 text-center text-muted-foreground">
-                        Results not yet available for this race.
-                    </CardContent>
-                </Card>
-            )}
         </>
     );
 }

@@ -79,3 +79,31 @@ export interface ConstructorStanding {
   wins: string;
   Constructor: Constructor;
 }
+
+export interface QualifyingResultEntry {
+  number: string;
+  position: string;
+  Driver: Driver;
+  Constructor: Constructor;
+  Q1?: string;
+  Q2?: string;
+  Q3?: string;
+}
+
+export interface RaceResultEntry {
+  number: string;
+  position: string;
+  positionText: string;
+  points: string;
+  Driver: Driver;
+  Constructor: Constructor;
+  grid: string;
+  laps: string;
+  status: string;
+}
+
+export interface RaceResult extends Race {
+  Results?: RaceResultEntry[];
+  SprintResults?: RaceResultEntry[];
+  QualifyingResults?: QualifyingResultEntry[];
+}

@@ -109,7 +109,18 @@ export interface RaceResultEntry {
     };
 }
 
+export interface QualifyingResultEntry {
+    number: string;
+    position: string;
+    Driver: Driver;
+    Constructor: Constructor;
+    Q1?: string;
+    Q2?: string;
+    Q3?: string;
+}
+
 export interface RaceResult extends Race {
     Results?: RaceResultEntry[];
     SprintResults?: RaceResultEntry[];
+    QualifyingResults?: QualifyingResultEntry[];
 }
