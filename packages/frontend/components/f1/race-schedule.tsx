@@ -251,126 +251,128 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
       </div>
 
       {/* Sessions List Card */}
-      <Card className="border-zinc-800 overflow-hidden shadow-2xl divide-y divide-zinc-800/80" style={{ background: 'var(--card)' }}>
-        {sessions.length > 0 ? (
-          sessions.map((item) => {
-            const isRace = item.id === 'race';
-            const isSprint = item.id === 'sprint';
-            const isQualy = item.id === 'qualifying';
-            const resultData = getResultsForSession(race, item.id);
-            const hasResults = !!resultData && resultData.data.length > 0;
-            const completed = isSessionCompleted(item, now, hasResults);
-            const isExpandable = hasResults;
+      <Card className="border-zinc-800 overflow-hidden shadow-2xl" style={{ background: 'var(--card)' }}>
+        <div className="divide-y divide-zinc-800/80">
+          {sessions.length > 0 ? (
+            sessions.map((item) => {
+              const isRace = item.id === 'race';
+              const isSprint = item.id === 'sprint';
+              const isQualy = item.id === 'qualifying';
+              const resultData = getResultsForSession(race, item.id);
+              const hasResults = !!resultData && resultData.data.length > 0;
+              const completed = isSessionCompleted(item, now, hasResults);
+              const isExpandable = hasResults;
 
-            // Determine expanded state
-            const isExpanded = isRace
-              ? raceExpanded && hasResults
-              : isSprint
-              ? sprintExpanded && hasResults
-              : isQualy
-              ? qualyExpanded && hasResults
-              : expandedNonRace === item.id;
+              // Determine expanded state
+              const isExpanded = isRace
+                ? raceExpanded && hasResults
+                : isSprint
+                ? sprintExpanded && hasResults
+                : isQualy
+                ? qualyExpanded && hasResults
+                : expandedNonRace === item.id;
 
-            return (
-              <div key={item.id}>
-                {/* Session Row */}
-                <div
-                  className={cn(
-                    'flex items-center justify-between px-4 sm:px-8 py-6 transition-colors',
-                    isRace && 'bg-primary/5 hover:bg-primary/10',
-                    !isRace && 'hover:bg-zinc-900/40',
-                    isExpandable && 'cursor-pointer select-none'
-                  )}
-                  onClick={isExpandable ? () => handleToggleSession(item.id) : undefined}
-                  role={isExpandable ? 'button' : undefined}
-                  tabIndex={isExpandable ? 0 : undefined}
-                  onKeyDown={isExpandable ? (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleToggleSession(item.id);
-                    }
-                  } : undefined}
-                >
-                  {/* Left side: Date + Session Name + (completed: inline time & flag) */}
-                  <div className="flex items-center gap-6 sm:gap-10 min-w-0">
-                    <div className="flex flex-col items-center justify-center w-12 sm:w-14 border-r border-zinc-800 pr-6 shrink-0 text-center">
-                      <span className="text-2xl sm:text-3xl font-black font-mono leading-none tracking-tight">
-                        {item.dateParts.day}
-                      </span>
-                      <span className="text-xs font-black tracking-widest text-primary mt-1 uppercase">
-                        {item.dateParts.month}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className={cn(
-                        'text-base sm:text-xl font-black tracking-wide uppercase',
-                        isRace ? 'text-primary' : 'text-foreground'
-                      )}>
-                        {item.name}
-                      </span>
-
-                      {/* Completed: inline time + Checkered Flag */}
-                      {completed && (
-                        <>
-                          <span className="font-mono font-bold text-xs sm:text-sm tabular-nums text-zinc-500">
-                            {item.timeString}
-                          </span>
-                          <CheckeredFlagIcon />
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right side: time (if NOT completed) or chevron (if expandable) */}
-                  <div className="flex items-center gap-3 shrink-0 ml-4">
-                    {!completed && (
-                      <span className="font-mono font-bold text-sm sm:text-lg tabular-nums text-zinc-300">
-                        {item.timeString}
-                      </span>
-                    )}
-
-                    {isExpandable && (
-                      <div className="size-8 flex items-center justify-center rounded-lg bg-zinc-800/60 hover:bg-zinc-700/60 transition-colors">
-                        <ChevronDown
-                          className={cn(
-                            'size-5 text-zinc-400 transition-transform duration-200',
-                            isExpanded && 'rotate-180'
-                          )}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Collapsible Results Table */}
-                {isExpandable && resultData && (
+              return (
+                <div key={item.id}>
+                  {/* Session Row */}
                   <div
                     className={cn(
-                      'overflow-hidden transition-all duration-300 ease-in-out',
-                      isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                      'flex items-center justify-between px-4 sm:px-8 py-6 transition-colors',
+                      isRace && 'bg-primary/5 hover:bg-primary/10',
+                      !isRace && 'hover:bg-zinc-900/40',
+                      isExpandable && 'cursor-pointer select-none'
                     )}
+                    onClick={isExpandable ? () => handleToggleSession(item.id) : undefined}
+                    role={isExpandable ? 'button' : undefined}
+                    tabIndex={isExpandable ? 0 : undefined}
+                    onKeyDown={isExpandable ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleToggleSession(item.id);
+                      }
+                    } : undefined}
                   >
-                    <div className="border-t border-zinc-800/60 bg-zinc-900/30">
-                      {resultData.type === 'qualifying' ? (
-                        <QualifyingResultsTable results={resultData.data} />
-                      ) : (
-                        <RaceResultsTable
-                          results={resultData.data}
-                          highlightPoints={resultData.type === 'sprint'}
-                        />
+                    {/* Left side: Date + Session Name + (completed: inline time & flag) */}
+                    <div className="flex items-center gap-6 sm:gap-10 min-w-0">
+                      <div className="flex flex-col items-center justify-center w-12 sm:w-14 border-r border-zinc-800 pr-6 shrink-0 text-center">
+                        <span className="text-2xl sm:text-3xl font-black font-mono leading-none tracking-tight">
+                          {item.dateParts.day}
+                        </span>
+                        <span className="text-xs font-black tracking-widest text-primary mt-1 uppercase">
+                          {item.dateParts.month}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className={cn(
+                          'text-base sm:text-xl font-black tracking-wide uppercase',
+                          isRace ? 'text-primary' : 'text-foreground'
+                        )}>
+                          {item.name}
+                        </span>
+
+                        {/* Completed: inline time + Checkered Flag */}
+                        {completed && (
+                          <>
+                            <span className="font-mono font-bold text-xs sm:text-sm tabular-nums text-zinc-500">
+                              {item.timeString}
+                            </span>
+                            <CheckeredFlagIcon />
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right side: time (if NOT completed) or chevron (if expandable) */}
+                    <div className="flex items-center gap-3 shrink-0 ml-4">
+                      {!completed && (
+                        <span className="font-mono font-bold text-sm sm:text-lg tabular-nums text-zinc-300">
+                          {item.timeString}
+                        </span>
+                      )}
+
+                      {isExpandable && (
+                        <div className="size-8 flex items-center justify-center rounded-lg bg-zinc-800/60 hover:bg-zinc-700/60 transition-colors">
+                          <ChevronDown
+                            className={cn(
+                              'size-5 text-zinc-400 transition-transform duration-200',
+                              isExpanded && 'rotate-180'
+                            )}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          })
-        ) : (
-          <div className="py-12 text-center text-muted-foreground">
-            No schedule available for this race weekend yet.
-          </div>
-        )}
+
+                  {/* Collapsible Results Table */}
+                  {isExpandable && resultData && (
+                    <div
+                      className={cn(
+                        'overflow-hidden transition-all duration-300 ease-in-out',
+                        isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                      )}
+                    >
+                      <div className="border-t border-zinc-800/60 bg-zinc-900/30">
+                        {resultData.type === 'qualifying' ? (
+                          <QualifyingResultsTable results={resultData.data} />
+                        ) : (
+                          <RaceResultsTable
+                            results={resultData.data}
+                            highlightPoints={resultData.type === 'sprint'}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-12 text-center text-muted-foreground">
+              No schedule available for this race weekend yet.
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );
