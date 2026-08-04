@@ -51,6 +51,7 @@ export function CheckeredFlagIcon({ className }: { className?: string }) {
 /** Checks whether a session has ended based on rawDate + durationMinutes or if results exist */
 function isSessionCompleted(item: FormattedSessionItem, now: Date, hasResults: boolean): boolean {
   if (hasResults) return true;
+  if (!item.hasKnownTime) return false;
   if (item.durationMinutes <= 0) return false;
   const endTime = item.rawDate.getTime() + item.durationMinutes * 60 * 1000;
   return now.getTime() > endTime;

@@ -42,7 +42,7 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
                     </p>
                     <div className="flex flex-wrap items-center gap-3">
                         <h1 className="text-3xl font-black tracking-tight">{race.raceName}</h1>
-                        <CountryFlag countryName={race.Circuit.Location.country} priority />
+                        <CountryFlag countryName={race.Circuit.Location.country} preload />
                     </div>
                     <p className="text-muted-foreground mt-1">
                         {race.Circuit.circuitName} — {race.Circuit.Location.locality},{' '}

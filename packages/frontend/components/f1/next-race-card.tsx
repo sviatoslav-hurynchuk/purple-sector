@@ -69,7 +69,7 @@ export function NextRaceCard({ race }: NextRaceCardProps) {
             <div className="flex flex-wrap items-center gap-4">
               <CardTitle className="text-2xl sm:text-3xl font-black flex items-center gap-3">
                 <span>{race.raceName}</span>
-                <CountryFlag countryName={race.Circuit.Location.country} priority />
+                <CountryFlag countryName={race.Circuit.Location.country} preload />
               </CardTitle>
               <CountdownWidget race={race} size="sm" showCountry={false} />
             </div>

@@ -8,7 +8,7 @@ interface CountryFlagProps {
   width?: number;
   height?: number;
   className?: string;
-  priority?: boolean;
+  preload?: boolean;
 }
 
 export function CountryFlag({
@@ -16,7 +16,7 @@ export function CountryFlag({
   width = 28,
   height = 20,
   className,
-  priority = false,
+  preload = false,
 }: CountryFlagProps) {
   const flagUrl = getCountryFlagUrl(countryName);
   if (!flagUrl || !countryName) return null;
@@ -27,7 +27,7 @@ export function CountryFlag({
       alt={`${countryName} flag`}
       width={width}
       height={height}
-      priority={priority}
+      preload={preload}
       className={cn('w-7 h-5 object-cover rounded-xs border border-zinc-700/60 shadow-sm shrink-0', className)}
     />
   );

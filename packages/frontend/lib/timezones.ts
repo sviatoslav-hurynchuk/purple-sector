@@ -105,6 +105,7 @@ export interface FormattedSessionItem {
   timeString: string;
   rawDate: Date;
   durationMinutes: number;
+  hasKnownTime: boolean;
 }
 
 /**
@@ -139,6 +140,7 @@ export function getFormattedSessions(
   for (const item of sessions) {
     if (!item.session) continue;
 
+    const hasKnownTime = Boolean(item.session.time);
     let rawDate: Date;
     if (item.session.time) {
       // Clean up time string if it doesn't end with Z or offset
@@ -173,6 +175,7 @@ export function getFormattedSessions(
       timeString,
       rawDate,
       durationMinutes: item.durationMinutes ?? 0,
+      hasKnownTime,
     });
   }
 
