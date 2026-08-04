@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getRaceDetail, getRaceSchedule } from '@/lib/api';
 import { RaceSchedule } from '@/components/f1/race-schedule';
 import { CircuitDetailsCard } from '@/components/f1/circuit-details-card';
+import { CountryFlag } from '@/components/f1/country-flag';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 import type { Race } from '@/types/f1';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +40,10 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
                     <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-1">
                         Round {race.round} · {year}
                     </p>
-                    <h1 className="text-3xl font-black tracking-tight">{race.raceName}</h1>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <h1 className="text-3xl font-black tracking-tight">{race.raceName}</h1>
+                        <CountryFlag countryName={race.Circuit.Location.country} priority />
+                    </div>
                     <p className="text-muted-foreground mt-1">
                         {race.Circuit.circuitName} — {race.Circuit.Location.locality},{' '}
                         {race.Circuit.Location.country}

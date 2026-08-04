@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import type { Race } from '@/types/f1';
 import { useCountdown } from '@/hooks/useCountdown';
 import { getNextSessionForRace, resolveQualifyingSegment } from '@/lib/sessions';
-import { getCountryFlagUrl } from '@/lib/country-flags';
+import { CountryFlag } from '@/components/f1/country-flag';
 import { getCircuitDetails } from '@/lib/circuit-details';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +37,6 @@ export function CountdownWidget({
   if (!race) return null;
 
   const countryName = race.Circuit.Location.country;
-  const flagUrl = getCountryFlagUrl(countryName);
   const season = race.season ?? race.date?.substring(0, 4) ?? new Date().getFullYear();
   const eventUrl = `/calendar/${race.round}?season=${season}`;
 
@@ -157,15 +155,7 @@ export function CountdownWidget({
       >
         {showCountry && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold tracking-wide">
-            {flagUrl && (
-              <Image
-                src={flagUrl}
-                alt={`${countryName} flag`}
-                width={16}
-                height={12}
-                className="w-4 h-3 object-cover rounded-xs border border-zinc-700/50 shrink-0"
-              />
-            )}
+            <CountryFlag countryName={countryName} width={16} height={12} className="w-4 h-3 rounded-xs border border-zinc-700/50" />
             <span>{countryName}</span>
           </div>
         )}
@@ -199,15 +189,7 @@ export function CountdownWidget({
       {showCountry && (
         <div className="flex items-center justify-between gap-1.5 text-xs sm:text-sm font-bold tracking-tight text-zinc-200">
           <div className="flex items-center gap-1.5">
-            {flagUrl && (
-              <Image
-                src={flagUrl}
-                alt={`${countryName} flag`}
-                width={18}
-                height={14}
-                className="w-4 sm:w-4.5 h-3 sm:h-3.5 object-cover rounded-xs border border-zinc-700/60 shadow-xs shrink-0"
-              />
-            )}
+            <CountryFlag countryName={countryName} width={18} height={14} className="w-4 sm:w-4.5 h-3 sm:h-3.5 rounded-xs border border-zinc-700/60 shadow-xs" />
             <span className="group-hover:text-primary transition-colors">{countryName}</span>
           </div>
           <svg

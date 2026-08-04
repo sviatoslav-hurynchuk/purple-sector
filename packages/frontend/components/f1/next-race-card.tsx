@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import type { Race } from '@/types/f1';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatTimeInTimezone } from '@/lib/timezones';
 import { formatDateDDMMYYYY, formatDateInTimezone } from '@/lib/utils';
-import { getCountryFlagUrl } from '@/lib/country-flags';
+import { CountryFlag } from '@/components/f1/country-flag';
 import { CountdownWidget } from '@/components/f1/countdown-widget';
 
 interface NextRaceCardProps {
@@ -54,8 +53,6 @@ export function NextRaceCard({ race }: NextRaceCardProps) {
   const qualyInfo = race.Qualifying ? getSessionInfo(race.Qualifying.date, race.Qualifying.time) : null;
   const sprintInfo = race.Sprint ? getSessionInfo(race.Sprint.date, race.Sprint.time) : null;
 
-  const flagUrl = getCountryFlagUrl(race.Circuit.Location.country);
-
   return (
     <Card className="border-border">
       <CardHeader>
@@ -72,16 +69,7 @@ export function NextRaceCard({ race }: NextRaceCardProps) {
             <div className="flex flex-wrap items-center gap-4">
               <CardTitle className="text-2xl sm:text-3xl font-black flex items-center gap-3">
                 <span>{race.raceName}</span>
-                {flagUrl && (
-                  <Image
-                    src={flagUrl}
-                    alt={`${race.Circuit.Location.country} flag`}
-                    width={28}
-                    height={20}
-                    priority
-                    className="w-7 h-5 object-cover rounded-xs border border-zinc-700/60 shadow-sm shrink-0"
-                  />
-                )}
+                <CountryFlag countryName={race.Circuit.Location.country} priority />
               </CardTitle>
               <CountdownWidget race={race} size="sm" showCountry={false} />
             </div>

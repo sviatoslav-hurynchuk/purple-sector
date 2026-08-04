@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getRaceSchedule } from '@/lib/api';
 import type { Race } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
+import { CountryFlag } from '@/components/f1/country-flag';
 import { formatDateDDMMYYYY, isRacePast, parseYear, getMaxYear } from '@/lib/utils';
 import {
     Card,
@@ -45,7 +46,10 @@ export async function CalendarRaceList({ searchParams, allYears }: CalendarRaceL
                                                 {race.round}
                                             </span>
                                             <div>
-                                                <CardTitle className="text-base">{race.raceName}</CardTitle>
+                                                <CardTitle className="text-base flex items-center gap-2">
+                                                    <span>{race.raceName}</span>
+                                                    <CountryFlag countryName={race.Circuit.Location.country} width={20} height={14} className="w-5 h-3.5" />
+                                                </CardTitle>
                                                 <CardDescription>
                                                     {race.Circuit.circuitName} — {race.Circuit.Location.locality},{' '}
                                                     {race.Circuit.Location.country}
