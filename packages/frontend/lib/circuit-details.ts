@@ -374,10 +374,290 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
     officialMapUrl:
       'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Abu_Dhabi_Circuit.png',
   },
+  ricard: {
+    circuitId: 'ricard',
+    country: 'France',
+    circuitLength: '5.842km',
+    firstGrandPrix: '1971',
+    numberOfLaps: '53',
+    raceDistance: '309.69km',
+    fastestLap: {
+      time: '1:32.740',
+      driver: 'Sebastian Vettel',
+      year: '2019',
+    },
+    officialMapUrl:
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/France_Circuit.png',
+  },
+  hockenheimring: {
+    circuitId: 'hockenheimring',
+    country: 'Germany',
+    circuitLength: '4.574km',
+    firstGrandPrix: '1970',
+    numberOfLaps: '67',
+    raceDistance: '306.458km',
+    fastestLap: {
+      time: '1:13.780',
+      driver: 'Kimi Räikkönen',
+      year: '2004',
+    },
+    officialMapUrl:
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Germany_Circuit.png',
+  },
+  sochi: {
+    circuitId: 'sochi',
+    country: 'Russia',
+    circuitLength: '5.848km',
+    firstGrandPrix: '2014',
+    numberOfLaps: '53',
+    raceDistance: '309.745km',
+    fastestLap: {
+      time: '1:35.761',
+      driver: 'Lewis Hamilton',
+      year: '2019',
+    },
+    officialMapUrl:
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Russia_Circuit.png',
+  },
+  mugello: {
+    circuitId: 'mugello',
+    country: 'Italy',
+    circuitLength: '5.245km',
+    firstGrandPrix: '2020',
+    numberOfLaps: '59',
+    raceDistance: '309.455km',
+    fastestLap: {
+      time: '1:18.833',
+      driver: 'Lewis Hamilton',
+      year: '2020',
+    },
+    officialMapUrl:
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Tuscany_Circuit.png',
+  },
+  nurburgring: {
+    circuitId: 'nurburgring',
+    country: 'Germany',
+    circuitLength: '5.148km',
+    firstGrandPrix: '1951',
+    numberOfLaps: '60',
+    raceDistance: '308.617km',
+    fastestLap: {
+      time: '1:28.139',
+      driver: 'Max Verstappen',
+      year: '2020',
+    },
+    officialMapUrl:
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Eifel_Circuit.png',
+  },
+  portimao: {
+    circuitId: 'portimao',
+    country: 'Portugal',
+    circuitLength: '4.653km',
+    firstGrandPrix: '2020',
+    numberOfLaps: '66',
+    raceDistance: '306.826km',
+    fastestLap: {
+      time: '1:18.750',
+      driver: 'Lewis Hamilton',
+      year: '2020',
+    },
+    officialMapUrl:
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Portugal_Circuit.png',
+  },
+  istanbul: {
+    circuitId: 'istanbul',
+    country: 'Turkey',
+    circuitLength: '5.338km',
+    firstGrandPrix: '2005',
+    numberOfLaps: '58',
+    raceDistance: '309.396km',
+    fastestLap: {
+      time: '1:24.770',
+      driver: 'Juan Pablo Montoya',
+      year: '2005',
+    },
+    officialMapUrl:
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Turkey_Circuit.png',
+  },
+  sepang: {
+    circuitId: 'sepang',
+    country: 'Malaysia',
+    circuitLength: '5.543km',
+    firstGrandPrix: '1999',
+    numberOfLaps: '56',
+    raceDistance: '310.408km',
+    fastestLap: {
+      time: '1:34.080',
+      driver: 'Sebastian Vettel',
+      year: '2017',
+    },
+    officialMapUrl: '',
+  },
+  buddh: {
+    circuitId: 'buddh',
+    country: 'India',
+    circuitLength: '5.125km',
+    firstGrandPrix: '2011',
+    numberOfLaps: '60',
+    raceDistance: '307.249km',
+    fastestLap: {
+      time: '1:27.249',
+      driver: 'Sebastian Vettel',
+      year: '2011',
+    },
+    officialMapUrl: '',
+  },
+  yeongam: {
+    circuitId: 'yeongam',
+    country: 'Korea',
+    circuitLength: '5.615km',
+    firstGrandPrix: '2010',
+    numberOfLaps: '55',
+    raceDistance: '308.63km',
+    fastestLap: {
+      time: '1:39.605',
+      driver: 'Sebastian Vettel',
+      year: '2011',
+    },
+    officialMapUrl: '',
+  },
+  magny_cours: {
+    circuitId: 'magny_cours',
+    country: 'France',
+    circuitLength: '4.411km',
+    firstGrandPrix: '1991',
+    numberOfLaps: '70',
+    raceDistance: '308.586km',
+    fastestLap: {
+      time: '1:15.377',
+      driver: 'Michael Schumacher',
+      year: '2004',
+    },
+    officialMapUrl: '',
+  },
+  valencia: {
+    circuitId: 'valencia',
+    country: 'Spain',
+    circuitLength: '5.419km',
+    firstGrandPrix: '2008',
+    numberOfLaps: '57',
+    raceDistance: '308.883km',
+    fastestLap: {
+      time: '1:38.683',
+      driver: 'Timo Glock',
+      year: '2009',
+    },
+    officialMapUrl: '',
+  },
+  estoril: {
+    circuitId: 'estoril',
+    country: 'Portugal',
+    circuitLength: '4.360km',
+    firstGrandPrix: '1984',
+    numberOfLaps: '71',
+    raceDistance: '309.56km',
+    fastestLap: {
+      time: '1:22.448',
+      driver: 'Damon Hill',
+      year: '1993',
+    },
+    officialMapUrl: '',
+  },
+  jerez: {
+    circuitId: 'jerez',
+    country: 'Spain',
+    circuitLength: '4.428km',
+    firstGrandPrix: '1986',
+    numberOfLaps: '69',
+    raceDistance: '305.532km',
+    fastestLap: {
+      time: '1:23.135',
+      driver: 'Heinz-Harald Frentzen',
+      year: '1997',
+    },
+    officialMapUrl: '',
+  },
+  indianapolis: {
+    circuitId: 'indianapolis',
+    country: 'USA',
+    circuitLength: '4.192km',
+    firstGrandPrix: '1950',
+    numberOfLaps: '73',
+    raceDistance: '306.016km',
+    fastestLap: {
+      time: '1:10.399',
+      driver: 'Rubens Barrichello',
+      year: '2004',
+    },
+    officialMapUrl: '',
+  },
+  fuji: {
+    circuitId: 'fuji',
+    country: 'Japan',
+    circuitLength: '4.563km',
+    firstGrandPrix: '1976',
+    numberOfLaps: '67',
+    raceDistance: '305.721km',
+    fastestLap: {
+      time: '1:18.426',
+      driver: 'Felipe Massa',
+      year: '2008',
+    },
+    officialMapUrl: '',
+  },
+  kyalami: {
+    circuitId: 'kyalami',
+    country: 'South Africa',
+    circuitLength: '4.261km',
+    firstGrandPrix: '1967',
+    numberOfLaps: '72',
+    raceDistance: '306.792km',
+    fastestLap: {
+      time: '1:17.578',
+      driver: 'Nigel Mansell',
+      year: '1992',
+    },
+    officialMapUrl: '',
+  },
+  adelaide: {
+    circuitId: 'adelaide',
+    country: 'Australia',
+    circuitLength: '3.780km',
+    firstGrandPrix: '1985',
+    numberOfLaps: '81',
+    raceDistance: '306.18km',
+    fastestLap: {
+      time: '1:15.381',
+      driver: 'Damon Hill',
+      year: '1993',
+    },
+    officialMapUrl: '',
+  },
+};
+
+/** Alias mapping for variant Ergast circuit IDs */
+const CIRCUIT_ALIASES: Record<string, string> = {
+  paul_ricard: 'ricard',
+  paulricard: 'ricard',
+  hockenheim: 'hockenheimring',
+  sochi_autodrom: 'sochi',
+  algarve: 'portimao',
+  istanbul_park: 'istanbul',
+  sepang_international_circuit: 'sepang',
+  buddh_international_circuit: 'buddh',
+  korean_international_circuit: 'yeongam',
+  magny_cours_circuit: 'magny_cours',
+  valencia_street_circuit: 'valencia',
+  autodromo_do_estoril: 'estoril',
+  circuito_de_jerez: 'jerez',
+  indianapolis_motor_speedway: 'indianapolis',
+  fuji_speedway: 'fuji',
+  adelaide_street_circuit: 'adelaide',
 };
 
 export function getCircuitDetails(circuitId?: string): CircuitDetails | null {
   if (!circuitId) return null;
-  const id = circuitId.toLowerCase().trim();
-  return F1_CIRCUIT_DETAILS[id] ?? null;
+  const normalizedKey = circuitId.toLowerCase().trim().replace(/[-\s]/g, '_');
+  const targetKey = CIRCUIT_ALIASES[normalizedKey] ?? normalizedKey;
+  return F1_CIRCUIT_DETAILS[targetKey] ?? null;
 }
