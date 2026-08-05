@@ -6,14 +6,23 @@ import { getCircuitDetails } from '@/lib/circuit-details';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
+import type { RaceResultEntry } from '@/types/f1';
+
 interface CircuitDetailsCardProps {
   circuitId: string;
+  season?: number | string;
+  raceResults?: RaceResultEntry[];
   className?: string;
 }
 
-export function CircuitDetailsCard({ circuitId, className }: CircuitDetailsCardProps) {
+export function CircuitDetailsCard({
+  circuitId,
+  season,
+  raceResults,
+  className,
+}: CircuitDetailsCardProps) {
   const [imageError, setImageError] = useState(false);
-  const details = getCircuitDetails(circuitId);
+  const details = getCircuitDetails(circuitId, season, raceResults);
 
   if (!details) {
     return null;

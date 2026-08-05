@@ -1,3 +1,16 @@
+export interface CircuitConfiguration {
+  startYear?: number;
+  endYear?: number;
+  circuitLength: string;
+  numberOfLaps: string;
+  raceDistance: string;
+  fastestLap: {
+    time: string;
+    driver: string;
+    year: string;
+  };
+}
+
 export interface CircuitDetails {
   circuitId: string;
   country: string;
@@ -11,6 +24,26 @@ export interface CircuitDetails {
     year: string;
   };
   officialMapUrl: string;
+  configurations?: CircuitConfiguration[];
+}
+
+/** Converts a lap time string ("1:29.708" or "89.708") to milliseconds for comparison */
+export function parseTimeToMillis(timeStr?: string): number | null {
+  if (!timeStr) return null;
+  const cleaned = timeStr.trim();
+  const parts = cleaned.split(':');
+  if (parts.length === 2) {
+    const mins = parseFloat(parts[0]);
+    const secs = parseFloat(parts[1]);
+    if (isNaN(mins) || isNaN(secs)) return null;
+    return Math.round((mins * 60 + secs) * 1000);
+  }
+  if (parts.length === 1) {
+    const secs = parseFloat(parts[0]);
+    if (isNaN(secs)) return null;
+    return Math.round(secs * 1000);
+  }
+  return null;
 }
 
 const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
@@ -655,9 +688,67 @@ const CIRCUIT_ALIASES: Record<string, string> = {
   adelaide_street_circuit: 'adelaide',
 };
 
-export function getCircuitDetails(circuitId?: string): CircuitDetails | null {
+interface RaceResultEntryForRecord {
+  Driver?: { givenName?: string; familyName?: string };
+  FastestLap?: {
+    rank?: string;
+    Time?: { time?: string };
+  };
+}
+
+export function getCircuitDetails(
+  circuitId?: string,
+  seasonYear?: number | string,
+  raceResults?: RaceResultEntryForRecord[]
+): CircuitDetails | null {
   if (!circuitId) return null;
   const normalizedKey = circuitId.toLowerCase().trim().replace(/[-\s]/g, '_');
   const targetKey = CIRCUIT_ALIASES[normalizedKey] ?? normalizedKey;
-  return F1_CIRCUIT_DETAILS[targetKey] ?? null;
+  const baseDetails = F1_CIRCUIT_DETAILS[targetKey];
+  if (!baseDetails) return null;
+
+  // Shallow copy base details
+  const result: CircuitDetails = { ...baseDetails, fastestLap: { ...baseDetails.fastestLap } };
+
+  const yearNum = seasonYear ? Number(seasonYear) : undefined;
+
+  // 1. Apply historical configuration matching if seasonYear is specified
+  if (yearNum && !isNaN(yearNum) && baseDetails.configurations) {
+    const matchedConfig = baseDetails.configurations.find((config) => {
+      const afterStart = !config.startYear || yearNum >= config.startYear;
+      const beforeEnd = !config.endYear || yearNum <= config.endYear;
+      return afterStart && beforeEnd;
+    });
+
+    if (matchedConfig) {
+      result.circuitLength = matchedConfig.circuitLength;
+      result.numberOfLaps = matchedConfig.numberOfLaps;
+      result.raceDistance = matchedConfig.raceDistance;
+      result.fastestLap = { ...matchedConfig.fastestLap };
+    }
+  }
+
+  // 2. Dynamically check race results for potential new fastest lap record
+  if (raceResults && raceResults.length > 0) {
+    const fastestEntry = raceResults.find((r) => r.FastestLap?.rank === '1') ?? raceResults[0];
+    if (fastestEntry?.FastestLap?.Time?.time) {
+      const raceLapTime = fastestEntry.FastestLap.Time.time;
+      const raceLapMillis = parseTimeToMillis(raceLapTime);
+      const currentRecordMillis = parseTimeToMillis(result.fastestLap.time);
+
+      if (raceLapMillis && (!currentRecordMillis || raceLapMillis < currentRecordMillis)) {
+        const driverName = fastestEntry.Driver
+          ? `${fastestEntry.Driver.givenName} ${fastestEntry.Driver.familyName}`.trim()
+          : result.fastestLap.driver;
+
+        result.fastestLap = {
+          time: raceLapTime,
+          driver: driverName,
+          year: yearNum ? String(yearNum) : result.fastestLap.year,
+        };
+      }
+    }
+  }
+
+  return result;
 }

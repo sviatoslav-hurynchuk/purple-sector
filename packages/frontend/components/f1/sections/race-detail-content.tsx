@@ -56,7 +56,11 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
 
             <RaceSchedule race={race} />
 
-            <CircuitDetailsCard circuitId={race.Circuit.circuitId} />
+            <CircuitDetailsCard
+                circuitId={race.Circuit.circuitId}
+                season={year}
+                raceResults={'Results' in race && Array.isArray((race as { Results?: unknown[] }).Results) ? (race as { Results: import('@/types/f1').RaceResultEntry[] }).Results : undefined}
+            />
         </>
     );
 }
