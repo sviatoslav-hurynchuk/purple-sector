@@ -83,7 +83,7 @@ const COUNTRY_CODES: Record<string, string> = {
 export function getCountryCode(countryName?: string): string | null {
   if (!countryName) return null;
   const key = countryName.trim().toLowerCase();
-  return COUNTRY_CODES[key] ?? null;
+  return Object.prototype.hasOwnProperty.call(COUNTRY_CODES, key) ? COUNTRY_CODES[key] : null;
 }
 
 /**

@@ -33,6 +33,15 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
 
     if (!race) notFound();
 
+    const validResults =
+        'Results' in race &&
+        Array.isArray((race as { Results?: unknown[] }).Results) &&
+        (race as { Results: unknown[] }).Results.every(
+            (r) => Boolean(r && typeof r === 'object')
+        )
+            ? (race as { Results: import('@/types/f1').RaceResultEntry[] }).Results
+            : undefined;
+
     return (
         <>
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -59,7 +68,7 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
             <CircuitDetailsCard
                 circuitId={race.Circuit.circuitId}
                 season={year}
-                raceResults={'Results' in race && Array.isArray((race as { Results?: unknown[] }).Results) ? (race as { Results: import('@/types/f1').RaceResultEntry[] }).Results : undefined}
+                raceResults={validResults}
             />
         </>
     );

@@ -24,6 +24,11 @@ export function CircuitDetailsCard({
   const [imageError, setImageError] = useState(false);
   const details = getCircuitDetails(circuitId, season, raceResults);
 
+  const mapUrl = details?.officialMapUrl;
+  React.useEffect(() => {
+    setImageError(false);
+  }, [mapUrl]);
+
   if (!details) {
     return null;
   }

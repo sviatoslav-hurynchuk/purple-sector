@@ -31,6 +31,8 @@ export interface CircuitDetails {
 export function parseTimeToMillis(timeStr?: string): number | null {
   if (!timeStr) return null;
   const cleaned = timeStr.trim();
+  if (!/^(\d+:)?\d+(\.\d+)?$/.test(cleaned)) return null;
+
   const parts = cleaned.split(':');
   if (parts.length === 2) {
     const mins = parseFloat(parts[0]);
@@ -730,7 +732,7 @@ export function getCircuitDetails(
 
   // 2. Dynamically check race results for potential new fastest lap record
   if (raceResults && raceResults.length > 0) {
-    const fastestEntry = raceResults.find((r) => r.FastestLap?.rank === '1') ?? raceResults[0];
+    const fastestEntry = raceResults.find((r) => r?.FastestLap?.rank === '1');
     if (fastestEntry?.FastestLap?.Time?.time) {
       const raceLapTime = fastestEntry.FastestLap.Time.time;
       const raceLapMillis = parseTimeToMillis(raceLapTime);
