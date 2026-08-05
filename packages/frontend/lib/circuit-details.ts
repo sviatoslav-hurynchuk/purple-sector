@@ -267,7 +267,7 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
       year: '2019',
     },
     officialMapUrl:
-      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Azerbaijan_Circuit.png',
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Baku_Circuit.png',
   },
   marina_bay: {
     circuitId: 'marina_bay',
