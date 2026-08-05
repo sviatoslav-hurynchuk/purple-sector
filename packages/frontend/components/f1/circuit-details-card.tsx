@@ -1,40 +1,68 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { getCircuitDetails } from '@/lib/circuit-details';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
+import type { RaceResultEntry } from '@/types/f1';
+
 interface CircuitDetailsCardProps {
   circuitId: string;
+  season?: number | string;
+  raceResults?: RaceResultEntry[];
   className?: string;
 }
 
-export function CircuitDetailsCard({ circuitId, className }: CircuitDetailsCardProps) {
-  const details = getCircuitDetails(circuitId);
+export function CircuitDetailsCard({
+  circuitId,
+  season,
+  raceResults,
+  className,
+}: CircuitDetailsCardProps) {
+  const [imageError, setImageError] = useState(false);
+  const details = getCircuitDetails(circuitId, season, raceResults);
+
+  const mapUrl = details?.officialMapUrl;
+  React.useEffect(() => {
+    setImageError(false);
+  }, [mapUrl]);
 
   if (!details) {
     return null;
   }
 
+  const hasValidMapUrl = Boolean(details.officialMapUrl && details.officialMapUrl.trim() !== '');
+  const showMap = !imageError && hasValidMapUrl;
+
   return (
     <Card className={cn('border-border overflow-hidden', className)}>
       <CardContent className="p-6 sm:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-6 flex items-center justify-center p-2 rounded-xl min-h-[260px] sm:min-h-[320px]">
-            <Image
-              src={details.officialMapUrl}
-              alt={`${details.country} official circuit map`}
-              width={600}
-              height={400}
-              className="w-full h-auto max-h-[340px] object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.08)]"
-              priority
-              unoptimized
-            />
-          </div>
+          {showMap && (
+            <div className="lg:col-span-6 flex items-center justify-center p-2 rounded-xl min-h-[260px] sm:min-h-[320px]">
+              <Image
+                src={details.officialMapUrl}
+                alt={`${details.country} official circuit map`}
+                width={600}
+                height={400}
+                className="w-full h-auto max-h-[340px] object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.08)]"
+                priority
+                unoptimized
+                onError={() => setImageError(true)}
+              />
+            </div>
+          )}
 
-          <div className="lg:col-span-6 lg:border-l border-border lg:pl-8 space-y-6">
+          <div
+            className={cn(
+              'space-y-6',
+              showMap
+                ? 'lg:col-span-6 lg:border-l border-border lg:pl-8'
+                : 'lg:col-span-12'
+            )}
+          >
             <div>
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
                 Circuit Length
