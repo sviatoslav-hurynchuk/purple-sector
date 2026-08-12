@@ -5,6 +5,8 @@ import type {
   Driver,
   Constructor,
   QualifyingResultEntry,
+  DriverProfile,
+  DriverSeasonStanding,
 } from '../types/f1';
 import { cache } from './cache';
 
@@ -94,6 +96,12 @@ interface RaceTable {
   Races: Race[];
 }
 
+interface DriverTable {
+  season?: string;
+  driverId?: string;
+  Drivers: Driver[];
+}
+
 interface RaceResultsTable {
   season: string;
   round?: string;
@@ -102,6 +110,7 @@ interface RaceResultsTable {
 
 interface StandingsTable {
   season: string;
+  driverId?: string;
   StandingsLists: Array<{
     season: string;
     round: string;
@@ -111,8 +120,15 @@ interface StandingsTable {
 }
 
 type JolpicaRacesResponse = JolpicaResponse<'RaceTable', RaceTable>;
+type JolpicaDriversResponse = JolpicaResponse<'DriverTable', DriverTable>;
 type JolpicaRaceResultsResponse = JolpicaResponse<'RaceTable', RaceResultsTable>;
 type JolpicaStandingsResponse = JolpicaResponse<'StandingsTable', StandingsTable>;
+
+interface JolpicaTotalResponse {
+  MRData: {
+    total: string;
+  };
+}
 
 // ── HTTP Fetch Helper ────────────────────────────────────────────────────────
 
@@ -281,6 +297,85 @@ export async function getNextRace(): Promise<Race | null> {
   return cachedFetch('f1:next-race', getNextRaceTTL(), async () => {
     const data = await jolpicaFetch<JolpicaRacesResponse>('/current/next');
     return data.MRData.RaceTable.Races[0] ?? null;
+  });
+}
+
+// ── Drivers ──────────────────────────────────────────────────────────────────
+
+export async function getSeasonDrivers(season?: string | number): Promise<Driver[]> {
+  const s = season ? String(season) : getCurrentSeason();
+  const cacheKey = `f1:drivers:${s}`;
+
+  return cachedFetch(cacheKey, TTL.SCHEDULE_PAST, async () => {
+    const data = await jolpicaFetch<JolpicaDriversResponse>(`/${s}/drivers?limit=100`);
+    return data.MRData.DriverTable.Drivers ?? [];
+  });
+}
+
+export async function getDriverProfile(driverId: string): Promise<DriverProfile | null> {
+  const id = driverId.trim().toLowerCase();
+  const cacheKey = `f1:driver:profile:${id}`;
+
+  return cachedFetch<DriverProfile | null>(cacheKey, TTL.SCHEDULE_PAST, async () => {
+    const [
+      driverRes,
+      standingsRes,
+      winsRes,
+      p2Res,
+      p3Res,
+      polesRes,
+      championshipsRes,
+    ] = await Promise.all([
+      jolpicaFetch<JolpicaDriversResponse>(`/drivers/${id}`).catch(() => null),
+      jolpicaFetch<JolpicaStandingsResponse>(`/drivers/${id}/driverStandings?limit=100`).catch(() => null),
+      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results/1?limit=0`).catch(() => null),
+      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results/2?limit=0`).catch(() => null),
+      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results/3?limit=0`).catch(() => null),
+      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/qualifying/1?limit=0`).catch(() => null),
+      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/driverStandings/1?limit=0`).catch(() => null),
+    ]);
+
+    const driver = driverRes?.MRData.DriverTable.Drivers[0];
+    if (!driver) {
+      return null;
+    }
+
+    const winsCount = parseInt(winsRes?.MRData.total ?? '0', 10);
+    const p2Count = parseInt(p2Res?.MRData.total ?? '0', 10);
+    const p3Count = parseInt(p3Res?.MRData.total ?? '0', 10);
+    const polesCount = parseInt(polesRes?.MRData.total ?? '0', 10);
+    const championshipsCount = parseInt(championshipsRes?.MRData.total ?? '0', 10);
+
+    const standingsLists = standingsRes?.MRData.StandingsTable.StandingsLists ?? [];
+    const seasonHistory: DriverSeasonStanding[] = standingsLists
+      .map((list) => {
+        const entry = list.DriverStandings?.[0];
+        if (!entry) return null;
+        return {
+          season: list.season,
+          round: list.round,
+          position: entry.position,
+          points: entry.points,
+          wins: entry.wins,
+          constructors: (entry.Constructors ?? []).map((c) => ({
+            constructorId: c.constructorId,
+            name: c.name,
+          })),
+        };
+      })
+      .filter((s): s is DriverSeasonStanding => s !== null)
+      .sort((a, b) => Number(b.season) - Number(a.season));
+
+    return {
+      driver,
+      careerStats: {
+        wins: isNaN(winsCount) ? 0 : winsCount,
+        podiums: (isNaN(winsCount) ? 0 : winsCount) + (isNaN(p2Count) ? 0 : p2Count) + (isNaN(p3Count) ? 0 : p3Count),
+        poles: isNaN(polesCount) ? 0 : polesCount,
+        championships: isNaN(championshipsCount) ? 0 : championshipsCount,
+      },
+      seasonHistory,
+    };
   });
 }
 

@@ -124,3 +124,27 @@ export interface RaceResult extends Race {
     SprintResults?: RaceResultEntry[];
     QualifyingResults?: QualifyingResultEntry[];
 }
+
+// ── Driver Profiles ──────────────────────────────────────────────────────────
+
+export interface DriverCareerStats {
+    wins: number;
+    podiums: number;
+    poles: number;
+    championships: number;
+}
+
+export interface DriverSeasonStanding {
+    season: string;
+    round: string;
+    position: string;
+    points: string;
+    wins: string;
+    constructors: Array<{ constructorId: string; name: string }>;
+}
+
+export interface DriverProfile {
+    driver: Driver;
+    careerStats: DriverCareerStats;
+    seasonHistory: DriverSeasonStanding[];
+}
