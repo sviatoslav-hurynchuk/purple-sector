@@ -1,17 +1,30 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { getSeasonDrivers } from '@/lib/api';
+import { getSeasonDrivers, getDriverStandings } from '@/lib/api';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
+import { getTeamTheme } from '@/lib/team-colors';
 import { parseYear, getMaxYear } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import type { Driver } from '@/types/f1';
+import type { Driver, DriverStanding } from '@/types/f1';
 
 interface DriversContentProps {
   searchParams: Promise<{ season?: string }>;
   allYears: number[];
+}
+
+interface DriverWithStanding {
+  driver: Driver;
+  standing: DriverStanding | undefined;
+  constructorId: string;
+  constructorName: string;
+}
+
+interface TeamGroup {
+  constructorId: string;
+  constructorName: string;
+  drivers: DriverWithStanding[];
+  bestPosition: number;
 }
 
 export async function DriversContent({ searchParams, allYears }: DriversContentProps) {
@@ -20,93 +33,217 @@ export async function DriversContent({ searchParams, allYears }: DriversContentP
   const maxYear = getMaxYear();
   const year = parseYear(season, maxYear);
 
-  const drivers: Driver[] = await getSeasonDrivers(year).catch(() => []);
+  const [drivers, standings] = await Promise.all([
+    getSeasonDrivers(year).catch(() => [] as Driver[]),
+    getDriverStandings(year).catch(() => [] as DriverStanding[]),
+  ]);
+
+  // Map standings by driverId for fast lookup
+  const standingsMap = new Map<string, DriverStanding>(
+    standings.map((s) => [s.Driver.driverId, s])
+  );
+
+  // Enrich each driver with team info from standings
+  const enriched: DriverWithStanding[] = drivers.map((driver) => {
+    const standing = standingsMap.get(driver.driverId);
+    return {
+      driver,
+      standing,
+      constructorId: standing?.Constructors[0]?.constructorId ?? 'unknown',
+      constructorName: standing?.Constructors[0]?.name ?? 'Unknown',
+    };
+  });
+
+  // Group into team buckets
+  const teamMap = new Map<string, DriverWithStanding[]>();
+  for (const item of enriched) {
+    const key = item.constructorId;
+    if (!teamMap.has(key)) teamMap.set(key, []);
+    teamMap.get(key)!.push(item);
+  }
+
+  // Build sorted team groups (by best championship position)
+  const teams: TeamGroup[] = Array.from(teamMap.entries())
+    .map(([constructorId, driverList]) => {
+      const sortedDrivers = [...driverList].sort((a, b) => {
+        const posA = parseInt(a.standing?.position ?? '999', 10);
+        const posB = parseInt(b.standing?.position ?? '999', 10);
+        return posA - posB;
+      });
+      const bestPosition = sortedDrivers[0]?.standing
+        ? parseInt(sortedDrivers[0].standing.position, 10)
+        : 999;
+      return {
+        constructorId,
+        constructorName: driverList[0].constructorName,
+        drivers: sortedDrivers,
+        bestPosition,
+      };
+    })
+    .sort((a, b) => a.bestPosition - b.bestPosition);
+
+  const hasTeamData = teams.length > 0 && teams.some((t) => t.constructorId !== 'unknown');
 
   return (
     <div className="space-y-8">
       {/* Header toolbar */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-border pb-6">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">
-            {year} Formula 1 Drivers
-          </h1>
+          <h1 className="text-3xl font-black tracking-tight">{year} Formula 1 Drivers</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Complete driver lineup and athlete profiles for the {year} Championship.
+            Complete driver lineup for the {year} FIA Formula 1 World Championship.
           </p>
         </div>
-
-        <div className="flex items-center gap-4">
-          <SeasonSelector currentSeason={year} allYears={allYears} />
-        </div>
+        <SeasonSelector currentSeason={year} allYears={allYears} />
       </div>
 
-      {/* Driver Cards Grid */}
-      {drivers.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {drivers.map((driver) => {
-            const photoUrl = getDriverPhotoUrl(driver.driverId);
+      {/* Team-grouped grid */}
+      {hasTeamData ? (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          {teams.map((team) => {
+            const theme = getTeamTheme(team.constructorId);
+            const isLight = theme.textColor === 'dark';
 
             return (
-              <Link
-                key={driver.driverId}
-                href={`/drivers/${driver.driverId}`}
-                className="group block transition-transform duration-200 hover:-translate-y-1"
+              <div
+                key={team.constructorId}
+                className="grid grid-cols-2 rounded-2xl overflow-hidden border border-white/5"
               >
-                <Card className="h-full border-border bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 transition-all overflow-hidden relative">
-                  {/* Driver Number Badge in Top Right */}
-                  {driver.permanentNumber && (
-                    <div className="absolute top-3 right-3 z-10 font-mono font-black text-3xl text-zinc-700/80 group-hover:text-primary/90 transition-colors select-none">
-                      {driver.permanentNumber}
-                    </div>
-                  )}
+                {team.drivers.slice(0, 2).map((item, driverIdx) => {
+                  const { driver, standing } = item;
+                  const photoUrl = getDriverPhotoUrl(driver.driverId, driver.givenName, driver.familyName);
+                  const driverNumber =
+                    standing?.Driver?.permanentNumber ?? driver.permanentNumber;
 
-                  <CardContent className="p-5 flex flex-col justify-between h-full">
-                    {/* Top: Flag + Code */}
-                    <div className="flex items-center justify-between gap-2 mb-4">
-                      <CountryFlag countryName={driver.nationality} />
-                      {driver.code && (
-                        <Badge
-                          variant="outline"
-                          className="font-mono text-xs font-bold border-zinc-800 group-hover:border-primary/50 text-muted-foreground group-hover:text-foreground transition-colors"
+                  return (
+                    <Link
+                      key={driver.driverId}
+                      href={`/drivers/${driver.driverId}`}
+                      className={[
+                        'group relative overflow-hidden',
+                        'h-52 sm:h-56 flex flex-col justify-between p-4 sm:p-5',
+                        'transition-all duration-200',
+                        driverIdx === 0 ? 'border-r border-black/20' : '',
+                      ].join(' ')}
+                      style={{ backgroundColor: theme.primary }}
+                    >
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-200" />
+
+                      {/* Content above photo */}
+                      <div className="relative z-10">
+                        {/* Driver name */}
+                        <p
+                          className={[
+                            'text-xs font-semibold leading-tight opacity-90',
+                            isLight ? 'text-black/80' : 'text-white/80',
+                          ].join(' ')}
                         >
-                          {driver.code}
-                        </Badge>
-                      )}
-                    </div>
+                          {driver.givenName}
+                        </p>
+                        <h2
+                          className={[
+                            'text-lg sm:text-xl font-black leading-tight tracking-tight',
+                            isLight ? 'text-black' : 'text-white',
+                          ].join(' ')}
+                        >
+                          {driver.familyName}
+                        </h2>
+                        {/* Team name */}
+                        <p
+                          className={[
+                            'text-xs mt-0.5 leading-none',
+                            isLight ? 'text-black/60' : 'text-white/60',
+                          ].join(' ')}
+                        >
+                          {team.constructorName}
+                        </p>
 
-                    {/* Photo Container */}
-                    <div className="relative w-full h-48 my-2 flex items-center justify-center overflow-hidden rounded-lg bg-gradient-to-b from-zinc-900/20 to-zinc-950/60">
-                      <Image
-                        src={photoUrl}
-                        alt={`${driver.givenName} ${driver.familyName}`}
-                        fill
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                        className="object-contain object-bottom transition-transform duration-300 group-hover:scale-105"
-                        unoptimized
-                      />
-                    </div>
+                        {/* Driver number — large italic */}
+                        {driverNumber && (
+                          <p
+                            className={[
+                              'text-3xl sm:text-4xl font-black italic mt-1 leading-none',
+                              isLight ? 'text-black/90' : 'text-white/90',
+                            ].join(' ')}
+                          >
+                            {driverNumber}
+                          </p>
+                        )}
+                      </div>
 
-                    {/* Bottom: Driver Name & Nationality */}
-                    <div className="mt-3 border-t border-zinc-800/60 pt-3">
-                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                        {driver.givenName}
-                      </p>
-                      <h2 className="text-xl font-black uppercase tracking-tight text-foreground group-hover:text-primary transition-colors truncate">
-                        {driver.familyName}
-                      </h2>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {driver.nationality}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                      {/* Flag at bottom left */}
+                      <div className="relative z-10">
+                        <CountryFlag countryName={driver.nationality} />
+                      </div>
+
+                      {/* Driver photo — bottom-right, transparent cut-out */}
+                      <div className="absolute bottom-0 right-0 h-[130%] w-[60%] pointer-events-none select-none">
+                        <Image
+                          src={photoUrl}
+                          alt={`${driver.givenName} ${driver.familyName}`}
+                          fill
+                          sizes="200px"
+                          className="object-contain object-bottom transition-transform duration-300 group-hover:scale-[1.04]"
+                          unoptimized
+                        />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </div>
       ) : (
+        /* Fallback: simple grid when no standings (pre-season / historical) */
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {drivers.map((driver) => {
+            const photoUrl = getDriverPhotoUrl(driver.driverId, driver.givenName, driver.familyName);
+            return (
+              <Link
+                key={driver.driverId}
+                href={`/drivers/${driver.driverId}`}
+                className="group relative overflow-hidden rounded-xl border border-border bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 h-56 flex flex-col justify-between p-4 transition-all"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <CountryFlag countryName={driver.nationality} />
+                    {driver.code && (
+                      <span className="font-mono text-xs font-bold text-muted-foreground">
+                        {driver.code}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{driver.givenName}</p>
+                  <h2 className="text-xl font-black tracking-tight group-hover:text-primary transition-colors">
+                    {driver.familyName}
+                  </h2>
+                  {driver.permanentNumber && (
+                    <p className="text-4xl font-black italic text-muted-foreground/30 mt-1">
+                      {driver.permanentNumber}
+                    </p>
+                  )}
+                </div>
+                <div className="absolute bottom-0 right-0 h-[80%] w-[55%] pointer-events-none">
+                  <Image
+                    src={photoUrl}
+                    alt={`${driver.givenName} ${driver.familyName}`}
+                    fill
+                    sizes="160px"
+                    className="object-contain object-bottom"
+                    unoptimized
+                  />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {drivers.length === 0 && (
         <div className="py-16 text-center text-muted-foreground">
-          No driver data available for season {year}.
+          No driver data available for {year}. Try a different season.
         </div>
       )}
     </div>

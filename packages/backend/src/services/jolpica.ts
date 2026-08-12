@@ -325,6 +325,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       p3Res,
       polesRes,
       championshipsRes,
+      totalRacesRes,
     ] = await Promise.all([
       jolpicaFetch<JolpicaDriversResponse>(`/drivers/${id}`).catch(() => null),
       jolpicaFetch<JolpicaStandingsResponse>(`/drivers/${id}/driverStandings?limit=100`).catch(() => null),
@@ -333,6 +334,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results/3?limit=0`).catch(() => null),
       jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/qualifying/1?limit=0`).catch(() => null),
       jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/driverStandings/1?limit=0`).catch(() => null),
+      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results?limit=0`).catch(() => null),
     ]);
 
     const driver = driverRes?.MRData.DriverTable.Drivers[0];
@@ -345,6 +347,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
     const p3Count = parseInt(p3Res?.MRData.total ?? '0', 10);
     const polesCount = parseInt(polesRes?.MRData.total ?? '0', 10);
     const championshipsCount = parseInt(championshipsRes?.MRData.total ?? '0', 10);
+    const totalRacesCount = parseInt(totalRacesRes?.MRData.total ?? '0', 10);
 
     const standingsLists = standingsRes?.MRData.StandingsTable.StandingsLists ?? [];
     const seasonHistory: DriverSeasonStanding[] = standingsLists
@@ -373,6 +376,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
         podiums: (isNaN(winsCount) ? 0 : winsCount) + (isNaN(p2Count) ? 0 : p2Count) + (isNaN(p3Count) ? 0 : p3Count),
         poles: isNaN(polesCount) ? 0 : polesCount,
         championships: isNaN(championshipsCount) ? 0 : championshipsCount,
+        totalRaces: isNaN(totalRacesCount) ? 0 : totalRacesCount,
       },
       seasonHistory,
     };

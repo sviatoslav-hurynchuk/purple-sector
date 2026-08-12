@@ -115,6 +115,7 @@ export interface DriverCareerStats {
   podiums: number;
   poles: number;
   championships: number;
+  totalRaces: number;
 }
 
 export interface DriverSeasonStanding {
