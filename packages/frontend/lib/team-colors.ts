@@ -1,6 +1,6 @@
 /**
  * Team color themes for F1 constructors.
- * Includes all 2025 season teams and common historical teams.
+ * Includes 2025/2026 F1 season teams and historical constructors.
  */
 export interface TeamTheme {
   /** Main team color (hex) */
@@ -10,7 +10,7 @@ export interface TeamTheme {
 }
 
 const TEAM_THEMES: Record<string, TeamTheme> = {
-  // 2025 F1 Season
+  // 2025/2026 F1 Season Teams
   mercedes: { primary: '#00D2BE', textColor: 'dark' },
   ferrari: { primary: '#E8002D', textColor: 'light' },
   red_bull: { primary: '#3671C6', textColor: 'light' },
@@ -22,7 +22,10 @@ const TEAM_THEMES: Record<string, TeamTheme> = {
   racing_bulls: { primary: '#6692FF', textColor: 'light' },
   kick_sauber: { primary: '#52E252', textColor: 'dark' },
   sauber: { primary: '#52E252', textColor: 'dark' },
-  haas: { primary: '#FFFFFF', textColor: 'dark' },
+  audi: { primary: '#7800FF', textColor: 'light' },
+  haas: { primary: '#E6002B', textColor: 'light' }, // Haas Red theme
+  cadillac: { primary: '#7822FF', textColor: 'light' },
+
   // Historical teams
   renault: { primary: '#FFF500', textColor: 'dark' },
   force_india: { primary: '#FF80C7', textColor: 'dark' },
@@ -30,10 +33,10 @@ const TEAM_THEMES: Record<string, TeamTheme> = {
   toro_rosso: { primary: '#469BFF', textColor: 'light' },
   lotus_f1: { primary: '#FFB800', textColor: 'dark' },
   lotus: { primary: '#FFB800', textColor: 'dark' },
-  brawn: { primary: '#FFFFFF', textColor: 'dark' },
+  brawn: { primary: '#00E5A3', textColor: 'dark' },
   toyota: { primary: '#CC0000', textColor: 'light' },
   bmw_sauber: { primary: '#6CC0E5', textColor: 'dark' },
-  honda: { primary: '#FFFFFF', textColor: 'dark' },
+  honda: { primary: '#C8102E', textColor: 'light' },
 };
 
 const DEFAULT_THEME: TeamTheme = { primary: '#7C3AED', textColor: 'light' };

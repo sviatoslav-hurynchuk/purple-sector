@@ -161,15 +161,14 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
             </div>
           </div>
 
-          {/* Right: driver photo */}
-          <div className="lg:col-span-5 relative h-64 sm:h-80 lg:h-auto min-h-[260px] flex items-end justify-center lg:justify-end overflow-hidden">
-            <div className="relative w-full h-full max-h-[420px] lg:max-h-none">
+          <div className="lg:col-span-5 relative h-80 sm:h-96 lg:h-full min-h-[360px] flex items-start justify-center lg:justify-end overflow-hidden">
+            <div className="relative w-full h-[250%] top-2 sm:top-4 flex items-start">
               <Image
                 src={photoUrl}
                 alt={`${driver.givenName} ${driver.familyName}`}
                 fill
                 sizes="(max-width: 1024px) 100vw, 42vw"
-                className="object-contain object-bottom drop-shadow-2xl"
+                className="object-contain object-top drop-shadow-2xl"
                 priority
                 unoptimized
               />
@@ -200,7 +199,11 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                   <div>
                     <StatRow
                       label="Championship Position"
-                      value={ordinal(parseInt(currentSeason.position, 10))}
+                      value={
+                        isNaN(parseInt(currentSeason.position, 10))
+                          ? currentSeason.position
+                          : ordinal(parseInt(currentSeason.position, 10))
+                      }
                     />
                     <StatRow label="Season Points" value={currentSeason.points} />
                     <StatRow label="Race Wins" value={currentSeason.wins} />
@@ -215,7 +218,26 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                 </div>
               </>
             ) : (
-              <div className="py-8 text-muted-foreground">No season data available.</div>
+              <>
+                <h3 className="text-xl font-black uppercase tracking-widest text-foreground mb-4 flex items-center gap-2">
+                  <span>2026 Season</span>
+                  <Badge variant="outline" className="border-primary text-primary font-mono text-xs">
+                    Rookie / Debut Season
+                  </Badge>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+                  <div>
+                    <StatRow label="Status" value="2026 Active Driver" />
+                    <StatRow label="Team" value={currentTeamName} />
+                    <StatRow label="Seasons in F1" value="1 (Debut)" />
+                  </div>
+                  <div>
+                    <StatRow label="Career Points" value={careerPoints} />
+                    <StatRow label="Career Wins" value={careerStats.wins} />
+                    <StatRow label="Career Podiums" value={careerStats.podiums} />
+                  </div>
+                </div>
+              </>
             )}
           </div>
 

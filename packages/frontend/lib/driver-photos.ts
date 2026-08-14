@@ -1,94 +1,75 @@
 /**
- * Driver photo URL utilities for F1 CDN.
+ * Driver photo URL utilities powered by official 2026 F1 Website Cloudinary Media Pipeline.
  *
- * The F1 media CDN uses a Cloudinary pipeline:
- * https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/
- *   {INITIAL}/{GIVENCODE}{FAMILYCODE}01_{GivenName}_{FamilyName}/{code_lowercase}.png
- *
- * The `d_driver_fallback_image.png` Cloudinary directive serves a silhouette fallback
- * if the target path doesn't exist, so incorrect URLs degrade gracefully.
+ * Pattern:
+ * https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/d_common:f1:2026:fallback:driver:2026fallbackdriverright.webp/v1740000001/common/f1/2026/{team}/{code}/2026{team}{code}right.webp
  */
 
-const F1_CDN_BASE =
-  'https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers';
+interface DriverF1Meta {
+  team: string;
+  code: string;
+}
 
-/**
- * Manual overrides for drivers whose CDN code doesn't match the simple name formula.
- * Key: driverId (Jolpica), Value: full CDN path (after the /drivers/ segment).
- */
-const DRIVER_PATH_OVERRIDES: Record<string, string> = {
-  // 2025 grid
-  max_verstappen: 'M/MAXVER01_Max_Verstappen/maxver01.png',
-  hamilton: 'L/LEWHAM01_Lewis_Hamilton/lewham01.png',
-  russell: 'G/GEORUS01_George_Russell/georus01.png',
-  leclerc: 'C/CHALEC01_Charles_Leclerc/chalec01.png',
-  sainz: 'C/CARSAI01_Carlos_Sainz/carsai01.png',
-  norris: 'L/LANNOR01_Lando_Norris/lannor01.png',
-  piastri: 'O/OSCPIA01_Oscar_Piastri/oscpia01.png',
-  alonso: 'F/FERALO01_Fernando_Alonso/feralo01.png',
-  stroll: 'L/LANSTR01_Lance_Stroll/lanstr01.png',
-  gasly: 'P/PIEGAS01_Pierre_Gasly/piegas01.png',
-  ocon: 'E/ESTOCO01_Esteban_Ocon/estoco01.png',
-  albon: 'A/ALEALB01_Alexander_Albon/alealb01.png',
-  tsunoda: 'Y/YUKTSU01_Yuki_Tsunoda/yuktsu01.png',
-  ricciardo: 'D/DANRIC01_Daniel_Ricciardo/danric01.png',
-  bottas: 'V/VALBOT01_Valtteri_Bottas/valbot01.png',
-  zhou: 'G/ZHOGUA01_Zhou_Guanyu/zhogua01.png',
-  hulkenberg: 'N/NICHUL01_Nico_Hulkenberg/nichul01.png',
-  magnussen: 'K/KEVMAG01_Kevin_Magnussen/kevmag01.png',
-  perez: 'S/SERPER01_Sergio_Perez/serper01.png',
-  // 2025 newcomers / updated names
-  antonelli: 'K/KIMANT01_Kimi_Antonelli/kimant01.png',
-  bearman: 'O/OLIBEA01_Oliver_Bearman/olibea01.png',
-  colapinto: 'F/FRACOL01_Franco_Colapinto/fracol01.png',
-  lawson: 'L/LIALAW01_Liam_Lawson/lialaw01.png',
-  doohan: 'J/JACDOO01_Jack_Doohan/jacdoo01.png',
-  bortoleto: 'G/GABBOR01_Gabriel_Bortoleto/gabbor01.png',
-  hadjar: 'I/ISAHAD01_Isack_Hadjar/isahad01.png',
-  // Potential 2026 drivers
-  lindblad: 'A/ARVLIN01_Arvid_Lindblad/arvlin01.png',
+const DRIVER_2026_META: Record<string, DriverF1Meta> = {
+  antonelli: { team: 'mercedes', code: 'andant01' },
+  russell: { team: 'mercedes', code: 'georus01' },
+  leclerc: { team: 'ferrari', code: 'chalec01' },
+  hamilton: { team: 'ferrari', code: 'lewham01' },
+  norris: { team: 'mclaren', code: 'lannor01' },
+  piastri: { team: 'mclaren', code: 'oscpia01' },
+  max_verstappen: { team: 'redbullracing', code: 'maxver01' },
+  hadjar: { team: 'redbullracing', code: 'isahad01' },
+  lawson: { team: 'racingbulls', code: 'lialaw01' },
+  arvid_lindblad: { team: 'racingbulls', code: 'arvlin01' },
+  lindblad: { team: 'racingbulls', code: 'arvlin01' },
+  gasly: { team: 'alpine', code: 'piegas01' },
+  colapinto: { team: 'alpine', code: 'fracol01' },
+  bearman: { team: 'haas', code: 'olibea01' },
+  ocon: { team: 'haas', code: 'estoco01' },
+  bortoleto: { team: 'audi', code: 'gabbor01' },
+  hulkenberg: { team: 'audi', code: 'nichul01' },
+  sainz: { team: 'williams', code: 'carsai01' },
+  albon: { team: 'williams', code: 'alealb01' },
+  alonso: { team: 'astonmartin', code: 'feralo01' },
+  stroll: { team: 'astonmartin', code: 'lanstr01' },
+  bottas: { team: 'cadillac', code: 'valbot01' },
+  perez: { team: 'cadillac', code: 'serper01' },
 };
 
 /**
- * Generates a best-guess F1 CDN photo URL from a driver's given and family name.
- * Uses the formula: {3 letters given}{3 letters family}01
+ * Builds the official F1 website Cloudinary URL for a given driver and season.
  */
-function generateDynamicUrl(givenName: string, familyName: string): string {
-  const givenCode = givenName
-    .replace(/[^a-zA-Z]/g, '')
-    .substring(0, 3)
-    .toUpperCase();
-  const familyCode = familyName
-    .replace(/[^a-zA-Z]/g, '')
-    .substring(0, 3)
-    .toUpperCase();
-  const code = `${givenCode}${familyCode}01`;
-  const initial = givenCode[0] ?? 'X';
-  const namePart = `${givenName.replace(/\s+/g, '_')}_${familyName.replace(/\s+/g, '_')}`;
-  return `${F1_CDN_BASE}/${initial}/${code}_${namePart}/${code.toLowerCase()}.png`;
+export function buildF1WebpUrl(team: string, code: string, season: string = '2026'): string {
+  const cleanTeam = team.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanCode = code.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/d_common:f1:${season}:fallback:driver:${season}fallbackdriverright.webp/v1740000001/common/f1/${season}/${cleanTeam}/${cleanCode}/${season}${cleanTeam}${cleanCode}right.webp`;
 }
 
 /**
- * Returns the official F1 CDN driver portrait URL.
- * Prefers the manual override map, then falls back to dynamic URL generation.
- * Thanks to Cloudinary's fallback directive, unknown paths serve a silhouette.
+ * Returns official F1 CDN driver portrait photo URL.
  */
 export function getDriverPhotoUrl(
   driverId: string,
   givenName?: string,
-  familyName?: string
+  familyName?: string,
+  season: string = '2026'
 ): string {
   const key = driverId.trim().toLowerCase();
 
-  if (Object.prototype.hasOwnProperty.call(DRIVER_PATH_OVERRIDES, key)) {
-    return `${F1_CDN_BASE}/${DRIVER_PATH_OVERRIDES[key]}`;
+  // 1. Direct 2026 official driver metadata match
+  if (Object.prototype.hasOwnProperty.call(DRIVER_2026_META, key)) {
+    const { team, code } = DRIVER_2026_META[key];
+    return buildF1WebpUrl(team, code, season);
   }
 
-  // Generate dynamically if name parts are available
+  // 2. Dynamic generation for non-mapped drivers
   if (givenName && familyName) {
-    return generateDynamicUrl(givenName, familyName);
+    const givenCode = givenName.replace(/[^a-zA-Z]/g, '').substring(0, 3).toLowerCase();
+    const familyCode = familyName.replace(/[^a-zA-Z]/g, '').substring(0, 3).toLowerCase();
+    const dynamicCode = `${givenCode}${familyCode}01`;
+    return buildF1WebpUrl('generic', dynamicCode, season);
   }
 
-  // Ultimate fallback
-  return `${F1_CDN_BASE}/driver_fallback.png`;
+  // 3. Official F1 Cloudinary fallback
+  return `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/${season}/fallback/driver/${season}fallbackdriverright.webp`;
 }

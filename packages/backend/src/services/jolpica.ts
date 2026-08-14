@@ -313,7 +313,14 @@ export async function getSeasonDrivers(season?: string | number): Promise<Driver
 }
 
 export async function getDriverProfile(driverId: string): Promise<DriverProfile | null> {
-  const id = driverId.trim().toLowerCase();
+  const rawId = driverId.trim().toLowerCase();
+  // Map aliases like 'lindblad' to official Jolpica driverId 'arvid_lindblad'
+  const idMap: Record<string, string> = {
+    lindblad: 'arvid_lindblad',
+    aron: 'paul_aron',
+    beganovic: 'dino_beganovic',
+  };
+  const id = idMap[rawId] ?? rawId;
   const cacheKey = `f1:driver:profile:${id}`;
 
   return cachedFetch<DriverProfile | null>(cacheKey, TTL.SCHEDULE_PAST, async () => {
@@ -350,7 +357,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
     const totalRacesCount = parseInt(totalRacesRes?.MRData.total ?? '0', 10);
 
     const standingsLists = standingsRes?.MRData.StandingsTable.StandingsLists ?? [];
-    const seasonHistory: DriverSeasonStanding[] = standingsLists
+    let seasonHistory: DriverSeasonStanding[] = standingsLists
       .map((list) => {
         const entry = list.DriverStandings?.[0];
         if (!entry) return null;
@@ -368,6 +375,33 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       })
       .filter((s): s is DriverSeasonStanding => s !== null)
       .sort((a, b) => Number(b.season) - Number(a.season));
+
+    // Fallback for rookie drivers without past season standings history
+    if (seasonHistory.length === 0) {
+      try {
+        const currentStandings = await getDriverStandings(2025);
+        const match = currentStandings.find(
+          (s) => s.Driver.driverId === id || s.Driver.driverId === rawId
+        );
+        if (match) {
+          seasonHistory = [
+            {
+              season: '2025',
+              round: '24',
+              position: match.position,
+              points: match.points,
+              wins: match.wins,
+              constructors: match.Constructors.map((c) => ({
+                constructorId: c.constructorId,
+                name: c.name,
+              })),
+            },
+          ];
+        }
+      } catch {
+        // Ignore fallback fetch error
+      }
+    }
 
     return {
       driver,

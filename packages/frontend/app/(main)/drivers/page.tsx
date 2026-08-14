@@ -4,7 +4,7 @@ import { DriversContent } from '@/components/f1/sections/drivers-content';
 import { getMaxYear } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'F1 Drivers Catalog | Purple Sector',
+  title: 'Drivers',
   description: 'Explore the full driver lineup for the Formula 1 Championship.',
 };
 
