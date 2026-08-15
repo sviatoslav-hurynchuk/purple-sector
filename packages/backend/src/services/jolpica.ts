@@ -7,8 +7,10 @@ import type {
   QualifyingResultEntry,
   DriverProfile,
   DriverSeasonStanding,
+  DriverCareerStats,
 } from '../types/f1';
 import { cache } from './cache';
+import { getOfficialF1DriverStats, warmOfficialDriverStats } from './f1-official';
 
 const BASE_URL = process.env.JOLPICA_BASE_URL ?? 'https://api.jolpi.ca/ergast/f1';
 
@@ -333,6 +335,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       polesRes,
       championshipsRes,
       totalRacesRes,
+      officialStats,
     ] = await Promise.all([
       jolpicaFetch<JolpicaDriversResponse>(`/drivers/${id}`).catch(() => null),
       jolpicaFetch<JolpicaStandingsResponse>(`/drivers/${id}/driverStandings?limit=100`).catch(() => null),
@@ -342,6 +345,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/qualifying/1?limit=0`).catch(() => null),
       jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/driverStandings/1?limit=0`).catch(() => null),
       jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results?limit=0`).catch(() => null),
+      getOfficialF1DriverStats(id).catch(() => null),
     ]);
 
     const driver = driverRes?.MRData.DriverTable.Drivers[0];
@@ -379,15 +383,16 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
     // Fallback for rookie drivers without past season standings history
     if (seasonHistory.length === 0) {
       try {
-        const currentStandings = await getDriverStandings(2025);
+        const curSeason = getCurrentSeason();
+        const currentStandings = await getDriverStandings(curSeason);
         const match = currentStandings.find(
           (s) => s.Driver.driverId === id || s.Driver.driverId === rawId
         );
         if (match) {
           seasonHistory = [
             {
-              season: '2025',
-              round: '24',
+              season: curSeason,
+              round: '1',
               position: match.position,
               points: match.points,
               wins: match.wins,
@@ -403,16 +408,28 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       }
     }
 
+    const calcWins = () => {
+      if (officialStats?.career) {
+        const m = officialStats.career.highestRaceFinish.match(/1\s*\(x(\d+)\)/);
+        if (m) return parseInt(m[1], 10);
+        if (officialStats.career.highestRaceFinish === '1') return 1;
+      }
+      return isNaN(winsCount) ? 0 : winsCount;
+    };
+
+    const careerStats: DriverCareerStats = {
+      wins: calcWins(),
+      podiums: officialStats?.career?.podiums ?? ((isNaN(winsCount) ? 0 : winsCount) + (isNaN(p2Count) ? 0 : p2Count) + (isNaN(p3Count) ? 0 : p3Count)),
+      poles: officialStats?.career?.polePositions ?? (isNaN(polesCount) ? 0 : polesCount),
+      championships: officialStats?.career?.worldChampionships ?? (isNaN(championshipsCount) ? 0 : championshipsCount),
+      totalRaces: officialStats?.career?.grandsPrixEntered ?? (isNaN(totalRacesCount) ? 0 : totalRacesCount),
+    };
+
     return {
       driver,
-      careerStats: {
-        wins: isNaN(winsCount) ? 0 : winsCount,
-        podiums: (isNaN(winsCount) ? 0 : winsCount) + (isNaN(p2Count) ? 0 : p2Count) + (isNaN(p3Count) ? 0 : p3Count),
-        poles: isNaN(polesCount) ? 0 : polesCount,
-        championships: isNaN(championshipsCount) ? 0 : championshipsCount,
-        totalRaces: isNaN(totalRacesCount) ? 0 : totalRacesCount,
-      },
+      careerStats,
       seasonHistory,
+      officialStats,
     };
   });
 }
@@ -430,6 +447,7 @@ export async function warmCache(): Promise<void> {
       getRaceSchedule(currentSeason).catch((err) => console.warn('[CacheWarming] Failed schedule:', err instanceof Error ? err.message : err)),
       getDriverStandings(currentSeason).catch((err) => console.warn('[CacheWarming] Failed driver standings:', err instanceof Error ? err.message : err)),
       getConstructorStandings(currentSeason).catch((err) => console.warn('[CacheWarming] Failed constructor standings:', err instanceof Error ? err.message : err)),
+      warmOfficialDriverStats().catch((err) => console.warn('[CacheWarming] Failed official driver stats:', err instanceof Error ? err.message : err)),
     ]);
     console.log(`[CacheWarming] Completed in ${Date.now() - start}ms`);
   } catch (err) {

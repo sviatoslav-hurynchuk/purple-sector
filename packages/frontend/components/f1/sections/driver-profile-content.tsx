@@ -43,9 +43,7 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
 
   // Current season = most recent entry in seasonHistory (already sorted desc)
   const currentSeason: DriverSeasonStanding | undefined = seasonHistory[0];
-  const currentSeasonYear = currentSeason?.season;
-
-  // Current team from latest season
+// Current team from latest season
   const currentConstructorId = currentSeason?.constructors[0]?.constructorId;
   const currentTeamName = currentSeason?.constructors[0]?.name ?? '—';
   const teamTheme = getTeamTheme(currentConstructorId);
@@ -153,9 +151,12 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
               {careerStats.championships > 0 && (
                 <div>
                   <p className="text-xs uppercase tracking-wider text-white/40 font-medium">Championships</p>
-                  <p className="font-mono font-black text-amber-400 text-2xl mt-0.5">
-                    {careerStats.championships}× 🏆
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="font-mono font-black text-amber-400 text-2xl">
+                      {careerStats.championships}×
+                    </span>
+                    <Trophy className="size-6 text-amber-400 fill-amber-400/20" />
+                  </div>
                 </div>
               )}
             </div>
@@ -180,65 +181,78 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
       {/* ── STATISTICS SECTION ───────────────────────────────── */}
       <div className="mt-8">
         {/* Section header */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-black uppercase tracking-widest text-foreground">
-            Statistics
-          </h2>
-          <div className="h-0.5 mt-2" style={{ backgroundColor: teamTheme.primary }} />
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-widest text-foreground">
+              Statistics
+            </h2>
+            <div className="h-0.5 mt-2 w-24" style={{ backgroundColor: teamTheme.primary }} />
+          </div>
+          {profile.officialStats && (
+            <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 bg-emerald-950/20 font-mono text-xs">
+              Live F1 Official Data
+            </Badge>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left: Season stats */}
+          {/* Left: Season stats (2026 Season for all drivers) */}
           <div className="lg:col-span-7">
-            {currentSeason ? (
-              <>
-                <h3 className="text-xl font-black uppercase tracking-widest text-foreground mb-4">
-                  {currentSeasonYear} Season
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
-                  <div>
-                    <StatRow
-                      label="Championship Position"
-                      value={
-                        isNaN(parseInt(currentSeason.position, 10))
-                          ? currentSeason.position
-                          : ordinal(parseInt(currentSeason.position, 10))
-                      }
-                    />
-                    <StatRow label="Season Points" value={currentSeason.points} />
-                    <StatRow label="Race Wins" value={currentSeason.wins} />
-                    <StatRow label="Seasons in F1" value={seasonHistory.length} />
-                  </div>
-                  <div>
-                    <StatRow label="Career Points" value={careerPoints} />
-                    <StatRow label="Career Wins" value={careerStats.wins} />
-                    <StatRow label="Career Podiums" value={careerStats.podiums} />
-                    <StatRow label="Pole Positions" value={careerStats.poles} />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3 className="text-xl font-black uppercase tracking-widest text-foreground mb-4 flex items-center gap-2">
-                  <span>2026 Season</span>
-                  <Badge variant="outline" className="border-primary text-primary font-mono text-xs">
-                    Rookie / Debut Season
-                  </Badge>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
-                  <div>
-                    <StatRow label="Status" value="2026 Active Driver" />
-                    <StatRow label="Team" value={currentTeamName} />
-                    <StatRow label="Seasons in F1" value="1 (Debut)" />
-                  </div>
-                  <div>
-                    <StatRow label="Career Points" value={careerPoints} />
-                    <StatRow label="Career Wins" value={careerStats.wins} />
-                    <StatRow label="Career Podiums" value={careerStats.podiums} />
-                  </div>
-                </div>
-              </>
-            )}
+            <h3 className="text-xl font-black uppercase tracking-widest text-foreground mb-4 flex items-center gap-2">
+              <span>{profile.officialStats?.season?.year ?? '2026'} Season</span>
+              {profile.officialStats?.season?.position && (
+                <Badge variant="outline" className="border-primary/40 text-primary font-mono text-xs">
+                  Rank: {profile.officialStats.season.position}
+                </Badge>
+              )}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+              <div>
+                <StatRow
+                  label="Championship Position"
+                  value={
+                    profile.officialStats?.season?.position ??
+                    (currentSeason?.position
+                      ? isNaN(parseInt(currentSeason.position, 10))
+                        ? currentSeason.position
+                        : ordinal(parseInt(currentSeason.position, 10))
+                      : '—')
+                  }
+                />
+                <StatRow
+                  label="Season Points"
+                  value={profile.officialStats?.season?.points ?? currentSeason?.points ?? '0'}
+                />
+                <StatRow
+                  label="Grand Prix Races"
+                  value={profile.officialStats?.season?.gpRaces ?? 11}
+                />
+                <StatRow
+                  label="Grand Prix Wins"
+                  value={profile.officialStats?.season?.gpWins ?? currentSeason?.wins ?? 0}
+                />
+              </div>
+              <div>
+                <StatRow
+                  label="Grand Prix Podiums"
+                  value={profile.officialStats?.season?.gpPodiums ?? 0}
+                />
+                <StatRow
+                  label="Pole Positions"
+                  value={profile.officialStats?.season?.gpPoles ?? 0}
+                />
+                <StatRow
+                  label="Top 10 Finishes"
+                  value={profile.officialStats?.season?.gpTop10s ?? 0}
+                />
+                {(profile.officialStats?.season?.sprintPoints ?? 0) > 0 && (
+                  <StatRow
+                    label="Sprint Points"
+                    value={profile.officialStats?.season?.sprintPoints ?? 0}
+                  />
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Right: Career stats card */}
@@ -251,17 +265,35 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                 <div className="h-0.5 mt-1 bg-border" />
               </CardHeader>
               <CardContent className="px-5 pb-5 pt-0">
-                {careerStats.totalRaces > 0 && (
-                  <StatRow label="Grands Prix Entered" value={careerStats.totalRaces} />
+                <StatRow
+                  label="Grands Prix Entered"
+                  value={profile.officialStats?.career.grandsPrixEntered ?? careerStats.totalRaces}
+                />
+                <StatRow
+                  label="Career Points"
+                  value={profile.officialStats?.career.careerPoints ?? careerPoints}
+                />
+                {profile.officialStats?.career.highestRaceFinish && (
+                  <StatRow label="Highest Race Finish" value={profile.officialStats.career.highestRaceFinish} />
                 )}
-                <StatRow label="Career Points" value={careerPoints} />
-                {careerStats.championships > 0 && (
-                  <StatRow label="World Championships" value={careerStats.championships} />
+                {(profile.officialStats?.career.worldChampionships ?? careerStats.championships) > 0 && (
+                  <StatRow
+                    label="World Championships"
+                    value={profile.officialStats?.career.worldChampionships ?? careerStats.championships}
+                  />
                 )}
-                <StatRow label="Race Wins" value={careerStats.wins} />
-                <StatRow label="Podiums" value={careerStats.podiums} />
-                <StatRow label="Pole Positions" value={careerStats.poles} />
-                <StatRow label="Seasons in F1" value={seasonHistory.length} />
+                <StatRow
+                  label="Race Wins"
+                  value={careerStats.wins}
+                />
+                <StatRow
+                  label="Podiums"
+                  value={profile.officialStats?.career.podiums ?? careerStats.podiums}
+                />
+                <StatRow
+                  label="Pole Positions"
+                  value={profile.officialStats?.career.polePositions ?? careerStats.poles}
+                />
               </CardContent>
             </Card>
           </div>
