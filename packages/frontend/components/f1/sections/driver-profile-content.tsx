@@ -188,23 +188,12 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
             </h2>
             <div className="h-0.5 mt-2 w-24" style={{ backgroundColor: teamTheme.primary }} />
           </div>
-          {profile.officialStats && (
-            <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 bg-emerald-950/20 font-mono text-xs">
-              Live F1 Official Data
-            </Badge>
-          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left: Season stats (2026 Season for all drivers) */}
           <div className="lg:col-span-7">
             <h3 className="text-xl font-black uppercase tracking-widest text-foreground mb-4 flex items-center gap-2">
               <span>{profile.officialStats?.season?.year ?? '2026'} Season</span>
-              {profile.officialStats?.season?.position && (
-                <Badge variant="outline" className="border-primary/40 text-primary font-mono text-xs">
-                  Rank: {profile.officialStats.season.position}
-                </Badge>
-              )}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
               <div>

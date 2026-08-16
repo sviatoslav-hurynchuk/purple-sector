@@ -35,6 +35,35 @@ const DRIVER_SLUG_MAP: Record<string, string> = {
 
 const TTL_OFFICIAL_DRIVER = 86400; // 24 hours
 
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  retries = 2,
+  backoffMs = 300
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+        const delay = backoffMs * Math.pow(2, attempt);
+        console.warn(`[F1 Official] Got HTTP ${res.status} for ${url}. Retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err;
+      if (attempt < retries) {
+        const delay = backoffMs * Math.pow(2, attempt);
+        console.warn(`[F1 Official] Network error for ${url}. Retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError ?? new Error(`Failed to fetch ${url}`);
+}
+
 /**
  * Scrapes and caches live official driver statistics directly from formula1.com/en/drivers/{slug}.
  */
@@ -45,10 +74,10 @@ export async function getOfficialF1DriverStats(driverId: string): Promise<Offici
 
   // Check cache first
   const cached = await cache.get<OfficialDriverStats>(cacheKey);
-  if (cached) return cached;
+  if (cached !== null && cached !== undefined) return cached;
 
   try {
-    const res = await fetch(`https://www.formula1.com/en/drivers/${slug}`, {
+    const res = await fetchWithRetry(`https://www.formula1.com/en/drivers/${slug}`, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

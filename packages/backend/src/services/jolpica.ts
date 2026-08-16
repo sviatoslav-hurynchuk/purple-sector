@@ -125,19 +125,41 @@ type JolpicaRacesResponse = JolpicaResponse<'RaceTable', RaceTable>;
 type JolpicaDriversResponse = JolpicaResponse<'DriverTable', DriverTable>;
 type JolpicaRaceResultsResponse = JolpicaResponse<'RaceTable', RaceResultsTable>;
 type JolpicaStandingsResponse = JolpicaResponse<'StandingsTable', StandingsTable>;
+// ── HTTP Fetch Helper with Retry ──────────────────────────────────────────────
 
-interface JolpicaTotalResponse {
-  MRData: {
-    total: string;
-  };
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  retries = 2,
+  backoffMs = 300
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+        const delay = backoffMs * Math.pow(2, attempt);
+        console.warn(`[Jolpica] Got HTTP ${res.status} for ${url}. Retrying in ${delay}ms (attempt ${attempt + 1}/${retries})...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err;
+      if (attempt < retries) {
+        const delay = backoffMs * Math.pow(2, attempt);
+        console.warn(`[Jolpica] Network error for ${url}. Retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError ?? new Error(`Failed to fetch ${url}`);
 }
 
-// ── HTTP Fetch Helper ────────────────────────────────────────────────────────
-
-async function jolpicaFetch<T>(path: string, timeoutMs = 10000): Promise<T> {
+async function jolpicaFetch<T>(path: string, timeoutMs = 8000): Promise<T> {
   // According to Jolpica docs: all endpoints must end with .json or /
   const url = `${BASE_URL}${path}.json`;
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     signal: AbortSignal.timeout(timeoutMs),
   });
 
@@ -149,7 +171,7 @@ async function jolpicaFetch<T>(path: string, timeoutMs = 10000): Promise<T> {
   return data as T;
 }
 
-// ── Cache-Aside Wrapper with Stampede Protection ────────────────────────────
+// ── Cache-Aside Wrapper with Stampede & Negative Caching Protection ─────────
 
 const inFlight = new Map<string, Promise<unknown>>();
 
@@ -161,7 +183,7 @@ async function cachedFetch<T>(
   fetcher: () => Promise<T>
 ): Promise<T> {
   const cached = await cache.get<T>(key);
-  if (cached !== null) {
+  if (cached !== null && cached !== undefined) {
     console.log(`[Cache HIT] ${key}`);
     return cached;
   }
@@ -176,8 +198,14 @@ async function cachedFetch<T>(
 
   const promise = fetcher()
     .then(async (fresh) => {
-      const computedTtl = typeof ttl === 'function' ? ttl(fresh) : ttl;
-      await cache.set(key, fresh, computedTtl);
+      // Negative caching protection: if fresh is null/undefined, do NOT cache for 24h!
+      if (fresh !== null && fresh !== undefined) {
+        const computedTtl = typeof ttl === 'function' ? ttl(fresh) : ttl;
+        await cache.set(key, fresh, computedTtl);
+      } else {
+        // Cache negative result for only 5 seconds to prevent spam while allowing quick recovery
+        await cache.set(key, fresh, 5);
+      }
       inFlight.delete(key);
       return fresh;
     })
@@ -314,51 +342,89 @@ export async function getSeasonDrivers(season?: string | number): Promise<Driver
   });
 }
 
+const DRIVER_2026_REGISTRY: Record<
+  string,
+  {
+    givenName: string;
+    familyName: string;
+    nationality: string;
+    permanentNumber?: string;
+    code?: string;
+    constructorId: string;
+    constructorName: string;
+  }
+> = {
+  antonelli: { givenName: 'Andrea Kimi', familyName: 'Antonelli', nationality: 'Italian', permanentNumber: '12', code: 'ANT', constructorId: 'mercedes', constructorName: 'Mercedes' },
+  russell: { givenName: 'George', familyName: 'Russell', nationality: 'British', permanentNumber: '63', code: 'RUS', constructorId: 'mercedes', constructorName: 'Mercedes' },
+  hamilton: { givenName: 'Lewis', familyName: 'Hamilton', nationality: 'British', permanentNumber: '44', code: 'HAM', constructorId: 'ferrari', constructorName: 'Ferrari' },
+  leclerc: { givenName: 'Charles', familyName: 'Leclerc', nationality: 'Monegasque', permanentNumber: '16', code: 'LEC', constructorId: 'ferrari', constructorName: 'Ferrari' },
+  verstappen: { givenName: 'Max', familyName: 'Verstappen', nationality: 'Dutch', permanentNumber: '1', code: 'VER', constructorId: 'redbullracing', constructorName: 'Red Bull Racing' },
+  max_verstappen: { givenName: 'Max', familyName: 'Verstappen', nationality: 'Dutch', permanentNumber: '1', code: 'VER', constructorId: 'redbullracing', constructorName: 'Red Bull Racing' },
+  hadjar: { givenName: 'Isack', familyName: 'Hadjar', nationality: 'French', permanentNumber: '6', code: 'HAD', constructorId: 'redbullracing', constructorName: 'Red Bull Racing' },
+  norris: { givenName: 'Lando', familyName: 'Norris', nationality: 'British', permanentNumber: '4', code: 'NOR', constructorId: 'mclaren', constructorName: 'McLaren' },
+  piastri: { givenName: 'Oscar', familyName: 'Piastri', nationality: 'Australian', permanentNumber: '81', code: 'PIA', constructorId: 'mclaren', constructorName: 'McLaren' },
+  alonso: { givenName: 'Fernando', familyName: 'Alonso', nationality: 'Spanish', permanentNumber: '14', code: 'ALO', constructorId: 'astonmartin', constructorName: 'Aston Martin' },
+  stroll: { givenName: 'Lance', familyName: 'Stroll', nationality: 'Canadian', permanentNumber: '18', code: 'STR', constructorId: 'astonmartin', constructorName: 'Aston Martin' },
+  gasly: { givenName: 'Pierre', familyName: 'Gasly', nationality: 'French', permanentNumber: '10', code: 'GAS', constructorId: 'alpine', constructorName: 'Alpine' },
+  colapinto: { givenName: 'Franco', familyName: 'Colapinto', nationality: 'Argentine', permanentNumber: '43', code: 'COL', constructorId: 'alpine', constructorName: 'Alpine' },
+  albon: { givenName: 'Alexander', familyName: 'Albon', nationality: 'Thai', permanentNumber: '23', code: 'ALB', constructorId: 'williams', constructorName: 'Williams' },
+  sainz: { givenName: 'Carlos', familyName: 'Sainz', nationality: 'Spanish', permanentNumber: '55', code: 'SAI', constructorId: 'williams', constructorName: 'Williams' },
+  bearman: { givenName: 'Oliver', familyName: 'Bearman', nationality: 'British', permanentNumber: '87', code: 'BEA', constructorId: 'haas', constructorName: 'Haas' },
+  ocon: { givenName: 'Esteban', familyName: 'Ocon', nationality: 'French', permanentNumber: '31', code: 'OCO', constructorId: 'haas', constructorName: 'Haas' },
+  hulkenberg: { givenName: 'Nico', familyName: 'Hülkenberg', nationality: 'German', permanentNumber: '27', code: 'HUL', constructorId: 'audi', constructorName: 'Audi' },
+  bortoleto: { givenName: 'Gabriel', familyName: 'Bortoleto', nationality: 'Brazilian', permanentNumber: '5', code: 'BOR', constructorId: 'audi', constructorName: 'Audi' },
+  lawson: { givenName: 'Liam', familyName: 'Lawson', nationality: 'New Zealander', permanentNumber: '30', code: 'LAW', constructorId: 'racingbulls', constructorName: 'Racing Bulls' },
+  lindblad: { givenName: 'Arvid', familyName: 'Lindblad', nationality: 'British', permanentNumber: '41', code: 'LIN', constructorId: 'racingbulls', constructorName: 'Racing Bulls' },
+  arvid_lindblad: { givenName: 'Arvid', familyName: 'Lindblad', nationality: 'British', permanentNumber: '41', code: 'LIN', constructorId: 'racingbulls', constructorName: 'Racing Bulls' },
+  bottas: { givenName: 'Valtteri', familyName: 'Bottas', nationality: 'Finnish', permanentNumber: '77', code: 'BOT', constructorId: 'cadillac', constructorName: 'Cadillac' },
+  perez: { givenName: 'Sergio', familyName: 'Pérez', nationality: 'Mexican', permanentNumber: '11', code: 'PER', constructorId: 'cadillac', constructorName: 'Cadillac' },
+};
+
 export async function getDriverProfile(driverId: string): Promise<DriverProfile | null> {
   const rawId = driverId.trim().toLowerCase();
-  // Map aliases like 'lindblad' to official Jolpica driverId 'arvid_lindblad'
+  // Map aliases to official Jolpica driverId
   const idMap: Record<string, string> = {
     lindblad: 'arvid_lindblad',
     aron: 'paul_aron',
     beganovic: 'dino_beganovic',
+    'nico-hulkenberg': 'hulkenberg',
+    'carlos-sainz': 'sainz',
+    'max-verstappen': 'max_verstappen',
+    'lewis-hamilton': 'hamilton',
   };
   const id = idMap[rawId] ?? rawId;
   const cacheKey = `f1:driver:profile:${id}`;
 
   return cachedFetch<DriverProfile | null>(cacheKey, TTL.SCHEDULE_PAST, async () => {
-    const [
-      driverRes,
-      standingsRes,
-      winsRes,
-      p2Res,
-      p3Res,
-      polesRes,
-      championshipsRes,
-      totalRacesRes,
-      officialStats,
-    ] = await Promise.all([
+    // Lean fetching: 2 light calls to Jolpica + 1 official F1 call (eliminates 429 burst storm)
+    const [driverRes, standingsRes, officialStats] = await Promise.all([
       jolpicaFetch<JolpicaDriversResponse>(`/drivers/${id}`).catch(() => null),
       jolpicaFetch<JolpicaStandingsResponse>(`/drivers/${id}/driverStandings?limit=100`).catch(() => null),
-      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results/1?limit=0`).catch(() => null),
-      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results/2?limit=0`).catch(() => null),
-      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results/3?limit=0`).catch(() => null),
-      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/qualifying/1?limit=0`).catch(() => null),
-      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/driverStandings/1?limit=0`).catch(() => null),
-      jolpicaFetch<JolpicaTotalResponse>(`/drivers/${id}/results?limit=0`).catch(() => null),
       getOfficialF1DriverStats(id).catch(() => null),
     ]);
 
-    const driver = driverRes?.MRData.DriverTable.Drivers[0];
+    let driver: Driver | undefined = driverRes?.MRData.DriverTable.Drivers[0];
+
+    // Smart Fallback: if Jolpica is temporarily down or has no entry, use registry fallback
     if (!driver) {
-      return null;
+      const fallbackMeta = DRIVER_2026_REGISTRY[id] ?? DRIVER_2026_REGISTRY[rawId];
+      if (fallbackMeta) {
+        driver = {
+          driverId: id,
+          permanentNumber: fallbackMeta.permanentNumber,
+          code: fallbackMeta.code,
+          url: `https://www.formula1.com/en/drivers/${id.replace(/_/g, '-')}`,
+          givenName: fallbackMeta.givenName,
+          familyName: fallbackMeta.familyName,
+          dateOfBirth: officialStats?.bio?.dateOfBirth ?? '',
+          nationality: fallbackMeta.nationality,
+        };
+      } else {
+        return null;
+      }
     }
 
-    const winsCount = parseInt(winsRes?.MRData.total ?? '0', 10);
-    const p2Count = parseInt(p2Res?.MRData.total ?? '0', 10);
-    const p3Count = parseInt(p3Res?.MRData.total ?? '0', 10);
-    const polesCount = parseInt(polesRes?.MRData.total ?? '0', 10);
-    const championshipsCount = parseInt(championshipsRes?.MRData.total ?? '0', 10);
-    const totalRacesCount = parseInt(totalRacesRes?.MRData.total ?? '0', 10);
+    const validDriver: Driver = driver;
 
     const standingsLists = standingsRes?.MRData.StandingsTable.StandingsLists ?? [];
     let seasonHistory: DriverSeasonStanding[] = standingsLists
@@ -382,29 +448,23 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
 
     // Fallback for rookie drivers without past season standings history
     if (seasonHistory.length === 0) {
-      try {
-        const curSeason = getCurrentSeason();
-        const currentStandings = await getDriverStandings(curSeason);
-        const match = currentStandings.find(
-          (s) => s.Driver.driverId === id || s.Driver.driverId === rawId
-        );
-        if (match) {
-          seasonHistory = [
-            {
-              season: curSeason,
-              round: '1',
-              position: match.position,
-              points: match.points,
-              wins: match.wins,
-              constructors: match.Constructors.map((c) => ({
-                constructorId: c.constructorId,
-                name: c.name,
-              })),
-            },
-          ];
-        }
-      } catch {
-        // Ignore fallback fetch error
+      const fallbackMeta = DRIVER_2026_REGISTRY[id] ?? DRIVER_2026_REGISTRY[rawId];
+      if (fallbackMeta && officialStats?.season) {
+        seasonHistory = [
+          {
+            season: officialStats.season.year ?? '2026',
+            round: '1',
+            position: officialStats.season.position.replace(/[^0-9]/g, '') || '1',
+            points: officialStats.season.points || '0',
+            wins: String(officialStats.season.gpWins || 0),
+            constructors: [
+              {
+                constructorId: fallbackMeta.constructorId,
+                name: fallbackMeta.constructorName,
+              },
+            ],
+          },
+        ];
       }
     }
 
@@ -414,19 +474,19 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
         if (m) return parseInt(m[1], 10);
         if (officialStats.career.highestRaceFinish === '1') return 1;
       }
-      return isNaN(winsCount) ? 0 : winsCount;
+      return seasonHistory.reduce((sum, s) => sum + parseInt(s.wins || '0', 10), 0);
     };
 
     const careerStats: DriverCareerStats = {
       wins: calcWins(),
-      podiums: officialStats?.career?.podiums ?? ((isNaN(winsCount) ? 0 : winsCount) + (isNaN(p2Count) ? 0 : p2Count) + (isNaN(p3Count) ? 0 : p3Count)),
-      poles: officialStats?.career?.polePositions ?? (isNaN(polesCount) ? 0 : polesCount),
-      championships: officialStats?.career?.worldChampionships ?? (isNaN(championshipsCount) ? 0 : championshipsCount),
-      totalRaces: officialStats?.career?.grandsPrixEntered ?? (isNaN(totalRacesCount) ? 0 : totalRacesCount),
+      podiums: officialStats?.career?.podiums ?? 0,
+      poles: officialStats?.career?.polePositions ?? 0,
+      championships: officialStats?.career?.worldChampionships ?? 0,
+      totalRaces: officialStats?.career?.grandsPrixEntered ?? (seasonHistory.length > 0 ? seasonHistory.length * 22 : 0),
     };
 
     return {
-      driver,
+      driver: validDriver,
       careerStats,
       seasonHistory,
       officialStats,
