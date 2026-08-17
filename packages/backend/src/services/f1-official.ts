@@ -39,12 +39,14 @@ async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
   retries = 2,
-  backoffMs = 300
+  backoffMs = 300,
+  timeoutMs = 8000
 ): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(url, options);
+      const signal = AbortSignal.timeout(timeoutMs);
+      const res = await fetch(url, { ...options, signal });
       if ((res.status === 429 || res.status >= 500) && attempt < retries) {
         const delay = backoffMs * Math.pow(2, attempt);
         console.warn(`[F1 Official] Got HTTP ${res.status} for ${url}. Retrying in ${delay}ms...`);

@@ -21,10 +21,13 @@ function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const currentSeason = getCurrentSeason();
-    const season = (req.query['season'] as string) ?? currentSeason;
+    const seasonQuery = req.query['season'];
+    const season = typeof seasonQuery === 'string' ? seasonQuery.trim() : currentSeason;
 
-    if (isNaN(Number(season))) {
-      res.status(400).json({ error: 'Invalid season parameter. Must be a valid year.' });
+    const seasonNum = parseInt(season, 10);
+    const maxSupportedYear = new Date().getFullYear() + 1;
+    if (!/^\d{4}$/.test(season) || seasonNum < 1950 || seasonNum > maxSupportedYear) {
+      res.status(400).json({ error: `Invalid season parameter. Must be a 4-digit year between 1950 and ${maxSupportedYear}.` });
       return;
     }
 
@@ -45,8 +48,8 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:driverId', async (req: Request, res: Response) => {
   try {
     const { driverId } = req.params;
-    if (!driverId || driverId.trim() === '') {
-      res.status(400).json({ error: 'Invalid driverId parameter' });
+    if (!driverId || !/^[a-z0-9_-]{1,64}$/i.test(driverId.trim())) {
+      res.status(400).json({ error: 'Invalid driverId parameter. Must be an alphanumeric identifier.' });
       return;
     }
 
