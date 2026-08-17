@@ -131,12 +131,14 @@ async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
   retries = 2,
-  backoffMs = 300
+  backoffMs = 300,
+  timeoutMs = 8000
 ): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(url, options);
+      const signal = AbortSignal.timeout(timeoutMs);
+      const res = await fetch(url, { ...options, signal });
       if ((res.status === 429 || res.status >= 500) && attempt < retries) {
         const delay = backoffMs * Math.pow(2, attempt);
         console.warn(`[Jolpica] Got HTTP ${res.status} for ${url}. Retrying in ${delay}ms (attempt ${attempt + 1}/${retries})...`);
@@ -158,10 +160,9 @@ async function fetchWithRetry(
 
 async function jolpicaFetch<T>(path: string, timeoutMs = 8000): Promise<T> {
   // According to Jolpica docs: all endpoints must end with .json or /
-  const url = `${BASE_URL}${path}.json`;
-  const res = await fetchWithRetry(url, {
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  const [pathname, query] = path.split('?', 2);
+  const url = `${BASE_URL}${pathname}.json${query ? `?${query}` : ''}`;
+  const res = await fetchWithRetry(url, {}, 2, 300, timeoutMs);
 
   if (!res.ok) {
     throw new Error(`Jolpica API error: ${res.status} — ${url}`);
@@ -173,6 +174,19 @@ async function jolpicaFetch<T>(path: string, timeoutMs = 8000): Promise<T> {
 
 // ── Cache-Aside Wrapper with Stampede & Negative Caching Protection ─────────
 
+interface NegativeCacheSentinel {
+  __negativeCache: true;
+}
+
+function isNegativeCacheSentinel(val: unknown): val is NegativeCacheSentinel {
+  return (
+    typeof val === 'object' &&
+    val !== null &&
+    '__negativeCache' in val &&
+    (val as NegativeCacheSentinel).__negativeCache
+  );
+}
+
 const inFlight = new Map<string, Promise<unknown>>();
 
 type TTLResolver<T> = number | ((data: T) => number);
@@ -182,10 +196,14 @@ async function cachedFetch<T>(
   ttl: TTLResolver<T>,
   fetcher: () => Promise<T>
 ): Promise<T> {
-  const cached = await cache.get<T>(key);
+  const cached = await cache.get<T | NegativeCacheSentinel>(key);
   if (cached !== null && cached !== undefined) {
+    if (isNegativeCacheSentinel(cached)) {
+      console.log(`[Cache NEGATIVE HIT] ${key}`);
+      return null as T;
+    }
     console.log(`[Cache HIT] ${key}`);
-    return cached;
+    return cached as T;
   }
 
   console.log(`[Cache MISS] ${key}`);
@@ -198,13 +216,13 @@ async function cachedFetch<T>(
 
   const promise = fetcher()
     .then(async (fresh) => {
-      // Negative caching protection: if fresh is null/undefined, do NOT cache for 24h!
+      // Negative caching protection: if fresh is null/undefined, store sentinel with short TTL (5s)
       if (fresh !== null && fresh !== undefined) {
         const computedTtl = typeof ttl === 'function' ? ttl(fresh) : ttl;
         await cache.set(key, fresh, computedTtl);
       } else {
-        // Cache negative result for only 5 seconds to prevent spam while allowing quick recovery
-        await cache.set(key, fresh, 5);
+        const sentinel: NegativeCacheSentinel = { __negativeCache: true };
+        await cache.set(key, sentinel, 5);
       }
       inFlight.delete(key);
       return fresh;
@@ -454,7 +472,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
           {
             season: officialStats.season.year ?? '2026',
             round: '1',
-            position: officialStats.season.position.replace(/[^0-9]/g, '') || '1',
+            position: officialStats.season.position || '—',
             points: officialStats.season.points || '0',
             wins: String(officialStats.season.gpWins || 0),
             constructors: [
@@ -482,7 +500,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       podiums: officialStats?.career?.podiums ?? 0,
       poles: officialStats?.career?.polePositions ?? 0,
       championships: officialStats?.career?.worldChampionships ?? 0,
-      totalRaces: officialStats?.career?.grandsPrixEntered ?? (seasonHistory.length > 0 ? seasonHistory.length * 22 : 0),
+      totalRaces: officialStats?.career?.grandsPrixEntered ?? 0,
     };
 
     return {
