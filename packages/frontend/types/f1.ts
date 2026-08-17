@@ -124,3 +124,63 @@ export interface RaceResult extends Race {
     SprintResults?: RaceResultEntry[];
     QualifyingResults?: QualifyingResultEntry[];
 }
+
+// ── Driver Profiles ──────────────────────────────────────────────────────────
+
+export interface DriverCareerStats {
+    wins: number;
+    podiums: number;
+    poles: number;
+    championships: number;
+    totalRaces: number;
+}
+
+export interface DriverSeasonStanding {
+    season: string;
+    round: string;
+    position: string;
+    points: string;
+    wins: string;
+    constructors: Array<{ constructorId: string; name: string }>;
+}
+
+export interface OfficialDriverStats {
+    season: {
+        year: string;
+        position: string;
+        points: string;
+        gpRaces: number;
+        gpPoints: number;
+        gpWins: number;
+        gpPodiums: number;
+        gpPoles: number;
+        gpTop10s: number;
+        fastestLaps: number;
+        dnfs: number;
+        sprintRaces?: number;
+        sprintPoints?: number;
+        sprintWins?: number;
+        sprintPodiums?: number;
+    };
+    career: {
+        grandsPrixEntered: number;
+        careerPoints: number;
+        highestRaceFinish: string;
+        podiums: number;
+        highestGridPosition: string;
+        polePositions: number;
+        worldChampionships: number;
+        dnfs?: number;
+    };
+    bio?: {
+        dateOfBirth?: string;
+        placeOfBirth?: string;
+    };
+}
+
+export interface DriverProfile {
+    driver: Driver;
+    careerStats: DriverCareerStats;
+    seasonHistory: DriverSeasonStanding[];
+    officialStats?: OfficialDriverStats | null;
+}

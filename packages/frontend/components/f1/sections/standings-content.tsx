@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
     getDriverStandings,
     getConstructorStandings,
@@ -101,13 +102,20 @@ export async function StandingsContent({ searchParams, allYears }: StandingsCont
                                             <TableCell className="text-center font-mono font-bold text-muted-foreground">
                                                 {s.position}
                                             </TableCell>
-                                            <TableCell className="font-semibold">
-                                                {s.Driver.givenName} {s.Driver.familyName}
-                                                {s.Driver.code && (
-                                                    <span className="ml-2 text-xs text-muted-foreground font-mono">
-                                                        {s.Driver.code}
+                                            <TableCell>
+                                                <Link
+                                                    href={`/drivers/${s.Driver.driverId}`}
+                                                    className="group/driver inline-flex items-center hover:text-primary transition-colors font-semibold"
+                                                >
+                                                    <span className="group-hover/driver:underline">
+                                                        {s.Driver.givenName} {s.Driver.familyName}
                                                     </span>
-                                                )}
+                                                    {s.Driver.code && (
+                                                        <span className="ml-2 text-xs text-muted-foreground font-mono group-hover/driver:text-primary/70">
+                                                            {s.Driver.code}
+                                                        </span>
+                                                    )}
+                                                </Link>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground text-sm">
                                                 {s.Constructors[0]?.name ?? '—'}

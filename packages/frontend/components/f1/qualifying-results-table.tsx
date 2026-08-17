@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { QualifyingResultEntry } from '@/types/f1';
 import {
     Table,
@@ -32,14 +33,19 @@ export function QualifyingResultsTable({ results }: QualifyingResultsTableProps)
                             {result.position}
                         </TableCell>
                         <TableCell>
-                            <span className="font-semibold">
-                                {result.Driver.givenName} {result.Driver.familyName}
-                            </span>
-                            {result.Driver.code && (
-                                <span className="ml-2 text-xs font-mono text-muted-foreground">
-                                    {result.Driver.code}
+                            <Link
+                                href={`/drivers/${result.Driver.driverId}`}
+                                className="group/driver inline-flex items-center hover:text-primary transition-colors"
+                            >
+                                <span className="font-semibold group-hover/driver:underline">
+                                    {result.Driver.givenName} {result.Driver.familyName}
                                 </span>
-                            )}
+                                {result.Driver.code && (
+                                    <span className="ml-2 text-xs font-mono text-muted-foreground group-hover/driver:text-primary/70">
+                                        {result.Driver.code}
+                                    </span>
+                                )}
+                            </Link>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                             {result.Constructor.name}
