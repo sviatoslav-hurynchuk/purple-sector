@@ -140,6 +140,7 @@ async function fetchWithRetry(
       const signal = AbortSignal.timeout(timeoutMs);
       const res = await fetch(url, { ...options, signal });
       if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+        await res.body?.cancel();
         const delay = backoffMs * Math.pow(2, attempt);
         console.warn(`[Jolpica] Got HTTP ${res.status} for ${url}. Retrying in ${delay}ms (attempt ${attempt + 1}/${retries})...`);
         await new Promise((resolve) => setTimeout(resolve, delay));

@@ -48,6 +48,7 @@ async function fetchWithRetry(
       const signal = AbortSignal.timeout(timeoutMs);
       const res = await fetch(url, { ...options, signal });
       if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+        await res.body?.cancel();
         const delay = backoffMs * Math.pow(2, attempt);
         console.warn(`[F1 Official] Got HTTP ${res.status} for ${url}. Retrying in ${delay}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
