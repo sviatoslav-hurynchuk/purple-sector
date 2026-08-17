@@ -71,11 +71,27 @@ export async function DriversContent({ searchParams, allYears }: DriversContentP
     standings.map((s) => [s.Driver.driverId, s])
   );
 
+  // Combine all known drivers for this season from standings (primary) and season driver list
+  const allDriverIds = new Set<string>();
+  const driverObjectsMap = new Map<string, Driver>();
+
+  for (const s of standings) {
+    allDriverIds.add(s.Driver.driverId);
+    driverObjectsMap.set(s.Driver.driverId, s.Driver);
+  }
+  for (const d of drivers) {
+    allDriverIds.add(d.driverId);
+    if (!driverObjectsMap.has(d.driverId)) {
+      driverObjectsMap.set(d.driverId, d);
+    }
+  }
+
   // Enrich drivers with team information
-  const enriched: DriverWithStanding[] = drivers
-    .map((driver) => {
-      const standing = standingsMap.get(driver.driverId);
-      const fallback = year === 2026 ? SEASON_2026_TEAMS[driver.driverId] : undefined;
+  const enriched: DriverWithStanding[] = Array.from(allDriverIds)
+    .map((driverId) => {
+      const driver = driverObjectsMap.get(driverId)!;
+      const standing = standingsMap.get(driverId);
+      const fallback = year === 2026 ? SEASON_2026_TEAMS[driverId] : undefined;
 
       const constructorId =
         standing?.Constructors[0]?.constructorId ?? fallback?.constructorId ?? 'unknown';
