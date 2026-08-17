@@ -16,8 +16,9 @@ function calculateAge(dateOfBirth: string): number | null {
   if (!dateOfBirth) return null;
   const dob = new Date(dateOfBirth);
   if (isNaN(dob.getTime())) return null;
+  if (dob.getTime() > Date.now()) return null;
   const ageMs = Date.now() - dob.getTime();
-  return Math.abs(new Date(ageMs).getUTCFullYear() - 1970);
+  return new Date(ageMs).getUTCFullYear() - 1970;
 }
 
 function ordinal(n: number): string {
@@ -50,8 +51,9 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
   const isLightTeam = teamTheme.textColor === 'dark';
 
   // Career points — computed from all seasons
-  const careerPoints = Math.round(
-    seasonHistory.reduce((sum, s) => sum + parseFloat(s.points || '0'), 0)
+  const careerPoints = seasonHistory.reduce(
+    (sum, s) => sum + parseFloat(s.points || '0'),
+    0
   );
 
   return (
@@ -193,7 +195,7 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7">
             <h3 className="text-xl font-black uppercase tracking-widest text-foreground mb-4 flex items-center gap-2">
-              <span>{profile.officialStats?.season?.year ?? '2026'} Season</span>
+              <span>{profile.officialStats?.season?.year ?? currentSeason?.season ?? '2026'} Season</span>
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
               <div>
@@ -214,7 +216,7 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                 />
                 <StatRow
                   label="Grand Prix Races"
-                  value={profile.officialStats?.season?.gpRaces ?? 11}
+                  value={profile.officialStats?.season?.gpRaces ?? '—'}
                 />
                 <StatRow
                   label="Grand Prix Wins"

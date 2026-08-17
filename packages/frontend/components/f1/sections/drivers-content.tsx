@@ -74,7 +74,7 @@ export async function DriversContent({ searchParams, allYears }: DriversContentP
   const enriched: DriverWithStanding[] = drivers
     .map((driver) => {
       const standing = standingsMap.get(driver.driverId);
-      const fallback = SEASON_2026_TEAMS[driver.driverId];
+      const fallback = year === 2026 ? SEASON_2026_TEAMS[driver.driverId] : undefined;
 
       const constructorId =
         standing?.Constructors[0]?.constructorId ?? fallback?.constructorId ?? 'unknown';
@@ -144,7 +144,7 @@ export async function DriversContent({ searchParams, allYears }: DriversContentP
                 key={team.constructorId}
                 className="grid grid-cols-2 rounded-2xl overflow-hidden border border-white/10 shadow-xl"
               >
-                {team.drivers.slice(0, 2).map((item, driverIdx) => {
+                {team.drivers.map((item, driverIdx) => {
                   const { driver, standing } = item;
                   const photoUrl = getDriverPhotoUrl(
                     driver.driverId,
