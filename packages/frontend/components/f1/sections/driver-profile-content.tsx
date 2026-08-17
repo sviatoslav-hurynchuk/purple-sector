@@ -39,16 +39,23 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 
 export function DriverProfileContent({ profile }: DriverProfileContentProps) {
   const { driver, careerStats, seasonHistory } = profile;
-  const photoUrl = getDriverPhotoUrl(driver.driverId, driver.givenName, driver.familyName);
   const age = calculateAge(driver.dateOfBirth);
 
   // Current season = most recent entry in seasonHistory (already sorted desc)
   const currentSeason: DriverSeasonStanding | undefined = seasonHistory[0];
-// Current team from latest season
+  // Current team from latest season
   const currentConstructorId = currentSeason?.constructors[0]?.constructorId;
   const currentTeamName = currentSeason?.constructors[0]?.name ?? '—';
   const teamTheme = getTeamTheme(currentConstructorId);
   const isLightTeam = teamTheme.textColor === 'dark';
+
+  const photoUrl = getDriverPhotoUrl(
+    driver.driverId,
+    driver.givenName,
+    driver.familyName,
+    profile.officialStats?.season?.year ?? currentSeason?.season ?? '2026',
+    currentConstructorId
+  );
 
   // Career points — computed from all seasons
   const careerPoints = seasonHistory.reduce(

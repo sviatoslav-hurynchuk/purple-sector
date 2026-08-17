@@ -162,7 +162,9 @@ export async function DriversContent({ searchParams, allYears }: DriversContentP
                     const photoUrl = getDriverPhotoUrl(
                       driver.driverId,
                       driver.givenName,
-                      driver.familyName
+                      driver.familyName,
+                      String(year),
+                      team.constructorId
                     );
                     const driverNumber =
                       standing?.Driver?.permanentNumber ?? driver.permanentNumber;
@@ -227,7 +229,7 @@ export async function DriversContent({ searchParams, allYears }: DriversContentP
                         </div>
 
                         {/* Driver photo cut-out — waist-up */}
-                        <div className="absolute top-2 -right-2 sm:right-0 h-[250%] w-[72%] sm:w-[66%] pointer-events-none select-none">
+                        <div className="absolute top-1 -right-2 sm:right-0 h-[210%] w-[72%] sm:w-[66%] pointer-events-none select-none">
                           <Image
                             src={photoUrl}
                             alt={`${driver.givenName} ${driver.familyName}`}
