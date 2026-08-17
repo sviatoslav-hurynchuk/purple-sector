@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getDriverProfile } from '@/lib/api';
@@ -33,20 +32,5 @@ export default async function DriverProfilePage({ params }: DriverPageProps) {
     notFound();
   }
 
-  return (
-    <Suspense
-      fallback={
-        <div className="container mx-auto px-4 py-12 max-w-5xl">
-          <div className="h-64 bg-zinc-900 animate-pulse rounded-2xl mb-8 border border-zinc-800" />
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-28 bg-zinc-900 animate-pulse rounded-xl border border-zinc-800" />
-            ))}
-          </div>
-        </div>
-      }
-    >
-      <DriverProfileContent profile={profile} />
-    </Suspense>
-  );
+  return <DriverProfileContent profile={profile} />;
 }
