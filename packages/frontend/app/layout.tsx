@@ -42,6 +42,9 @@ export default function RootLayout({
                         <Link href="/drivers" className="text-sm font-semibold hover:text-primary transition-colors">
                             Drivers
                         </Link>
+                        <Link href="/constructors" className="text-sm font-semibold hover:text-primary transition-colors">
+                            Teams
+                        </Link>
                         <Link href="/standings" className="text-sm font-semibold hover:text-primary transition-colors">
                             Standings
                         </Link>

@@ -11,6 +11,8 @@ import type {
   ConstructorStanding,
   Driver,
   DriverProfile,
+  Constructor,
+  ConstructorProfile,
 } from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -34,6 +36,11 @@ interface RaceScheduleResponse {
 interface DriversResponse {
   season: string;
   drivers: Driver[];
+}
+
+interface ConstructorsResponse {
+  season: string;
+  constructors: Constructor[];
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -138,4 +145,19 @@ export async function getSeasonDrivers(season?: number): Promise<Driver[]> {
 export async function getDriverProfile(driverId: string): Promise<DriverProfile | null> {
   const revalidate = 86400; // 24h for driver profiles
   return apiFetchNullable<DriverProfile>(`/api/drivers/${driverId}`, revalidate);
+}
+
+// ── Constructors ─────────────────────────────────────────────────────────────
+
+export async function getSeasonConstructors(season?: number): Promise<Constructor[]> {
+  const currentYear = getCurrentYear();
+  const year = season ?? currentYear;
+  const revalidate = year < currentYear ? 86400 : 3600;
+  const data = await apiFetch<ConstructorsResponse>(`/api/constructors?season=${year}`, revalidate);
+  return data.constructors;
+}
+
+export async function getConstructorProfile(constructorId: string): Promise<ConstructorProfile | null> {
+  const revalidate = 86400; // 24h for constructor profiles
+  return apiFetchNullable<ConstructorProfile>(`/api/constructors/${constructorId}`, revalidate);
 }
