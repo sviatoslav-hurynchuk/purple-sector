@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import racesRouter from './routes/races';
 import standingsRouter from './routes/standings';
 import driversRouter from './routes/drivers';
+import constructorsRouter from './routes/constructors';
 import adminRouter from './routes/admin';
 import { errorHandler } from './middleware/errorHandler';
 import { connectRedis, cache } from './services/cache';
@@ -34,6 +35,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/races', racesRouter);
 app.use('/api/standings', standingsRouter);
 app.use('/api/drivers', driversRouter);
+app.use('/api/constructors', constructorsRouter);
 app.use('/api/admin', adminRouter);
 
 // ── Error Handler (must be last) ─────────────────────────────────────────────

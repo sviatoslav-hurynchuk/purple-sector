@@ -152,10 +152,105 @@ export async function getOfficialF1DriverStats(driverId: string): Promise<Offici
   }
 }
 
+// ── Official F1 Teams Scraper ────────────────────────────────────────────────
+
+const TEAM_SLUG_MAP: Record<string, string> = {
+  ferrari: 'ferrari',
+  mclaren: 'mclaren',
+  mercedes: 'mercedes',
+  red_bull: 'red-bull-racing',
+  redbull: 'red-bull-racing',
+  redbullracing: 'red-bull-racing',
+  aston_martin: 'aston-martin',
+  astonmartin: 'aston-martin',
+  alpine: 'alpine',
+  williams: 'williams',
+  haas: 'haas',
+  rb: 'racing-bulls',
+  racing_bulls: 'racing-bulls',
+  racingbulls: 'racing-bulls',
+  sauber: 'kick-sauber',
+  kick_sauber: 'kick-sauber',
+  kicksauber: 'kick-sauber',
+  audi: 'kick-sauber',
+};
+
 /**
- * Pre-warms official stats for all key 2026 grid drivers in Upstash Redis.
+ * Scrapes and caches live official team metadata and leadership directly from formula1.com/en/teams/{slug}.
+ */
+export async function getOfficialF1TeamDetails(constructorId: string): Promise<import('../types/f1').OfficialTeamDetails | null> {
+  const key = constructorId.trim().toLowerCase();
+  const slug = TEAM_SLUG_MAP[key] ?? key.replace(/_/g, '-');
+  const cacheKey = `f1:official:team:${slug}`;
+
+  // Check cache first
+  const cached = await cache.get<import('../types/f1').OfficialTeamDetails>(cacheKey);
+  if (cached !== null && cached !== undefined) return cached;
+
+  try {
+    const res = await fetchWithRetry(`https://www.formula1.com/en/teams/${slug}`, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+
+    if (!res.ok) return null;
+
+    const html = await res.text();
+
+    const parseIntSafe = (val?: string) => {
+      if (!val) return 0;
+      const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
+      return isNaN(num) ? 0 : num;
+    };
+
+    const getField = (label: string): string | undefined => {
+      // Look for <dt>label</dt><dd>value</dd> pattern
+      const regex = new RegExp(`${label}[^<]*<\\/d[te]>\\s*<d[de][^>]*>([^<]+)<\\/d[de]>`, 'i');
+      const m = html.match(regex);
+      if (m) return m[1].trim();
+
+      // Secondary fallback
+      const plainRegex = new RegExp(
+        `${label}\\s*([A-Za-z0-9\\s,/\\-\\.\\(\\)]+?)(?:<|Full Team Name|Base|Team Chief|Technical Chief|Chassis|Power Unit|First Team Entry|World Championships|Highest Race Finish|Pole Positions|Fastest Laps)`,
+        'i'
+      );
+      const plainMatch = html.match(plainRegex);
+      return plainMatch ? plainMatch[1].trim() : undefined;
+    };
+
+    const details: import('../types/f1').OfficialTeamDetails = {
+      fullName: getField('Full Team Name'),
+      base: getField('Base'),
+      teamPrincipal: getField('Team Chief'),
+      technicalChief: getField('Technical Chief'),
+      chassis: getField('Chassis'),
+      powerUnit: getField('Power Unit'),
+      firstEntry: parseIntSafe(getField('First Team Entry')) || undefined,
+      worldChampionships: parseIntSafe(getField('World Championships')),
+      highestRaceFinish: getField('Highest Race Finish'),
+      polePositions: parseIntSafe(getField('Pole Positions')),
+      fastestLaps: parseIntSafe(getField('Fastest Laps')),
+    };
+
+    // Cache the result in Redis for 24h
+    await cache.set(cacheKey, details, TTL_OFFICIAL_DRIVER);
+    return details;
+  } catch (err) {
+    console.warn(`[F1 Official] Failed to fetch official team details for ${slug}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Pre-warms official stats for all key 2026 grid drivers and teams in Upstash Redis.
  */
 export async function warmOfficialDriverStats(): Promise<void> {
   const driverIds = Object.keys(DRIVER_SLUG_MAP);
-  await Promise.allSettled(driverIds.map((id) => getOfficialF1DriverStats(id)));
+  const teamIds = Object.keys(TEAM_SLUG_MAP);
+  await Promise.allSettled([
+    ...driverIds.map((id) => getOfficialF1DriverStats(id)),
+    ...teamIds.map((id) => getOfficialF1TeamDetails(id)),
+  ]);
 }

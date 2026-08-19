@@ -167,3 +167,58 @@ export interface DriverProfile {
   seasonHistory: DriverSeasonStanding[];
   officialStats?: OfficialDriverStats | null;
 }
+
+// ── Constructor Profiles ─────────────────────────────────────────────────────
+
+export interface ConstructorCareerStats {
+  championships: number;
+  totalRaces: number;
+  wins: number;
+  podiums: number;
+  poles: number;
+  fastestLaps?: number;
+}
+
+export interface ConstructorMeta {
+  fullName: string;
+  base: string;
+  teamPrincipal: string;
+  technicalChief?: string;
+  chassis?: string;
+  powerUnit?: string;
+  firstEntry?: number;
+  worldChampionships?: number[];
+}
+
+export interface ConstructorDriverHistory {
+  driverId: string;
+  givenName: string;
+  familyName: string;
+  code?: string;
+  permanentNumber?: string;
+  nationality: string;
+}
+
+export interface ConstructorProfile {
+  constructor: Constructor;
+  meta: ConstructorMeta;
+  stats: ConstructorCareerStats;
+  currentDrivers: ConstructorDriverHistory[];
+  historicalDrivers: ConstructorDriverHistory[];
+  seasonsCount: number;
+  officialDetails?: OfficialTeamDetails | null;
+}
+
+export interface OfficialTeamDetails {
+  fullName?: string;
+  base?: string;
+  teamPrincipal?: string;
+  technicalChief?: string;
+  chassis?: string;
+  powerUnit?: string;
+  firstEntry?: number;
+  worldChampionships?: number;
+  highestRaceFinish?: string;
+  polePositions?: number;
+  fastestLaps?: number;
+}
