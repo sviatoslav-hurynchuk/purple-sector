@@ -9,18 +9,16 @@ const DRIVER_SLUG_MAP: Record<string, string> = {
   norris: 'lando-norris',
   piastri: 'oscar-piastri',
   max_verstappen: 'max-verstappen',
-  verstappen: 'max-verstappen',
   hadjar: 'isack-hadjar',
   lawson: 'liam-lawson',
   arvid_lindblad: 'arvid-lindblad',
-  lindblad: 'arvid-lindblad',
   gasly: 'pierre-gasly',
   colapinto: 'franco-colapinto',
   bearman: 'oliver-bearman',
   ocon: 'esteban-ocon',
   bortoleto: 'gabriel-bortoleto',
   hulkenberg: 'nico-hulkenberg',
-  sainz: 'carlos-sainz',
+  carlos_sainz: 'carlos-sainz',
   albon: 'alexander-albon',
   alonso: 'fernando-alonso',
   stroll: 'lance-stroll',
@@ -28,7 +26,8 @@ const DRIVER_SLUG_MAP: Record<string, string> = {
   perez: 'sergio-perez',
   tsunoda: 'yuki-tsunoda',
   ricciardo: 'daniel-ricciardo',
-  magnussen: 'kevin-magnussen',
+  kevin_magnussen: 'kevin-magnussen',
+  mick_schumacher: 'mick-schumacher',
   zhou: 'guanyu-zhou',
   doohan: 'jack-doohan',
 };
@@ -70,9 +69,22 @@ async function fetchWithRetry(
 /**
  * Scrapes and caches live official driver statistics directly from formula1.com/en/drivers/{slug}.
  */
-export async function getOfficialF1DriverStats(driverId: string): Promise<OfficialDriverStats | null> {
+export async function getOfficialF1DriverStats(driverId: string, givenName?: string): Promise<OfficialDriverStats | null> {
   const key = driverId.trim().toLowerCase();
-  const slug = DRIVER_SLUG_MAP[key] ?? key.replace(/_/g, '-');
+
+  // Guard against surname collisions with historical fathers/relatives:
+  const first = (givenName ?? '').trim().toLowerCase();
+  if ((key === 'verstappen' || key === 'jos_verstappen') && (!first || !first.includes('max'))) return null;
+  if ((key === 'schumacher' || key === 'michael_schumacher' || key === 'ralf_schumacher') && (!first || !first.includes('mick'))) return null;
+  if ((key === 'magnussen' || key === 'jan_magnussen') && (!first || !first.includes('kevin'))) return null;
+  if ((key === 'villeneuve' || key === 'gilles_villeneuve') && (!first || !first.includes('jacques'))) return null;
+  if ((key === 'fittipaldi' || key === 'emerson_fittipaldi' || key === 'christian_fittipaldi') && (!first || !first.includes('pietro'))) return null;
+  if ((key === 'hill' || key === 'graham_hill' || key === 'phil_hill') && (!first || !first.includes('damon'))) return null;
+  if ((key === 'rosberg' || key === 'keke_rosberg') && (!first || !first.includes('nico'))) return null;
+  if ((key === 'andretti' || key === 'mario_andretti') && (!first || !first.includes('michael'))) return null;
+  if (key === 'piquet' && (!first || (!first.includes('nelsinho') && !first.includes('junior')))) return null;
+
+  const slug = DRIVER_SLUG_MAP[key] ?? (key === 'verstappen' && first.includes('max') ? 'max-verstappen' : key.replace(/_/g, '-'));
   const cacheKey = `f1:official:driver:${slug}`;
 
   // Check cache first

@@ -433,18 +433,17 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
   const cacheKey = `f1:driver:profile:${id}`;
 
   return cachedFetch<DriverProfile | null>(cacheKey, TTL.SCHEDULE_PAST, async () => {
-    // Lean fetching: 2 light calls to Jolpica + 1 official F1 call (eliminates 429 burst storm)
-    const [driverRes, standingsRes, officialStats] = await Promise.all([
+    // Lean fetching: 2 light calls to Jolpica
+    const [driverRes, standingsRes] = await Promise.all([
       jolpicaFetch<JolpicaDriversResponse>(`/drivers/${id}`).catch(() => null),
       jolpicaFetch<JolpicaStandingsResponse>(`/drivers/${id}/driverStandings?limit=100`).catch(() => null),
-      getOfficialF1DriverStats(id).catch(() => null),
     ]);
 
     let driver: Driver | undefined = driverRes?.MRData.DriverTable.Drivers[0];
 
     // Smart Fallback: if Jolpica is temporarily down or has no entry, use registry fallback
+    const fallbackMeta = DRIVER_2026_REGISTRY[id] ?? DRIVER_2026_REGISTRY[rawId];
     if (!driver) {
-      const fallbackMeta = DRIVER_2026_REGISTRY[id] ?? DRIVER_2026_REGISTRY[rawId];
       if (fallbackMeta) {
         driver = {
           driverId: id,
@@ -453,7 +452,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
           url: `https://www.formula1.com/en/drivers/${id.replace(/_/g, '-')}`,
           givenName: fallbackMeta.givenName,
           familyName: fallbackMeta.familyName,
-          dateOfBirth: officialStats?.bio?.dateOfBirth ?? '',
+          dateOfBirth: '',
           nationality: fallbackMeta.nationality,
         };
       } else {
@@ -462,6 +461,12 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
     }
 
     const validDriver: Driver = driver;
+
+    // Fetch official stats safely with givenName to prevent surname collisions
+    const officialStats = await getOfficialF1DriverStats(id, validDriver.givenName).catch(() => null);
+    if (officialStats?.bio?.dateOfBirth && !validDriver.dateOfBirth) {
+      validDriver.dateOfBirth = officialStats.bio.dateOfBirth;
+    }
 
     const standingsLists = standingsRes?.MRData.StandingsTable.StandingsLists ?? [];
     let seasonHistory: DriverSeasonStanding[] = standingsLists
