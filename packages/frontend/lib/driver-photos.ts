@@ -101,12 +101,6 @@ const DRIVER_REGISTRY: Record<string, DriverRegistryEntry> = {
     slug: 'verstappen',
     damPath: 'M/MAXVER01_Max_Verstappen/maxver01.png',
   },
-  verstappen: {
-    code: 'maxver01',
-    defaultTeam: 'redbullracing',
-    slug: 'verstappen',
-    damPath: 'M/MAXVER01_Max_Verstappen/maxver01.png',
-  },
   hadjar: { code: 'isahad01', defaultTeam: 'redbullracing', slug: 'hadjar' },
   lawson: {
     code: 'lialaw01',
@@ -234,9 +228,42 @@ export function getDriverPhotoUrl(
   constructorId?: string
 ): string {
   const key = driverId.trim().toLowerCase();
-  const meta = DRIVER_REGISTRY[key];
   const s = String(season);
   const seasonNum = parseInt(s, 10);
+  const fallbackYear = !isNaN(seasonNum) && seasonNum >= 2024 ? String(seasonNum) : '2026';
+  const silhouetteUrl = `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/${fallbackYear}/fallback/driver/${fallbackYear}fallbackdriverright.webp`;
+
+  // 0. Disambiguation for shared surnames (fathers/sons/brothers across F1 eras)
+  const first = (givenName ?? '').trim().toLowerCase();
+  if (key === 'verstappen' || key === 'jos_verstappen' || key === 'max_verstappen') {
+    if (first && !first.includes('max')) return silhouetteUrl;
+  }
+  if (key === 'schumacher' || key === 'michael_schumacher' || key === 'ralf_schumacher') {
+    if (first && !first.includes('mick')) return silhouetteUrl;
+  }
+  if (key === 'magnussen' || key === 'jan_magnussen') {
+    if (first && !first.includes('kevin')) return silhouetteUrl;
+  }
+  if (key === 'villeneuve' || key === 'gilles_villeneuve') {
+    if (first && !first.includes('jacques')) return silhouetteUrl;
+  }
+  if (key === 'fittipaldi' || key === 'emerson_fittipaldi' || key === 'christian_fittipaldi') {
+    if (first && !first.includes('pietro')) return silhouetteUrl;
+  }
+  if (key === 'hill' || key === 'graham_hill' || key === 'phil_hill') {
+    if (first && !first.includes('damon')) return silhouetteUrl;
+  }
+  if (key === 'rosberg' || key === 'keke_rosberg') {
+    if (first && !first.includes('nico')) return silhouetteUrl;
+  }
+  if (key === 'andretti' || key === 'mario_andretti') {
+    if (first && !first.includes('michael')) return silhouetteUrl;
+  }
+  if (key === 'piquet' && first && !first.includes('nelsinho') && !first.includes('junior') && seasonNum < 2000) {
+    return silhouetteUrl;
+  }
+
+  const meta = DRIVER_REGISTRY[key] ?? (key === 'verstappen' && first.includes('max') ? DRIVER_REGISTRY['max_verstappen'] : undefined);
   const driverSlug = meta?.slug ?? key.replace(/_/g, '-');
 
   // 1. Seasons 2024, 2025, 2026: Official modern F1 WebP Cloudinary pipeline
@@ -278,6 +305,5 @@ export function getDriverPhotoUrl(
   }
 
   // 6. Fallback
-  const fallbackYear = !isNaN(seasonNum) && seasonNum >= 2024 ? String(seasonNum) : '2026';
   return `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/${fallbackYear}/fallback/driver/${fallbackYear}fallbackdriverright.webp`;
 }

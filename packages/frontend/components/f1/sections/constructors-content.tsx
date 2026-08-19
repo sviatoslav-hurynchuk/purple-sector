@@ -126,9 +126,9 @@ export async function ConstructorsContent({ searchParams, allYears }: Constructo
       {/* Header toolbar */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-border pb-6">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">{year} Formula 1 Teams</h1>
+          <h1 className="text-3xl font-black tracking-tight">{year} Teams &amp; Drivers</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Constructors championship contenders, lineups, and team profiles for the {year} season.
+            Formula 1 constructors championship contenders, official driver pairings, and profiles for the {year} season.
           </p>
         </div>
         <SeasonSelector currentSeason={year} allYears={allYears} />
@@ -169,11 +169,12 @@ export async function ConstructorsContent({ searchParams, allYears }: Constructo
             return (
               <div
                 key={team.constructorId}
-                className="rounded-2xl border border-white/10 bg-card overflow-hidden shadow-xl flex flex-col hover:border-white/20 transition-all duration-300"
+                className="rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col hover:border-white/20 transition-all duration-300 bg-card"
               >
-                {/* Team Top Header Strip */}
-                <div
-                  className="p-5 flex items-center justify-between border-b border-black/20"
+                {/* Clickable Top Header Strip */}
+                <Link
+                  href={`/constructors/${team.constructorId}`}
+                  className="group/header p-5 flex items-center justify-between transition-all hover:brightness-105"
                   style={{ backgroundColor: theme.primary }}
                 >
                   <div className="space-y-1">
@@ -181,46 +182,58 @@ export async function ConstructorsContent({ searchParams, allYears }: Constructo
                       <CountryFlag countryName={team.nationality} />
                       <span
                         className={[
-                          'text-xs font-semibold uppercase tracking-wider',
-                          isLight ? 'text-black/70' : 'text-white/70',
+                          'text-xs font-bold uppercase tracking-wider',
+                          isLight ? 'text-black/75' : 'text-white/75',
                         ].join(' ')}
                       >
                         {team.nationality}
                       </span>
                     </div>
-                    <Link
-                      href={`/constructors/${team.constructorId}`}
-                      className={[
-                        'text-2xl font-black uppercase tracking-tight block hover:opacity-85 transition-opacity',
-                        isLight ? 'text-black' : 'text-white',
-                      ].join(' ')}
-                    >
-                      {team.name}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <h2
+                        className={[
+                          'text-2xl font-black uppercase tracking-tight',
+                          isLight ? 'text-black' : 'text-white',
+                        ].join(' ')}
+                      >
+                        {team.name}
+                      </h2>
+                      <ChevronRight
+                        className={[
+                          'h-5 w-5 transition-transform group-hover/header:translate-x-1 opacity-70 group-hover/header:opacity-100',
+                          isLight ? 'text-black' : 'text-white',
+                        ].join(' ')}
+                      />
+                    </div>
                   </div>
 
                   {standing && (
                     <div
                       className={[
-                        'text-right px-3 py-1.5 rounded-lg border',
+                        'text-right px-3.5 py-1.5 rounded-lg border backdrop-blur-sm',
                         isLight
                           ? 'bg-black/10 border-black/20 text-black'
                           : 'bg-white/10 border-white/20 text-white',
                       ].join(' ')}
                     >
                       <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">
-                        Pos / Pts
+                        POS / PTS
                       </span>
                       <span className="text-xl font-black font-mono">
                         P{standing.position} <span className="text-xs font-normal">({standing.points} pts)</span>
                       </span>
                     </div>
                   )}
-                </div>
+                </Link>
 
-                {/* 2 Primary Drivers Grid */}
+                {/* 2 Primary Drivers Grid with dimmed team background */}
                 {primaryDrivers.length > 0 && (
-                  <div className="grid grid-cols-2 bg-zinc-950/40 divide-x divide-white/5 border-b border-white/10 flex-1">
+                  <div
+                    className="grid grid-cols-2 divide-x divide-white/10 flex-1 border-t border-black/15"
+                    style={{
+                      background: `linear-gradient(180deg, ${theme.primary}28 0%, ${theme.primary}14 45%, rgba(12,12,14,0.94) 100%)`,
+                    }}
+                  >
                     {primaryDrivers.map((item) => {
                       const { driver, standing: dStanding } = item;
                       const photoUrl = getDriverPhotoUrl(
@@ -236,17 +249,17 @@ export async function ConstructorsContent({ searchParams, allYears }: Constructo
                         <Link
                           key={driver.driverId}
                           href={`/drivers/${driver.driverId}`}
-                          className="group relative overflow-hidden min-h-[180px] sm:min-h-[200px] flex flex-col justify-between p-4 hover:bg-white/5 transition-colors"
+                          className="group relative overflow-hidden min-h-[190px] sm:min-h-[220px] flex flex-col justify-between p-4 sm:p-5 hover:bg-white/5 transition-all"
                         >
                           <div className="relative z-10 space-y-0.5">
-                            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                            <p className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider drop-shadow-sm">
                               {driver.givenName}
                             </p>
-                            <h3 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors">
+                            <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors drop-shadow-sm">
                               {driver.familyName}
                             </h3>
                             {driverNumber && (
-                              <p className="text-2xl font-black italic text-zinc-500 font-mono">
+                              <p className="text-2xl sm:text-3xl font-black italic text-white/40 font-mono">
                                 #{driverNumber}
                               </p>
                             )}
@@ -263,7 +276,7 @@ export async function ConstructorsContent({ searchParams, allYears }: Constructo
                               alt={`${driver.givenName} ${driver.familyName}`}
                               fill
                               sizes="(max-width: 640px) 250px, 300px"
-                              className="object-contain object-top transition-transform duration-300 group-hover:scale-105 origin-top drop-shadow-md"
+                              className="object-contain object-top transition-transform duration-300 group-hover:scale-105 origin-top drop-shadow-lg"
                             />
                           </div>
                         </Link>
@@ -271,22 +284,6 @@ export async function ConstructorsContent({ searchParams, allYears }: Constructo
                     })}
                   </div>
                 )}
-
-                {/* Team Card Footer Action */}
-                <div className="px-5 py-3.5 bg-card flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Award className="h-4 w-4 text-amber-400" />
-                    <span>Official Constructor Profile</span>
-                  </div>
-
-                  <Link
-                    href={`/constructors/${team.constructorId}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline underline-offset-4 group"
-                  >
-                    <span>View Team History & Stats</span>
-                    <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                  </Link>
-                </div>
               </div>
             );
           })}

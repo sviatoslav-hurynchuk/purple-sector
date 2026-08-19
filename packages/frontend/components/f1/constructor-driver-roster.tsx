@@ -19,10 +19,10 @@ export function ConstructorDriverRoster({ drivers, teamPrimaryColor }: Construct
     const q = search.toLowerCase().trim();
     return drivers.filter(
       (d) =>
-        d.givenName.toLowerCase().includes(q) ||
-        d.familyName.toLowerCase().includes(q) ||
-        d.nationality.toLowerCase().includes(q) ||
-        (d.code && d.code.toLowerCase().includes(q))
+        (d.givenName?.toLowerCase() ?? '').includes(q) ||
+        (d.familyName?.toLowerCase() ?? '').includes(q) ||
+        (d.nationality?.toLowerCase() ?? '').includes(q) ||
+        (d.code?.toLowerCase() ?? '').includes(q)
     );
   }, [drivers, search]);
 
@@ -63,16 +63,16 @@ export function ConstructorDriverRoster({ drivers, teamPrimaryColor }: Construct
             >
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1">
-                  <CountryFlag countryName={d.nationality} />
+                  <CountryFlag countryName={d.nationality || 'International'} />
                   {d.code && (
                     <span className="text-[10px] font-mono font-bold text-zinc-400 bg-white/5 px-1.5 py-0.5 rounded">
                       {d.code}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-zinc-400 truncate">{d.givenName}</p>
+                <p className="text-xs text-zinc-400 truncate">{d.givenName || ''}</p>
                 <p className="text-sm font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors truncate">
-                  {d.familyName}
+                  {d.familyName || d.driverId}
                 </p>
               </div>
 

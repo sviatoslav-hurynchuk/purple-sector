@@ -4,7 +4,7 @@ import { ConstructorsContent } from '@/components/f1/sections/constructors-conte
 import { getMaxYear } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Constructors',
+  title: 'Teams & Drivers',
   description: 'Explore all Formula 1 constructors, team lineups, and championship statistics.',
 };
 
