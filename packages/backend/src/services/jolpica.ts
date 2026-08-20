@@ -379,18 +379,17 @@ export async function getSeasonDrivers(season?: string | number): Promise<Driver
   });
 }
 
-const DRIVER_2026_REGISTRY: Record<
-  string,
-  {
-    givenName: string;
-    familyName: string;
-    nationality: string;
-    permanentNumber?: string;
-    code?: string;
-    constructorId: string;
-    constructorName: string;
-  }
-> = {
+interface Driver2026Entry {
+  givenName: string;
+  familyName: string;
+  nationality: string;
+  permanentNumber?: string;
+  code?: string;
+  constructorId: string;
+  constructorName: string;
+}
+
+const DRIVER_2026_REGISTRY: Record<string, Driver2026Entry> = {
   antonelli: { givenName: 'Andrea Kimi', familyName: 'Antonelli', nationality: 'Italian', permanentNumber: '12', code: 'ANT', constructorId: 'mercedes', constructorName: 'Mercedes' },
   russell: { givenName: 'George', familyName: 'Russell', nationality: 'British', permanentNumber: '63', code: 'RUS', constructorId: 'mercedes', constructorName: 'Mercedes' },
   hamilton: { givenName: 'Lewis', familyName: 'Hamilton', nationality: 'British', permanentNumber: '44', code: 'HAM', constructorId: 'ferrari', constructorName: 'Ferrari' },
@@ -417,6 +416,10 @@ const DRIVER_2026_REGISTRY: Record<
   perez: { givenName: 'Sergio', familyName: 'Pérez', nationality: 'Mexican', permanentNumber: '11', code: 'PER', constructorId: 'cadillac', constructorName: 'Cadillac' },
 };
 
+function lookupDriverRegistry(key: string): Driver2026Entry | undefined {
+  return Object.prototype.hasOwnProperty.call(DRIVER_2026_REGISTRY, key) ? DRIVER_2026_REGISTRY[key] : undefined;
+}
+
 export async function getDriverProfile(driverId: string): Promise<DriverProfile | null> {
   const rawId = driverId.trim().toLowerCase();
   // Map aliases to official Jolpica driverId
@@ -442,7 +445,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
     let driver: Driver | undefined = driverRes?.MRData.DriverTable.Drivers[0];
 
     // Smart Fallback: if Jolpica is temporarily down or has no entry, use registry fallback
-    const fallbackMeta = DRIVER_2026_REGISTRY[id] ?? DRIVER_2026_REGISTRY[rawId];
+    const fallbackMeta = lookupDriverRegistry(id) ?? lookupDriverRegistry(rawId);
     if (!driver) {
       if (fallbackMeta) {
         driver = {
@@ -490,19 +493,19 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
 
     // Fallback for rookie drivers without past season standings history
     if (seasonHistory.length === 0) {
-      const fallbackMeta = DRIVER_2026_REGISTRY[id] ?? DRIVER_2026_REGISTRY[rawId];
-      if (fallbackMeta && officialStats?.season) {
+      const rookieFallbackMeta = lookupDriverRegistry(id) ?? lookupDriverRegistry(rawId);
+      if (rookieFallbackMeta && officialStats?.season) {
         seasonHistory = [
           {
-            season: officialStats.season.year ?? '2026',
+            season: officialStats.season.year ?? getCurrentSeason(),
             round: '1',
             position: officialStats.season.position || '—',
             points: officialStats.season.points || '0',
             wins: String(officialStats.season.gpWins || 0),
             constructors: [
               {
-                constructorId: fallbackMeta.constructorId,
-                name: fallbackMeta.constructorName,
+                constructorId: rookieFallbackMeta.constructorId,
+                name: rookieFallbackMeta.constructorName,
               },
             ],
           },
@@ -751,6 +754,10 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
   },
 };
 
+function lookupConstructorRegistry(key: string): ConstructorRegistryData | undefined {
+  return Object.prototype.hasOwnProperty.call(CONSTRUCTOR_REGISTRY, key) ? CONSTRUCTOR_REGISTRY[key] : undefined;
+}
+
 export async function getSeasonConstructors(season?: string | number): Promise<Constructor[]> {
   const s = season ? String(season) : getCurrentSeason();
   const cacheKey = `f1:constructors:${s}`;
@@ -759,18 +766,23 @@ export async function getSeasonConstructors(season?: string | number): Promise<C
     const data = await jolpicaFetch<JolpicaConstructorsResponse>(`/${s}/constructors.json?limit=100`);
     const constructors = data.MRData.ConstructorTable.Constructors ?? [];
 
-    // Ensure 2026 season has newly registered constructors if not yet in Jolpica API
-    if (s === '2026') {
-      const existingIds = new Set(constructors.map((c) => c.constructorId));
-      for (const [id, meta] of Object.entries(CONSTRUCTOR_REGISTRY)) {
-        if (!existingIds.has(id) && (id === 'cadillac' || id === 'audi')) {
-          constructors.push({
-            constructorId: id,
-            name: meta.fullName,
-            nationality: meta.base.includes('United States') ? 'American' : (meta.base.includes('Germany') ? 'German' : 'British'),
-            url: `https://en.wikipedia.org/wiki/${encodeURIComponent(meta.fullName)}`,
-          });
-        }
+    // Ensure season has debut/newly registered constructors if not yet in Jolpica API
+    const currentYearNum = Number(s);
+    const existingIds = new Set(constructors.map((c) => c.constructorId));
+    for (const [id, meta] of Object.entries(CONSTRUCTOR_REGISTRY)) {
+      if (!existingIds.has(id) && meta.firstEntry === currentYearNum) {
+        constructors.push({
+          constructorId: id,
+          name: meta.fullName,
+          nationality: meta.base.includes('Italy')
+            ? 'Italian'
+            : meta.base.includes('United States')
+            ? 'American'
+            : meta.base.includes('Germany')
+            ? 'German'
+            : 'British',
+          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(meta.fullName)}`,
+        });
       }
     }
 
@@ -797,18 +809,20 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
   const cacheKey = `f1:constructor:profile:${id}`;
 
   return cachedFetch<ConstructorProfile | null>(cacheKey, TTL.SCHEDULE_PAST, async () => {
-    // Parallel lean requests (5 Jolpica calls + 1 official F1 scraper call)
-    const [constructorRes, driversRes, seasonsRes, resultsRes, winsRes, officialDetails] = await Promise.all([
+    // Parallel lean requests (Jolpica endpoints + 1 official F1 scraper call)
+    const [constructorRes, driversRes, seasonsRes, racesRes, p1Res, p2Res, p3Res, officialDetails] = await Promise.all([
       jolpicaFetch<JolpicaConstructorsResponse>(`/constructors/${id}.json`).catch(() => null),
       jolpicaFetch<JolpicaDriversResponse>(`/constructors/${id}/drivers.json?limit=100`).catch(() => null),
       jolpicaFetch<JolpicaSeasonsResponse>(`/constructors/${id}/seasons.json?limit=100`).catch(() => null),
-      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results.json?limit=1`).catch(() => null),
+      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/races.json?limit=1`).catch(() => null),
       jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/1.json?limit=1`).catch(() => null),
+      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/2.json?limit=1`).catch(() => null),
+      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/3.json?limit=1`).catch(() => null),
       getOfficialF1TeamDetails(id).catch(() => null),
     ]);
 
     let constructorEntity: Constructor | undefined = constructorRes?.MRData.ConstructorTable.Constructors[0];
-    const registryEntry = CONSTRUCTOR_REGISTRY[id] ?? CONSTRUCTOR_REGISTRY[rawId];
+    const registryEntry = lookupConstructorRegistry(id) ?? lookupConstructorRegistry(rawId);
 
     if (!constructorEntity) {
       if (registryEntry) {
@@ -847,7 +861,7 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
     const currentDrivers: ConstructorDriverHistory[] = currentDriverIds.map((driverKey) => {
       const foundHistorical = historicalDrivers.find((h) => h.driverId === driverKey);
       if (foundHistorical) return foundHistorical;
-      const driverFallback = DRIVER_2026_REGISTRY[driverKey];
+      const driverFallback = lookupDriverRegistry(driverKey);
       return {
         driverId: driverKey,
         givenName: driverFallback?.givenName ?? driverKey,
@@ -865,10 +879,14 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
       }
     }
 
-    const totalRaces = parseInt(resultsRes?.MRData.total ?? '0', 10);
-    const wins = parseInt(winsRes?.MRData.total ?? '0', 10);
+    const totalRaces = parseInt(racesRes?.MRData.total ?? '0', 10);
+    const wins = parseInt(p1Res?.MRData.total ?? '0', 10);
+    const p2Count = parseInt(p2Res?.MRData.total ?? '0', 10);
+    const p3Count = parseInt(p3Res?.MRData.total ?? '0', 10);
+    const podiums = wins + p2Count + p3Count;
     const seasonsCount = parseInt(
-      seasonsRes?.MRData.total ?? (registryEntry?.firstEntry ? String(2026 - registryEntry.firstEntry + 1) : '1'),
+      seasonsRes?.MRData.total ??
+        (registryEntry?.firstEntry ? String(Number(getCurrentSeason()) - registryEntry.firstEntry + 1) : '1'),
       10
     );
 
@@ -878,8 +896,8 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
       championships,
       totalRaces: Math.max(totalRaces, wins),
       wins,
-      podiums: wins > 0 ? Math.round(wins * 2.8) : 0, // Solid statistical estimate when individual P2/P3 query is omitted
-      poles: officialDetails?.polePositions ?? (wins > 0 ? Math.round(wins * 0.9) : 0),
+      podiums,
+      poles: officialDetails?.polePositions ?? 0,
       fastestLaps: officialDetails?.fastestLaps,
     };
 

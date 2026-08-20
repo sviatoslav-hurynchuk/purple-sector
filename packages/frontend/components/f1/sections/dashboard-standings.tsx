@@ -17,8 +17,8 @@ import {
 
 export async function DashboardStandings() {
     const [driverStandings, constructorStandings] = await Promise.all([
-        getDriverStandings(),
-        getConstructorStandings(),
+        getDriverStandings().catch(() => []),
+        getConstructorStandings().catch(() => []),
     ]);
 
     return (

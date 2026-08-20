@@ -63,20 +63,25 @@ async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
 
 /**
  * Fetches a resource that may not exist.
- * Returns null on 404. Throws on other non-2xx responses.
+ * Returns null on 404 or connection failures. Throws on other non-2xx responses.
  */
 async function apiFetchNullable<T>(path: string, revalidate = 60): Promise<T | null> {
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    next: { revalidate },
-  });
+  try {
+    const res = await fetch(`${BACKEND_URL}${path}`, {
+      next: { revalidate },
+    });
 
-  if (res.status === 404) return null;
+    if (res.status === 404) return null;
 
-  if (!res.ok) {
-    throw new Error(`Backend API error: ${res.status} ${res.statusText} — ${path}`);
+    if (!res.ok) {
+      throw new Error(`Backend API error: ${res.status} ${res.statusText} — ${path}`);
+    }
+
+    return (await res.json()) as T;
+  } catch (err) {
+    console.warn(`[API] Failed to fetch nullable ${path}:`, err instanceof Error ? err.message : err);
+    return null;
   }
-
-  return res.json() as Promise<T>;
 }
 
 // ── Standings ────────────────────────────────────────────────────────────────
