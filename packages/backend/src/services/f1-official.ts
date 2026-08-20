@@ -258,13 +258,42 @@ export async function getOfficialF1TeamDetails(constructorId: string): Promise<i
 }
 
 /**
+ * Helper to run async tasks in bounded batches to avoid overwhelming the upstream server.
+ */
+async function runInBatches(tasks: (() => Promise<unknown>)[], batchSize = 4): Promise<void> {
+  for (let i = 0; i < tasks.length; i += batchSize) {
+    const batch = tasks.slice(i, i + batchSize);
+    await Promise.allSettled(batch.map((fn) => fn()));
+  }
+}
+
+/**
  * Pre-warms official stats for all key 2026 grid drivers and teams in Upstash Redis.
+ * Deduplicates by unique target slug and bounds concurrency to avoid bursts.
  */
 export async function warmOfficialDriverStats(): Promise<void> {
-  const driverIds = Object.keys(DRIVER_SLUG_MAP);
-  const teamIds = Object.keys(TEAM_SLUG_MAP);
-  await Promise.allSettled([
-    ...driverIds.map((id) => getOfficialF1DriverStats(id)),
-    ...teamIds.map((id) => getOfficialF1TeamDetails(id)),
-  ]);
+  const seenDriverSlugs = new Set<string>();
+  const uniqueDriverIds: string[] = [];
+  for (const [id, slug] of Object.entries(DRIVER_SLUG_MAP)) {
+    if (!seenDriverSlugs.has(slug)) {
+      seenDriverSlugs.add(slug);
+      uniqueDriverIds.push(id);
+    }
+  }
+
+  const seenTeamSlugs = new Set<string>();
+  const uniqueTeamIds: string[] = [];
+  for (const [id, slug] of Object.entries(TEAM_SLUG_MAP)) {
+    if (!seenTeamSlugs.has(slug)) {
+      seenTeamSlugs.add(slug);
+      uniqueTeamIds.push(id);
+    }
+  }
+
+  const tasks: (() => Promise<unknown>)[] = [
+    ...uniqueDriverIds.map((id) => () => getOfficialF1DriverStats(id)),
+    ...uniqueTeamIds.map((id) => () => getOfficialF1TeamDetails(id)),
+  ];
+
+  await runInBatches(tasks, 4);
 }
