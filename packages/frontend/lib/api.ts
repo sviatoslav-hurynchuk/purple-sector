@@ -11,6 +11,8 @@ import type {
   ConstructorStanding,
   Driver,
   DriverProfile,
+  Constructor,
+  ConstructorProfile,
 } from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -36,6 +38,11 @@ interface DriversResponse {
   drivers: Driver[];
 }
 
+interface ConstructorsResponse {
+  season: string;
+  constructors: Constructor[];
+}
+
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
 /**
@@ -56,20 +63,25 @@ async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
 
 /**
  * Fetches a resource that may not exist.
- * Returns null on 404. Throws on other non-2xx responses.
+ * Returns null on 404 or connection failures. Throws on other non-2xx responses.
  */
 async function apiFetchNullable<T>(path: string, revalidate = 60): Promise<T | null> {
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    next: { revalidate },
-  });
+  try {
+    const res = await fetch(`${BACKEND_URL}${path}`, {
+      next: { revalidate },
+    });
 
-  if (res.status === 404) return null;
+    if (res.status === 404) return null;
 
-  if (!res.ok) {
-    throw new Error(`Backend API error: ${res.status} ${res.statusText} — ${path}`);
+    if (!res.ok) {
+      throw new Error(`Backend API error: ${res.status} ${res.statusText} — ${path}`);
+    }
+
+    return (await res.json()) as T;
+  } catch (err) {
+    console.warn(`[API] Failed to fetch nullable ${path}:`, err instanceof Error ? err.message : err);
+    return null;
   }
-
-  return res.json() as Promise<T>;
 }
 
 // ── Standings ────────────────────────────────────────────────────────────────
@@ -138,4 +150,19 @@ export async function getSeasonDrivers(season?: number): Promise<Driver[]> {
 export async function getDriverProfile(driverId: string): Promise<DriverProfile | null> {
   const revalidate = 86400; // 24h for driver profiles
   return apiFetchNullable<DriverProfile>(`/api/drivers/${driverId}`, revalidate);
+}
+
+// ── Constructors ─────────────────────────────────────────────────────────────
+
+export async function getSeasonConstructors(season?: number): Promise<Constructor[]> {
+  const currentYear = getCurrentYear();
+  const year = season ?? currentYear;
+  const revalidate = year < currentYear ? 86400 : 3600;
+  const data = await apiFetch<ConstructorsResponse>(`/api/constructors?season=${year}`, revalidate);
+  return data.constructors;
+}
+
+export async function getConstructorProfile(constructorId: string): Promise<ConstructorProfile | null> {
+  const revalidate = 86400; // 24h for constructor profiles
+  return apiFetchNullable<ConstructorProfile>(`/api/constructors/${constructorId}`, revalidate);
 }

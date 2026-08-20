@@ -39,8 +39,8 @@ export default function RootLayout({
                         <Link href="/calendar" className="text-sm font-semibold hover:text-primary transition-colors">
                             Calendar
                         </Link>
-                        <Link href="/drivers" className="text-sm font-semibold hover:text-primary transition-colors">
-                            Drivers
+                        <Link href="/constructors" className="text-sm font-semibold hover:text-primary transition-colors">
+                            Teams &amp; Drivers
                         </Link>
                         <Link href="/standings" className="text-sm font-semibold hover:text-primary transition-colors">
                             Standings
