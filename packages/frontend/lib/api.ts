@@ -163,6 +163,6 @@ export async function getSeasonConstructors(season?: number): Promise<Constructo
 }
 
 export async function getConstructorProfile(constructorId: string): Promise<ConstructorProfile | null> {
-  const revalidate = 86400; // 24h for constructor profiles
+  const revalidate = 300; // 5 mins for constructor profiles
   return apiFetchNullable<ConstructorProfile>(`/api/constructors/${constructorId}`, revalidate);
 }
