@@ -213,25 +213,18 @@ export async function getOfficialF1TeamDetails(constructorId: string): Promise<i
 
     const html = await res.text();
 
-    const parseIntSafe = (val?: string) => {
-      if (!val) return 0;
+    const parseNumberOrUndefined = (val?: string): number | undefined => {
+      if (!val) return undefined;
       const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
-      return isNaN(num) ? 0 : num;
+      return isNaN(num) ? undefined : num;
     };
 
     const getField = (label: string): string | undefined => {
-      // Look for <dt>label</dt><dd>value</dd> pattern
-      const regex = new RegExp(`${label}[^<]*<\\/d[te]>\\s*<d[de][^>]*>([^<]+)<\\/d[de]>`, 'i');
+      const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Look for <dt>label</dt><dd>value</dd> pattern anchored to full dt text
+      const regex = new RegExp(`>\\s*${escapedLabel}\\s*<\\/d[te]>\\s*<d[de][^>]*>([^<]+)<\\/d[de]>`, 'i');
       const m = html.match(regex);
-      if (m) return m[1].trim();
-
-      // Secondary fallback
-      const plainRegex = new RegExp(
-        `${label}\\s*([A-Za-z0-9\\s,/\\-\\.\\(\\)]+?)(?:<|Full Team Name|Base|Team Chief|Technical Chief|Chassis|Power Unit|First Team Entry|World Championships|Highest Race Finish|Pole Positions|Fastest Laps)`,
-        'i'
-      );
-      const plainMatch = html.match(plainRegex);
-      return plainMatch ? plainMatch[1].trim() : undefined;
+      return m ? m[1].trim() : undefined;
     };
 
     const details: import('../types/f1').OfficialTeamDetails = {
@@ -241,11 +234,11 @@ export async function getOfficialF1TeamDetails(constructorId: string): Promise<i
       technicalChief: getField('Technical Chief'),
       chassis: getField('Chassis'),
       powerUnit: getField('Power Unit'),
-      firstEntry: parseIntSafe(getField('First Team Entry')) || undefined,
-      worldChampionships: parseIntSafe(getField('World Championships')),
+      firstEntry: parseNumberOrUndefined(getField('First Team Entry')),
+      worldChampionships: parseNumberOrUndefined(getField('World Championships')),
       highestRaceFinish: getField('Highest Race Finish'),
-      polePositions: parseIntSafe(getField('Pole Positions')),
-      fastestLaps: parseIntSafe(getField('Fastest Laps')),
+      polePositions: parseNumberOrUndefined(getField('Pole Positions')),
+      fastestLaps: parseNumberOrUndefined(getField('Fastest Laps')),
     };
 
     // Cache the result in Redis for 24h
