@@ -74,16 +74,16 @@ async function fetchWithRetry(
 export async function getOfficialF1DriverStats(driverId: string, givenName?: string): Promise<OfficialDriverStats | null> {
   const key = driverId.trim().toLowerCase();
 
-  // Guard against surname collisions with historical fathers/relatives:
+  // Guard against ambiguous bare surname IDs colliding with current active grid drivers
   const first = (givenName ?? '').trim().toLowerCase();
-  if ((key === 'verstappen' || key === 'jos_verstappen') && (!first || !first.includes('max'))) return null;
-  if ((key === 'schumacher' || key === 'michael_schumacher' || key === 'ralf_schumacher') && (!first || !first.includes('mick'))) return null;
-  if ((key === 'magnussen' || key === 'jan_magnussen') && (!first || !first.includes('kevin'))) return null;
-  if ((key === 'villeneuve' || key === 'gilles_villeneuve') && (!first || !first.includes('jacques'))) return null;
-  if ((key === 'fittipaldi' || key === 'emerson_fittipaldi' || key === 'christian_fittipaldi') && (!first || !first.includes('pietro'))) return null;
-  if ((key === 'hill' || key === 'graham_hill' || key === 'phil_hill') && (!first || !first.includes('damon'))) return null;
-  if ((key === 'rosberg' || key === 'keke_rosberg') && (!first || !first.includes('nico'))) return null;
-  if ((key === 'andretti' || key === 'mario_andretti') && (!first || !first.includes('michael'))) return null;
+  if (key === 'verstappen' && (!first || !first.includes('max'))) return null;
+  if (key === 'schumacher' && (!first || !first.includes('mick'))) return null;
+  if (key === 'magnussen' && (!first || !first.includes('kevin'))) return null;
+  if (key === 'villeneuve' && (!first || !first.includes('jacques'))) return null;
+  if (key === 'fittipaldi' && (!first || !first.includes('pietro'))) return null;
+  if (key === 'hill' && (!first || !first.includes('damon'))) return null;
+  if (key === 'rosberg' && (!first || !first.includes('nico'))) return null;
+  if (key === 'andretti' && (!first || !first.includes('michael'))) return null;
   if (key === 'piquet' && (!first || (!first.includes('nelsinho') && !first.includes('junior')))) return null;
 
   const slug = DRIVER_SLUG_MAP[key] ?? (key === 'verstappen' && first.includes('max') ? 'max-verstappen' : key.replace(/_/g, '-'));
