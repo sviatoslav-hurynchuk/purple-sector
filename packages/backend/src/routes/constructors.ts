@@ -36,8 +36,8 @@ router.get('/', async (req: Request, res: Response) => {
     setCacheHeaders(res, maxAge);
     res.json({ season, constructors });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(500).json({ error: message });
+    console.error('[constructors] season listing failed:', err instanceof Error ? err.message : err);
+    res.status(500).json({ error: 'Failed to load constructors.' });
   }
 });
 
