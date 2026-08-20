@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import { DriverImage } from '@/components/f1/driver-image';
 import { getSeasonDrivers, getDriverStandings } from '@/lib/api';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { CountryFlag } from '@/components/f1/country-flag';
@@ -246,7 +246,7 @@ export async function DriversContent({ searchParams, allYears }: DriversContentP
 
                         {/* Driver photo cut-out — waist-up */}
                         <div className="absolute top-1 -right-2 sm:right-0 h-[210%] w-[72%] sm:w-[66%] pointer-events-none select-none">
-                          <Image
+                          <DriverImage
                             src={photoUrl}
                             alt={`${driver.givenName} ${driver.familyName}`}
                             fill

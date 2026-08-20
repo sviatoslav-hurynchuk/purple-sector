@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import { DriverImage } from '@/components/f1/driver-image';
 import { notFound } from 'next/navigation';
 import {
   Trophy,
@@ -268,7 +268,7 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
                   {/* Driver Cutout */}
                   <div className="absolute top-2 -right-2 sm:right-2 h-[190%] w-[60%] sm:w-[50%] pointer-events-none select-none">
-                    <Image
+                    <DriverImage
                       src={photoUrl}
                       alt={`${driver.givenName} ${driver.familyName}`}
                       fill

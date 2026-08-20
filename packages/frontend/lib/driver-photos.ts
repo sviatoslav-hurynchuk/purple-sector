@@ -183,6 +183,7 @@ const DRIVER_REGISTRY: Record<string, DriverRegistryEntry> = {
   vettel: { code: 'sebvet01', defaultTeam: 'astonmartin', slug: 'vettel', history: { '2020': 'ferrari', '2019': 'ferrari' }, damPath: 'S/SEBVET01_Sebastian_Vettel/sebvet01.png' },
   raikkonen: { code: 'kimrai01', defaultTeam: 'alfaromeo', slug: 'raikkonen', history: { '2018': 'ferrari' }, damPath: 'K/KIMRAI01_Kimi_R%C3%A4ikk%C3%B6nen/kimrai01.png' },
   magnussen: { code: 'kevmag01', defaultTeam: 'haas', slug: 'magnussen', damPath: 'K/KEVMAG01_Kevin_Magnussen/kevmag01.png' },
+  kevin_magnussen: { code: 'kevmag01', defaultTeam: 'haas', slug: 'magnussen', damPath: 'K/KEVMAG01_Kevin_Magnussen/kevmag01.png' },
   zhou: { code: 'guazho01', defaultTeam: 'kicksauber', slug: 'zhou', history: { '2023': 'alfaromeo', '2022': 'alfaromeo' }, damPath: 'G/GUAZHO01_Guanyu_Zhou/guazho01.png' },
   sargeant: { code: 'logsar01', defaultTeam: 'williams', slug: 'sargeant', damPath: 'L/LOGSAR01_Logan_Sargeant/logsar01.png' },
   de_vries: { code: 'nycdev01', defaultTeam: 'alphatauri', slug: 'de-vries', damPath: 'N/NYCDEV01_Nyck_de%20Vries/nycdev01.png' },
@@ -192,6 +193,82 @@ const DRIVER_REGISTRY: Record<string, DriverRegistryEntry> = {
   grosjean: { code: 'romgro01', defaultTeam: 'haas', slug: 'grosjean', damPath: 'R/ROBGRO01_Romain_Grosjean/robgro01.png' },
   kvyat: { code: 'dankvy01', defaultTeam: 'alphatauri', slug: 'kvyat' },
   kubica: { code: 'robkub01', defaultTeam: 'williams', slug: 'kubica' },
+};
+
+/** Normalizer for composite Jolpica driver IDs (e.g., kevin_magnussen -> magnussen) */
+const DRIVER_KEY_ALIAS: Record<string, string> = {
+  kevin_magnussen: 'magnussen',
+  'kevin-magnussen': 'magnussen',
+  max_verstappen: 'max_verstappen',
+  'max-verstappen': 'max_verstappen',
+  carlos_sainz: 'sainz',
+  'carlos-sainz': 'sainz',
+  alexander_albon: 'albon',
+  'alexander-albon': 'albon',
+  mick_schumacher: 'schumacher',
+  'mick-schumacher': 'schumacher',
+  nico_hulkenberg: 'hulkenberg',
+  'nico-hulkenberg': 'hulkenberg',
+  guanyu_zhou: 'zhou',
+  'guanyu-zhou': 'zhou',
+  logan_sargeant: 'sargeant',
+  'logan-sargeant': 'sargeant',
+  daniel_ricciardo: 'ricciardo',
+  'daniel-ricciardo': 'ricciardo',
+  valtteri_bottas: 'bottas',
+  'valtteri-bottas': 'bottas',
+  sergio_perez: 'perez',
+  'sergio-perez': 'perez',
+  lance_stroll: 'stroll',
+  'lance-stroll': 'stroll',
+  pierre_gasly: 'gasly',
+  'pierre-gasly': 'gasly',
+  esteban_ocon: 'ocon',
+  'esteban-ocon': 'ocon',
+  charles_leclerc: 'leclerc',
+  'charles-leclerc': 'leclerc',
+  lewis_hamilton: 'hamilton',
+  'lewis-hamilton': 'hamilton',
+  george_russell: 'russell',
+  'george-russell': 'russell',
+  lando_norris: 'norris',
+  'lando-norris': 'norris',
+  oscar_piastri: 'piastri',
+  'oscar-piastri': 'piastri',
+  fernando_alonso: 'alonso',
+  'fernando-alonso': 'alonso',
+  yuki_tsunoda: 'tsunoda',
+  'yuki-tsunoda': 'tsunoda',
+  liam_lawson: 'lawson',
+  'liam-lawson': 'lawson',
+  franco_colapinto: 'colapinto',
+  'franco-colapinto': 'colapinto',
+  oliver_bearman: 'bearman',
+  'oliver-bearman': 'bearman',
+  gabriel_bortoleto: 'bortoleto',
+  'gabriel-bortoleto': 'bortoleto',
+  andrea_kimi_antonelli: 'antonelli',
+  'andrea-kimi-antonelli': 'antonelli',
+  kimi_antonelli: 'antonelli',
+  'kimi-antonelli': 'antonelli',
+  isack_hadjar: 'hadjar',
+  'isack-hadjar': 'hadjar',
+  nyck_de_vries: 'de_vries',
+  'nyck-de-vries': 'de_vries',
+  antonio_giovinazzi: 'giovinazzi',
+  'antonio-giovinazzi': 'giovinazzi',
+  nicholas_latifi: 'latifi',
+  'nicholas-latifi': 'latifi',
+  romain_grosjean: 'grosjean',
+  'romain-grosjean': 'grosjean',
+  daniil_kvyat: 'kvyat',
+  'daniil-kvyat': 'kvyat',
+  robert_kubica: 'kubica',
+  'robert-kubica': 'kubica',
+  sebastian_vettel: 'vettel',
+  'sebastian-vettel': 'vettel',
+  kimi_raikkonen: 'raikkonen',
+  'kimi-raikkonen': 'raikkonen',
 };
 
 /**
@@ -227,7 +304,8 @@ export function getDriverPhotoUrl(
   season: string = '2026',
   constructorId?: string
 ): string {
-  const key = driverId.trim().toLowerCase();
+  const rawKey = driverId.trim().toLowerCase();
+  const key = DRIVER_KEY_ALIAS[rawKey] ?? rawKey;
   const s = String(season);
   const seasonNum = parseInt(s, 10);
   const fallbackYear = !isNaN(seasonNum) && seasonNum >= 2024 ? String(seasonNum) : '2026';
@@ -235,28 +313,28 @@ export function getDriverPhotoUrl(
 
   // 0. Disambiguation for shared surnames (fathers/sons/brothers across F1 eras)
   const first = (givenName ?? '').trim().toLowerCase();
-  if (key === 'verstappen' || key === 'jos_verstappen' || key === 'max_verstappen') {
+  if (key === 'verstappen' || key === 'jos_verstappen' || key === 'max_verstappen' || rawKey === 'jos_verstappen') {
     if (first && !first.includes('max')) return silhouetteUrl;
   }
-  if (key === 'schumacher' || key === 'michael_schumacher' || key === 'ralf_schumacher') {
+  if (key === 'schumacher' || key === 'michael_schumacher' || key === 'ralf_schumacher' || rawKey === 'michael_schumacher' || rawKey === 'ralf_schumacher') {
     if (first && !first.includes('mick')) return silhouetteUrl;
   }
-  if (key === 'magnussen' || key === 'jan_magnussen') {
+  if (key === 'magnussen' || key === 'jan_magnussen' || rawKey === 'jan_magnussen') {
     if (first && !first.includes('kevin')) return silhouetteUrl;
   }
-  if (key === 'villeneuve' || key === 'gilles_villeneuve') {
+  if (key === 'villeneuve' || key === 'gilles_villeneuve' || rawKey === 'gilles_villeneuve') {
     if (first && !first.includes('jacques')) return silhouetteUrl;
   }
-  if (key === 'fittipaldi' || key === 'emerson_fittipaldi' || key === 'christian_fittipaldi') {
+  if (key === 'fittipaldi' || key === 'emerson_fittipaldi' || key === 'christian_fittipaldi' || rawKey === 'emerson_fittipaldi') {
     if (first && !first.includes('pietro')) return silhouetteUrl;
   }
-  if (key === 'hill' || key === 'graham_hill' || key === 'phil_hill') {
+  if (key === 'hill' || key === 'graham_hill' || key === 'phil_hill' || rawKey === 'graham_hill' || rawKey === 'phil_hill') {
     if (first && !first.includes('damon')) return silhouetteUrl;
   }
-  if (key === 'rosberg' || key === 'keke_rosberg') {
+  if (key === 'rosberg' || key === 'keke_rosberg' || rawKey === 'keke_rosberg') {
     if (first && !first.includes('nico')) return silhouetteUrl;
   }
-  if (key === 'andretti' || key === 'mario_andretti') {
+  if (key === 'andretti' || key === 'mario_andretti' || rawKey === 'mario_andretti') {
     if (first && !first.includes('michael')) return silhouetteUrl;
   }
   if (key === 'piquet' && first && !first.includes('nelsinho') && !first.includes('junior') && seasonNum < 2000) {

@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { Trophy, ChevronRight, MapPin, Award } from 'lucide-react';
+import { DriverImage } from '@/components/f1/driver-image';
 import { getSeasonConstructors, getDriverStandings, getConstructorStandings } from '@/lib/api';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { CountryFlag } from '@/components/f1/country-flag';
@@ -271,7 +271,7 @@ export async function ConstructorsContent({ searchParams, allYears }: Constructo
 
                           {/* Driver photo cut-out */}
                           <div className="absolute top-1 -right-2 sm:right-0 h-[210%] w-[72%] sm:w-[66%] pointer-events-none select-none">
-                            <Image
+                            <DriverImage
                               src={photoUrl}
                               alt={`${driver.givenName} ${driver.familyName}`}
                               fill
