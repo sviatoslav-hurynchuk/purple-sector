@@ -18,6 +18,9 @@ export function DriverImage({
   alt,
   className,
   showSkeleton = true,
+  onLoad,
+  onError,
+  unoptimized = true,
   ...props
 }: DriverImageProps) {
   const [imgSrc, setImgSrc] = useState(src);
@@ -44,6 +47,7 @@ export function DriverImage({
 
       <Image
         {...props}
+        unoptimized={unoptimized}
         src={hasError ? fallbackSrc : imgSrc}
         alt={alt}
         className={[
@@ -53,15 +57,18 @@ export function DriverImage({
         ]
           .filter(Boolean)
           .join(' ')}
-        onLoad={() => {
+        onLoad={(e) => {
           setIsLoading(false);
+          onLoad?.(e);
         }}
-        onError={() => {
+        onError={(e) => {
+          onError?.(e);
           if (!hasError) {
             setHasError(true);
             setImgSrc(fallbackSrc);
+          } else {
+            setIsLoading(false);
           }
-          setIsLoading(false);
         }}
       />
     </>
