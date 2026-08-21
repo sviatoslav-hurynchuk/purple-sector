@@ -46,6 +46,7 @@ const TTL = {
   SCHEDULE_PAST: 24 * 60 * 60,     // 24 hours
   RACE_WITH_RESULTS: 24 * 60 * 60, // 24 hours (immutable data)
   NEGATIVE_CACHE: 5 * 60,          // 5 minutes for non-existent races
+  CONSTRUCTOR_PROFILE: 5 * 60,     // 5 minutes for constructor profiles
 } as const;
 
 export interface RaceResultEntry {
@@ -157,7 +158,8 @@ const JOLPICA_QUEUE: JolpicaQueueItem[] = [];
 let activeJolpicaCount = 0;
 const MAX_JOLPICA_CONCURRENCY = 2;
 const MIN_JOLPICA_INTERVAL_MS = 120;
-let lastJolpicaCallTime = 0;
+const MAX_JOLPICA_QUEUE_CAPACITY = 200;
+let nextScheduledJolpicaTime = 0;
 
 function enqueueJolpicaRequest(
   url: string,
@@ -166,6 +168,10 @@ function enqueueJolpicaRequest(
   timeoutMs = 10000
 ): Promise<Response> {
   return new Promise((resolve, reject) => {
+    if (JOLPICA_QUEUE.length >= MAX_JOLPICA_QUEUE_CAPACITY) {
+      reject(new Error(`Jolpica request queue is full (${MAX_JOLPICA_QUEUE_CAPACITY} items pending). Server overloaded.`));
+      return;
+    }
     JOLPICA_QUEUE.push({ url, options, retries, timeoutMs, resolve, reject });
     processJolpicaQueue();
   });
@@ -173,18 +179,18 @@ function enqueueJolpicaRequest(
 
 function processJolpicaQueue(): void {
   if (JOLPICA_QUEUE.length === 0 || activeJolpicaCount >= MAX_JOLPICA_CONCURRENCY) return;
+
   const now = Date.now();
-  const timeSinceLast = now - lastJolpicaCallTime;
-  const delay = Math.max(0, MIN_JOLPICA_INTERVAL_MS - timeSinceLast);
+  const scheduledTime = Math.max(now, nextScheduledJolpicaTime);
+  nextScheduledJolpicaTime = scheduledTime + MIN_JOLPICA_INTERVAL_MS;
+  const delay = Math.max(0, scheduledTime - now);
+
+  const item = JOLPICA_QUEUE.shift();
+  if (!item) return;
+
+  activeJolpicaCount++;
 
   setTimeout(async () => {
-    if (JOLPICA_QUEUE.length === 0 || activeJolpicaCount >= MAX_JOLPICA_CONCURRENCY) return;
-    const item = JOLPICA_QUEUE.shift();
-    if (!item) return;
-
-    activeJolpicaCount++;
-    lastJolpicaCallTime = Date.now();
-
     try {
       let lastError: unknown;
       for (let attempt = 0; attempt <= item.retries; attempt++) {
@@ -1016,6 +1022,8 @@ export async function getSeasonConstructors(season?: string | number): Promise<C
   });
 }
 
+const inFlightConstructorProfiles = new Map<string, Promise<ConstructorProfile | null>>();
+
 export async function getConstructorProfile(constructorId: string): Promise<ConstructorProfile | null> {
   const rawId = constructorId.trim().toLowerCase();
   const idMap: Record<string, string> = {
@@ -1061,138 +1069,153 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
     console.log(`[Cache STALE/INVALID] ${cacheKey} had 0 races for established team, refreshing...`);
   }
 
-  // Lean requests via throttled queue + official F1 scraper
-    const [constructorRes, driversRes, seasonsRes, racesRes, p1Res, p2Res, p3Res, officialDetails] = await Promise.all([
-      jolpicaFetch<JolpicaConstructorsResponse>(`/constructors/${id}.json`).catch(() => null),
-      jolpicaFetch<JolpicaDriversResponse>(`/constructors/${id}/drivers.json?limit=100`).catch(() => null),
-      jolpicaFetch<JolpicaSeasonsResponse>(`/constructors/${id}/seasons.json?limit=100`).catch(() => null),
-      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/races.json?limit=1`).catch(() => null),
-      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/1.json?limit=1`).catch(() => null),
-      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/2.json?limit=1`).catch(() => null),
-      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/3.json?limit=1`).catch(() => null),
-      getOfficialF1TeamDetails(id).catch(() => null),
-    ]);
+  // Deduplicate concurrent in-flight requests for the same constructor
+  const inFlight = inFlightConstructorProfiles.get(cacheKey);
+  if (inFlight) {
+    return inFlight;
+  }
 
-    let constructorEntity: Constructor | undefined = constructorRes?.MRData.ConstructorTable.Constructors[0];
+  const promise = (async () => {
+    try {
+      // Lean requests via throttled queue + official F1 scraper
+      const [constructorRes, driversRes, seasonsRes, racesRes, p1Res, p2Res, p3Res, officialDetails] = await Promise.all([
+        jolpicaFetch<JolpicaConstructorsResponse>(`/constructors/${id}.json`).catch(() => null),
+        jolpicaFetch<JolpicaDriversResponse>(`/constructors/${id}/drivers.json?limit=100`).catch(() => null),
+        jolpicaFetch<JolpicaSeasonsResponse>(`/constructors/${id}/seasons.json?limit=100`).catch(() => null),
+        jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/races.json?limit=1`).catch(() => null),
+        jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/1.json?limit=1`).catch(() => null),
+        jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/2.json?limit=1`).catch(() => null),
+        jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/3.json?limit=1`).catch(() => null),
+        getOfficialF1TeamDetails(id).catch(() => null),
+      ]);
 
-    if (!constructorEntity) {
-      if (registryEntry) {
-        constructorEntity = {
-          constructorId: id,
-          name: registryEntry.fullName,
-          nationality: registryEntry.base.includes('Italy')
-            ? 'Italian'
-            : registryEntry.base.includes('United States')
-            ? 'American'
-            : registryEntry.base.includes('Germany')
-            ? 'German'
-            : registryEntry.base.includes('France')
-            ? 'French'
-            : registryEntry.base.includes('Japan')
-            ? 'Japanese'
-            : registryEntry.base.includes('Switzerland')
-            ? 'Swiss'
-            : 'British',
-          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(registryEntry.fullName)}`,
+      let constructorEntity: Constructor | undefined = constructorRes?.MRData.ConstructorTable.Constructors[0];
+
+      if (!constructorEntity) {
+        if (registryEntry) {
+          constructorEntity = {
+            constructorId: id,
+            name: registryEntry.fullName,
+            nationality: registryEntry.base.includes('Italy')
+              ? 'Italian'
+              : registryEntry.base.includes('United States')
+              ? 'American'
+              : registryEntry.base.includes('Germany')
+              ? 'German'
+              : registryEntry.base.includes('France')
+              ? 'French'
+              : registryEntry.base.includes('Japan')
+              ? 'Japanese'
+              : registryEntry.base.includes('Switzerland')
+              ? 'Swiss'
+              : 'British',
+            url: `https://en.wikipedia.org/wiki/${encodeURIComponent(registryEntry.fullName)}`,
+          };
+        } else {
+          return null;
+        }
+      }
+
+      const validConstructor: Constructor = constructorEntity;
+
+      // Aggregate drivers list
+      const rawDrivers = driversRes?.MRData.DriverTable.Drivers ?? [];
+      const historicalDrivers: ConstructorDriverHistory[] = rawDrivers.map((d) => ({
+        driverId: d.driverId,
+        givenName: d.givenName,
+        familyName: d.familyName,
+        code: d.code,
+        permanentNumber: d.permanentNumber,
+        nationality: d.nationality,
+      }));
+
+      // Current drivers from registry / 2026 grid
+      const currentDriverIds = registryEntry?.currentDrivers ?? [];
+      const currentDrivers: ConstructorDriverHistory[] = currentDriverIds.map((driverKey) => {
+        const foundHistorical = historicalDrivers.find((h) => h.driverId === driverKey);
+        if (foundHistorical) return foundHistorical;
+        const driverFallback = lookupDriverRegistry(driverKey);
+        return {
+          driverId: driverKey,
+          givenName: driverFallback?.givenName ?? driverKey,
+          familyName: driverFallback?.familyName ?? '',
+          code: driverFallback?.code,
+          permanentNumber: driverFallback?.permanentNumber,
+          nationality: driverFallback?.nationality ?? 'International',
         };
-      } else {
-        return null;
+      });
+
+      // Ensure current drivers are also in historical list
+      for (const cd of currentDrivers) {
+        if (!historicalDrivers.some((h) => h.driverId === cd.driverId)) {
+          historicalDrivers.unshift(cd);
+        }
       }
-    }
 
-    const validConstructor: Constructor = constructorEntity;
+      const fallbackStats = registryEntry?.stats;
+      const jolpicaRaces = parseInt(racesRes?.MRData.total ?? '0', 10);
+      const jolpicaWins = parseInt(p1Res?.MRData.total ?? '0', 10);
+      const p2Count = parseInt(p2Res?.MRData.total ?? '0', 10);
+      const p3Count = parseInt(p3Res?.MRData.total ?? '0', 10);
+      const jolpicaPodiums = jolpicaWins + p2Count + p3Count;
 
-    // Aggregate drivers list
-    const rawDrivers = driversRes?.MRData.DriverTable.Drivers ?? [];
-    const historicalDrivers: ConstructorDriverHistory[] = rawDrivers.map((d) => ({
-      driverId: d.driverId,
-      givenName: d.givenName,
-      familyName: d.familyName,
-      code: d.code,
-      permanentNumber: d.permanentNumber,
-      nationality: d.nationality,
-    }));
+      // Use higher of live Jolpica count, official F1 details, and verified registry baseline
+      const totalRaces = Math.max(jolpicaRaces, fallbackStats?.totalRaces ?? 0);
+      const wins = Math.max(jolpicaWins, fallbackStats?.wins ?? 0);
+      const podiums = Math.max(jolpicaPodiums, fallbackStats?.podiums ?? 0);
+      const poles = Math.max(officialDetails?.polePositions ?? 0, fallbackStats?.poles ?? 0);
+      const fastestLaps = Math.max(officialDetails?.fastestLaps ?? 0, fallbackStats?.fastestLaps ?? 0);
+      const championships = Math.max(
+        officialDetails?.worldChampionships ?? 0,
+        registryEntry?.worldChampionships?.length ?? 0,
+        fallbackStats?.championships ?? 0
+      );
 
-    // Current drivers from registry / 2026 grid
-    const currentDriverIds = registryEntry?.currentDrivers ?? [];
-    const currentDrivers: ConstructorDriverHistory[] = currentDriverIds.map((driverKey) => {
-      const foundHistorical = historicalDrivers.find((h) => h.driverId === driverKey);
-      if (foundHistorical) return foundHistorical;
-      const driverFallback = lookupDriverRegistry(driverKey);
-      return {
-        driverId: driverKey,
-        givenName: driverFallback?.givenName ?? driverKey,
-        familyName: driverFallback?.familyName ?? '',
-        code: driverFallback?.code,
-        permanentNumber: driverFallback?.permanentNumber,
-        nationality: driverFallback?.nationality ?? 'International',
+      const seasonsCount = parseInt(
+        seasonsRes?.MRData.total ??
+          (registryEntry?.firstEntry ? String(Number(getCurrentSeason()) - registryEntry.firstEntry + 1) : '1'),
+        10
+      );
+
+      const stats: ConstructorCareerStats = {
+        championships,
+        totalRaces,
+        wins,
+        podiums,
+        poles,
+        fastestLaps,
       };
-    });
 
-    // Ensure current drivers are also in historical list
-    for (const cd of currentDrivers) {
-      if (!historicalDrivers.some((h) => h.driverId === cd.driverId)) {
-        historicalDrivers.unshift(cd);
-      }
+      const meta: ConstructorMeta = {
+        fullName: officialDetails?.fullName ?? registryEntry?.fullName ?? validConstructor.name,
+        base: officialDetails?.base ?? registryEntry?.base ?? 'United Kingdom',
+        teamPrincipal: officialDetails?.teamPrincipal ?? registryEntry?.teamPrincipal ?? 'Team Leadership',
+        technicalChief: officialDetails?.technicalChief ?? registryEntry?.technicalChief,
+        chassis: officialDetails?.chassis ?? registryEntry?.chassis,
+        powerUnit: officialDetails?.powerUnit ?? registryEntry?.powerUnit,
+        firstEntry: officialDetails?.firstEntry ?? registryEntry?.firstEntry,
+        worldChampionships: registryEntry?.worldChampionships ?? [],
+      };
+
+      const result: ConstructorProfile = {
+        constructor: validConstructor,
+        meta,
+        stats,
+        currentDrivers,
+        historicalDrivers,
+        seasonsCount,
+        officialDetails,
+      };
+
+      await cache.set(cacheKey, result, TTL.CONSTRUCTOR_PROFILE);
+      return result;
+    } finally {
+      inFlightConstructorProfiles.delete(cacheKey);
     }
+  })();
 
-    const fallbackStats = registryEntry?.stats;
-    const jolpicaRaces = parseInt(racesRes?.MRData.total ?? '0', 10);
-    const jolpicaWins = parseInt(p1Res?.MRData.total ?? '0', 10);
-    const p2Count = parseInt(p2Res?.MRData.total ?? '0', 10);
-    const p3Count = parseInt(p3Res?.MRData.total ?? '0', 10);
-    const jolpicaPodiums = jolpicaWins + p2Count + p3Count;
-
-    // Use higher of live Jolpica count, official F1 details, and verified registry baseline
-    const totalRaces = Math.max(jolpicaRaces, fallbackStats?.totalRaces ?? 0);
-    const wins = Math.max(jolpicaWins, fallbackStats?.wins ?? 0);
-    const podiums = Math.max(jolpicaPodiums, fallbackStats?.podiums ?? 0);
-    const poles = Math.max(officialDetails?.polePositions ?? 0, fallbackStats?.poles ?? 0);
-    const fastestLaps = Math.max(officialDetails?.fastestLaps ?? 0, fallbackStats?.fastestLaps ?? 0);
-    const championships = Math.max(
-      officialDetails?.worldChampionships ?? 0,
-      registryEntry?.worldChampionships?.length ?? 0,
-      fallbackStats?.championships ?? 0
-    );
-
-    const seasonsCount = parseInt(
-      seasonsRes?.MRData.total ??
-        (registryEntry?.firstEntry ? String(Number(getCurrentSeason()) - registryEntry.firstEntry + 1) : '1'),
-      10
-    );
-
-    const stats: ConstructorCareerStats = {
-      championships,
-      totalRaces,
-      wins,
-      podiums,
-      poles,
-      fastestLaps,
-    };
-
-    const meta: ConstructorMeta = {
-      fullName: officialDetails?.fullName ?? registryEntry?.fullName ?? validConstructor.name,
-      base: officialDetails?.base ?? registryEntry?.base ?? 'United Kingdom',
-      teamPrincipal: officialDetails?.teamPrincipal ?? registryEntry?.teamPrincipal ?? 'Team Leadership',
-      technicalChief: officialDetails?.technicalChief ?? registryEntry?.technicalChief,
-      chassis: officialDetails?.chassis ?? registryEntry?.chassis,
-      powerUnit: officialDetails?.powerUnit ?? registryEntry?.powerUnit,
-      firstEntry: officialDetails?.firstEntry ?? registryEntry?.firstEntry,
-      worldChampionships: registryEntry?.worldChampionships ?? [],
-    };
-
-    const result: ConstructorProfile = {
-      constructor: validConstructor,
-      meta,
-      stats,
-      currentDrivers,
-      historicalDrivers,
-      seasonsCount,
-      officialDetails,
-    };
-
-    await cache.set(cacheKey, result, TTL.SCHEDULE_PAST);
-    return result;
+  inFlightConstructorProfiles.set(cacheKey, promise);
+  return promise;
 }
 
 // ── Cache Warming ─────────────────────────────────────────────────────────────
