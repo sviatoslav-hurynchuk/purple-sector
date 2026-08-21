@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import { getConstructorProfile } from '@/lib/api';
 import { ConstructorProfileContent } from '@/components/f1/sections/constructor-profile-content';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface ConstructorPageProps {
   params: Promise<{ constructorId: string }>;
 }

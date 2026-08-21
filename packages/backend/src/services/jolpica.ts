@@ -612,13 +612,13 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     fullName: 'McLaren Formula 1 Team',
     base: 'Woking, United Kingdom',
     teamPrincipal: 'Andrea Stella',
-    technicalChief: 'Peter Prodromou / Rob Marshall',
-    chassis: 'MCL39',
+    technicalChief: 'Peter Prodromou / Neil Houldey',
+    chassis: 'MCL40',
     powerUnit: 'Mercedes',
     firstEntry: 1966,
     worldChampionships: [1974, 1984, 1985, 1988, 1989, 1990, 1991, 1998, 2024],
     currentDrivers: ['norris', 'piastri'],
-    stats: { championships: 10, totalRaces: 964, wins: 200, podiums: 547, poles: 164, fastestLaps: 178 },
+    stats: { championships: 10, totalRaces: 965, wins: 200, podiums: 547, poles: 178, fastestLaps: 178 },
   },
   mercedes: {
     fullName: 'Mercedes-AMG PETRONAS F1 Team',
@@ -1048,8 +1048,20 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
   const id = idMap[rawId] ?? rawId;
   const cacheKey = `f1:constructor:profile:${id}`;
 
-  return cachedFetch<ConstructorProfile | null>(cacheKey, TTL.SCHEDULE_PAST, async () => {
-    // Lean requests via throttled queue + official F1 scraper
+  const registryEntry = lookupConstructorRegistry(id) ?? lookupConstructorRegistry(rawId);
+  const isDebutTeam = registryEntry?.firstEntry === 2026;
+
+  // Check cache first with sanity validation (established teams must have >0 races)
+  const cached = await cache.get<ConstructorProfile>(cacheKey);
+  if (cached !== null && cached !== undefined) {
+    if (isDebutTeam || (cached.stats && cached.stats.totalRaces > 0)) {
+      console.log(`[Cache HIT] ${cacheKey}`);
+      return cached;
+    }
+    console.log(`[Cache STALE/INVALID] ${cacheKey} had 0 races for established team, refreshing...`);
+  }
+
+  // Lean requests via throttled queue + official F1 scraper
     const [constructorRes, driversRes, seasonsRes, racesRes, p1Res, p2Res, p3Res, officialDetails] = await Promise.all([
       jolpicaFetch<JolpicaConstructorsResponse>(`/constructors/${id}.json`).catch(() => null),
       jolpicaFetch<JolpicaDriversResponse>(`/constructors/${id}/drivers.json?limit=100`).catch(() => null),
@@ -1062,7 +1074,6 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
     ]);
 
     let constructorEntity: Constructor | undefined = constructorRes?.MRData.ConstructorTable.Constructors[0];
-    const registryEntry = lookupConstructorRegistry(id) ?? lookupConstructorRegistry(rawId);
 
     if (!constructorEntity) {
       if (registryEntry) {
@@ -1132,12 +1143,12 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
     const p3Count = parseInt(p3Res?.MRData.total ?? '0', 10);
     const jolpicaPodiums = jolpicaWins + p2Count + p3Count;
 
-    // Use higher of live Jolpica count and verified registry baseline
+    // Use higher of live Jolpica count, official F1 details, and verified registry baseline
     const totalRaces = Math.max(jolpicaRaces, fallbackStats?.totalRaces ?? 0);
     const wins = Math.max(jolpicaWins, fallbackStats?.wins ?? 0);
     const podiums = Math.max(jolpicaPodiums, fallbackStats?.podiums ?? 0);
-    const poles = officialDetails?.polePositions ?? fallbackStats?.poles ?? 0;
-    const fastestLaps = officialDetails?.fastestLaps ?? fallbackStats?.fastestLaps;
+    const poles = Math.max(officialDetails?.polePositions ?? 0, fallbackStats?.poles ?? 0);
+    const fastestLaps = Math.max(officialDetails?.fastestLaps ?? 0, fallbackStats?.fastestLaps ?? 0);
     const championships = Math.max(
       officialDetails?.worldChampionships ?? 0,
       registryEntry?.worldChampionships?.length ?? 0,
@@ -1170,7 +1181,7 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
       worldChampionships: registryEntry?.worldChampionships ?? [],
     };
 
-    return {
+    const result: ConstructorProfile = {
       constructor: validConstructor,
       meta,
       stats,
@@ -1179,7 +1190,9 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
       seasonsCount,
       officialDetails,
     };
-  });
+
+    await cache.set(cacheKey, result, TTL.SCHEDULE_PAST);
+    return result;
 }
 
 // ── Cache Warming ─────────────────────────────────────────────────────────────
