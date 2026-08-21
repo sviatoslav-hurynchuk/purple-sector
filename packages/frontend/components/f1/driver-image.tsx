@@ -20,7 +20,7 @@ export function DriverImage({
   showSkeleton = true,
   onLoad,
   onError,
-  unoptimized = true,
+  unoptimized = false,
   ...props
 }: DriverImageProps) {
   const [imgSrc, setImgSrc] = useState(src);
