@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import { DriverImage } from '@/components/f1/driver-image';
 import type { DriverProfile, DriverSeasonStanding } from '@/types/f1';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
@@ -173,7 +173,7 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
 
           <div className="lg:col-span-5 relative h-80 sm:h-96 lg:h-full min-h-[360px] flex items-start justify-center lg:justify-end overflow-hidden">
             <div className="relative w-full h-[250%] top-2 sm:top-4 flex items-start">
-              <Image
+              <DriverImage
                 src={photoUrl}
                 alt={`${driver.givenName} ${driver.familyName}`}
                 fill

@@ -60,7 +60,7 @@ router.get('/:constructorId', async (req: Request, res: Response) => {
       return;
     }
 
-    setCacheHeaders(res, 86400); // 24h cache on constructor profile
+    setCacheHeaders(res, 300); // 5m cache on constructor profile
     res.json(profile);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

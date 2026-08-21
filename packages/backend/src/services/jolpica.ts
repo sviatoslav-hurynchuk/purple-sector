@@ -46,6 +46,7 @@ const TTL = {
   SCHEDULE_PAST: 24 * 60 * 60,     // 24 hours
   RACE_WITH_RESULTS: 24 * 60 * 60, // 24 hours (immutable data)
   NEGATIVE_CACHE: 5 * 60,          // 5 minutes for non-existent races
+  CONSTRUCTOR_PROFILE: 5 * 60,     // 5 minutes for constructor profiles
 } as const;
 
 export interface RaceResultEntry {
@@ -142,46 +143,93 @@ type JolpicaConstructorsResponse = JolpicaResponse<'ConstructorTable', Construct
 type JolpicaSeasonsResponse = JolpicaResponse<'SeasonTable', SeasonTable>;
 type JolpicaRaceResultsResponse = JolpicaResponse<'RaceTable', RaceResultsTable>;
 type JolpicaStandingsResponse = JolpicaResponse<'StandingsTable', StandingsTable>;
-// ── HTTP Fetch Helper with Retry ──────────────────────────────────────────────
+// ── HTTP Fetch Helper with Throttled Queue & Resilient Backoff ──────────────
 
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit = {},
-  retries = 2,
-  backoffMs = 300,
-  timeoutMs = 8000
-): Promise<Response> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const signal = AbortSignal.timeout(timeoutMs);
-      const res = await fetch(url, { ...options, signal });
-      if ((res.status === 429 || res.status >= 500) && attempt < retries) {
-        await res.body?.cancel();
-        const delay = backoffMs * Math.pow(2, attempt);
-        console.warn(`[Jolpica] Got HTTP ${res.status} for ${url}. Retrying in ${delay}ms (attempt ${attempt + 1}/${retries})...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        continue;
-      }
-      return res;
-    } catch (err) {
-      lastError = err;
-      if (attempt < retries) {
-        const delay = backoffMs * Math.pow(2, attempt);
-        console.warn(`[Jolpica] Network error for ${url}. Retrying in ${delay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-  throw lastError ?? new Error(`Failed to fetch ${url}`);
+interface JolpicaQueueItem {
+  url: string;
+  options: RequestInit;
+  retries: number;
+  timeoutMs: number;
+  resolve: (res: Response) => void;
+  reject: (err: unknown) => void;
 }
 
-async function jolpicaFetch<T>(path: string, timeoutMs = 8000): Promise<T> {
-  // According to Jolpica docs: all endpoints must end with .json
+const JOLPICA_QUEUE: JolpicaQueueItem[] = [];
+let activeJolpicaCount = 0;
+const MAX_JOLPICA_CONCURRENCY = 2;
+const MIN_JOLPICA_INTERVAL_MS = 120;
+const MAX_JOLPICA_QUEUE_CAPACITY = 200;
+let nextScheduledJolpicaTime = 0;
+
+function enqueueJolpicaRequest(
+  url: string,
+  options: RequestInit = {},
+  retries = 3,
+  timeoutMs = 10000
+): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    if (JOLPICA_QUEUE.length >= MAX_JOLPICA_QUEUE_CAPACITY) {
+      reject(new Error(`Jolpica request queue is full (${MAX_JOLPICA_QUEUE_CAPACITY} items pending). Server overloaded.`));
+      return;
+    }
+    JOLPICA_QUEUE.push({ url, options, retries, timeoutMs, resolve, reject });
+    processJolpicaQueue();
+  });
+}
+
+function processJolpicaQueue(): void {
+  if (JOLPICA_QUEUE.length === 0 || activeJolpicaCount >= MAX_JOLPICA_CONCURRENCY) return;
+
+  const now = Date.now();
+  const scheduledTime = Math.max(now, nextScheduledJolpicaTime);
+  nextScheduledJolpicaTime = scheduledTime + MIN_JOLPICA_INTERVAL_MS;
+  const delay = Math.max(0, scheduledTime - now);
+
+  const item = JOLPICA_QUEUE.shift();
+  if (!item) return;
+
+  activeJolpicaCount++;
+
+  setTimeout(async () => {
+    try {
+      let lastError: unknown;
+      for (let attempt = 0; attempt <= item.retries; attempt++) {
+        try {
+          const signal = AbortSignal.timeout(item.timeoutMs);
+          const res = await fetch(item.url, { ...item.options, signal });
+          if ((res.status === 429 || res.status >= 500) && attempt < item.retries) {
+            await res.body?.cancel().catch(() => {});
+            const backoff = 700 * Math.pow(1.5, attempt) + Math.random() * 200;
+            console.warn(
+              `[Jolpica] HTTP ${res.status} for ${item.url}. Backing off ${Math.round(backoff)}ms (attempt ${attempt + 1}/${item.retries})...`
+            );
+            await new Promise((r) => setTimeout(r, backoff));
+            continue;
+          }
+          item.resolve(res);
+          return;
+        } catch (err) {
+          lastError = err;
+          if (attempt < item.retries) {
+            const backoff = 700 * Math.pow(1.5, attempt);
+            console.warn(`[Jolpica] Network error for ${item.url}. Retrying in ${Math.round(backoff)}ms...`);
+            await new Promise((r) => setTimeout(r, backoff));
+          }
+        }
+      }
+      item.reject(lastError ?? new Error(`Failed to fetch ${item.url}`));
+    } finally {
+      activeJolpicaCount--;
+      processJolpicaQueue();
+    }
+  }, delay);
+}
+
+async function jolpicaFetch<T>(path: string, timeoutMs = 10000): Promise<T> {
   const [pathnameRaw, query] = path.split('?', 2);
   const pathname = pathnameRaw.endsWith('.json') ? pathnameRaw.slice(0, -5) : pathnameRaw;
   const url = `${BASE_URL}${pathname}.json${query ? `?${query}` : ''}`;
-  const res = await fetchWithRetry(url, {}, 2, 300, timeoutMs);
+  const res = await enqueueJolpicaRequest(url, {}, 3, timeoutMs);
 
   if (!res.ok) {
     throw new Error(`Jolpica API error: ${res.status} — ${url}`);
@@ -543,6 +591,14 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
 
 interface ConstructorRegistryData extends ConstructorMeta {
   currentDrivers: string[];
+  stats?: {
+    championships: number;
+    totalRaces: number;
+    wins: number;
+    podiums: number;
+    poles: number;
+    fastestLaps?: number;
+  };
 }
 
 const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
@@ -556,17 +612,19 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 1950,
     worldChampionships: [1961, 1964, 1975, 1976, 1977, 1979, 1982, 1983, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008],
     currentDrivers: ['hamilton', 'leclerc'],
+    stats: { championships: 16, totalRaces: 1135, wins: 251, podiums: 857, poles: 253, fastestLaps: 264 },
   },
   mclaren: {
     fullName: 'McLaren Formula 1 Team',
     base: 'Woking, United Kingdom',
     teamPrincipal: 'Andrea Stella',
-    technicalChief: 'Peter Prodromou / Rob Marshall',
-    chassis: 'MCL39',
+    technicalChief: 'Peter Prodromou / Neil Houldey',
+    chassis: 'MCL40',
     powerUnit: 'Mercedes',
     firstEntry: 1966,
     worldChampionships: [1974, 1984, 1985, 1988, 1989, 1990, 1991, 1998, 2024],
     currentDrivers: ['norris', 'piastri'],
+    stats: { championships: 10, totalRaces: 965, wins: 200, podiums: 547, poles: 178, fastestLaps: 178 },
   },
   mercedes: {
     fullName: 'Mercedes-AMG PETRONAS F1 Team',
@@ -578,6 +636,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 1954,
     worldChampionships: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021],
     currentDrivers: ['russell', 'antonelli'],
+    stats: { championships: 8, totalRaces: 352, wins: 139, podiums: 324, poles: 146, fastestLaps: 114 },
   },
   red_bull: {
     fullName: 'Oracle Red Bull Racing',
@@ -589,6 +648,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2005,
     worldChampionships: [2010, 2011, 2012, 2013, 2022, 2023],
     currentDrivers: ['max_verstappen', 'hadjar'],
+    stats: { championships: 6, totalRaces: 429, wins: 130, podiums: 301, poles: 107, fastestLaps: 104 },
   },
   williams: {
     fullName: 'Williams Racing',
@@ -597,9 +657,10 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     technicalChief: 'Pat Fry',
     chassis: 'FW48',
     powerUnit: 'Mercedes',
-    firstEntry: 1977,
+    firstEntry: 1978,
     worldChampionships: [1980, 1981, 1986, 1987, 1992, 1993, 1994, 1996, 1997],
     currentDrivers: ['sainz', 'albon'],
+    stats: { championships: 9, totalRaces: 878, wins: 114, podiums: 316, poles: 128, fastestLaps: 133 },
   },
   aston_martin: {
     fullName: 'Aston Martin Aramco F1 Team',
@@ -611,6 +672,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 1959,
     worldChampionships: [],
     currentDrivers: ['alonso', 'stroll'],
+    stats: { championships: 0, totalRaces: 115, wins: 0, podiums: 9, poles: 0, fastestLaps: 3 },
   },
   alpine: {
     fullName: 'BWT Alpine F1 Team',
@@ -622,6 +684,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 1986,
     worldChampionships: [2005, 2006],
     currentDrivers: ['gasly', 'colapinto'],
+    stats: { championships: 2, totalRaces: 490, wins: 22, podiums: 108, poles: 20, fastestLaps: 15 },
   },
   haas: {
     fullName: 'MoneyGram Haas F1 Team',
@@ -633,6 +696,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2016,
     worldChampionships: [],
     currentDrivers: ['bearman', 'ocon'],
+    stats: { championships: 0, totalRaces: 208, wins: 0, podiums: 0, poles: 1, fastestLaps: 2 },
   },
   rb: {
     fullName: 'Visa Cash App RB Formula One Team',
@@ -644,6 +708,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2006,
     worldChampionships: [],
     currentDrivers: ['lawson', 'arvid_lindblad'],
+    stats: { championships: 0, totalRaces: 395, wins: 2, podiums: 5, poles: 1, fastestLaps: 4 },
   },
   racing_bulls: {
     fullName: 'Visa Cash App RB Formula One Team',
@@ -655,6 +720,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2006,
     worldChampionships: [],
     currentDrivers: ['lawson', 'arvid_lindblad'],
+    stats: { championships: 0, totalRaces: 395, wins: 2, podiums: 5, poles: 1, fastestLaps: 4 },
   },
   sauber: {
     fullName: 'Stake F1 Team Kick Sauber',
@@ -666,6 +732,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 1993,
     worldChampionships: [],
     currentDrivers: ['hulkenberg', 'bortoleto'],
+    stats: { championships: 0, totalRaces: 480, wins: 1, podiums: 27, poles: 1, fastestLaps: 7 },
   },
   audi: {
     fullName: 'Audi Revolut F1 Team',
@@ -677,6 +744,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2026,
     worldChampionships: [],
     currentDrivers: ['hulkenberg', 'bortoleto'],
+    stats: { championships: 0, totalRaces: 0, wins: 0, podiums: 0, poles: 0 },
   },
   cadillac: {
     fullName: 'Cadillac Formula 1 Team',
@@ -688,6 +756,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2026,
     worldChampionships: [],
     currentDrivers: ['bottas', 'perez'],
+    stats: { championships: 0, totalRaces: 0, wins: 0, podiums: 0, poles: 0 },
   },
   renault: {
     fullName: 'Renault F1 Team',
@@ -697,15 +766,17 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 1977,
     worldChampionships: [2005, 2006],
     currentDrivers: [],
+    stats: { championships: 2, totalRaces: 403, wins: 35, podiums: 107, poles: 51, fastestLaps: 33 },
   },
-  lotus_f1: {
-    fullName: 'Lotus F1 Team',
+  benetton: {
+    fullName: 'Benetton Formula',
     base: 'Enstone, United Kingdom',
-    teamPrincipal: 'Eric Boullier',
-    powerUnit: 'Renault / Mercedes',
-    firstEntry: 2012,
-    worldChampionships: [],
+    teamPrincipal: 'Flavio Briatore',
+    powerUnit: 'Ford / Renault',
+    firstEntry: 1986,
+    worldChampionships: [1995],
     currentDrivers: [],
+    stats: { championships: 1, totalRaces: 260, wins: 27, podiums: 102, poles: 15, fastestLaps: 36 },
   },
   brawn: {
     fullName: 'Brawn GP Formula One Team',
@@ -715,6 +786,57 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2009,
     worldChampionships: [2009],
     currentDrivers: [],
+    stats: { championships: 1, totalRaces: 17, wins: 8, podiums: 15, poles: 5, fastestLaps: 4 },
+  },
+  tyrrell: {
+    fullName: 'Tyrrell Racing Organisation',
+    base: 'Ockham, United Kingdom',
+    teamPrincipal: 'Ken Tyrrell',
+    powerUnit: 'Ford Cosworth / Yamaha',
+    firstEntry: 1970,
+    worldChampionships: [1971],
+    currentDrivers: [],
+    stats: { championships: 1, totalRaces: 430, wins: 23, podiums: 77, poles: 14, fastestLaps: 20 },
+  },
+  lotus: {
+    fullName: 'Team Lotus',
+    base: 'Hethel, United Kingdom',
+    teamPrincipal: 'Colin Chapman',
+    powerUnit: 'Climax / Ford Cosworth',
+    firstEntry: 1958,
+    worldChampionships: [1963, 1965, 1968, 1970, 1972, 1973, 1978],
+    currentDrivers: [],
+    stats: { championships: 7, totalRaces: 491, wins: 73, podiums: 171, poles: 107, fastestLaps: 65 },
+  },
+  team_lotus: {
+    fullName: 'Team Lotus',
+    base: 'Hethel, United Kingdom',
+    teamPrincipal: 'Colin Chapman',
+    powerUnit: 'Climax / Ford Cosworth',
+    firstEntry: 1958,
+    worldChampionships: [1963, 1965, 1968, 1970, 1972, 1973, 1978],
+    currentDrivers: [],
+    stats: { championships: 7, totalRaces: 491, wins: 73, podiums: 171, poles: 107, fastestLaps: 65 },
+  },
+  lotus_f1: {
+    fullName: 'Lotus F1 Team',
+    base: 'Enstone, United Kingdom',
+    teamPrincipal: 'Eric Boullier',
+    powerUnit: 'Renault / Mercedes',
+    firstEntry: 2012,
+    worldChampionships: [],
+    currentDrivers: [],
+    stats: { championships: 0, totalRaces: 77, wins: 2, podiums: 25, poles: 0, fastestLaps: 5 },
+  },
+  jordan: {
+    fullName: 'Jordan Grand Prix',
+    base: 'Silverstone, United Kingdom',
+    teamPrincipal: 'Eddie Jordan',
+    powerUnit: 'Ford / Mugen-Honda',
+    firstEntry: 1991,
+    worldChampionships: [],
+    currentDrivers: [],
+    stats: { championships: 0, totalRaces: 250, wins: 4, podiums: 19, poles: 2, fastestLaps: 2 },
   },
   toro_rosso: {
     fullName: 'Scuderia Toro Rosso',
@@ -724,6 +846,17 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2006,
     worldChampionships: [],
     currentDrivers: [],
+    stats: { championships: 0, totalRaces: 268, wins: 1, podiums: 3, poles: 1, fastestLaps: 1 },
+  },
+  alphatauri: {
+    fullName: 'Scuderia AlphaTauri',
+    base: 'Faenza, Italy',
+    teamPrincipal: 'Franz Tost',
+    powerUnit: 'Honda / Red Bull Powertrains',
+    firstEntry: 2020,
+    worldChampionships: [],
+    currentDrivers: [],
+    stats: { championships: 0, totalRaces: 83, wins: 1, podiums: 2, poles: 0, fastestLaps: 2 },
   },
   force_india: {
     fullName: 'Sahara Force India F1 Team',
@@ -733,6 +866,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2008,
     worldChampionships: [],
     currentDrivers: [],
+    stats: { championships: 0, totalRaces: 212, wins: 0, podiums: 6, poles: 1, fastestLaps: 5 },
   },
   racing_point: {
     fullName: 'Racing Point F1 Team',
@@ -742,6 +876,7 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 2018,
     worldChampionships: [],
     currentDrivers: [],
+    stats: { championships: 0, totalRaces: 47, wins: 1, podiums: 4, poles: 1, fastestLaps: 0 },
   },
   alfa: {
     fullName: 'Alfa Romeo F1 Team Stake',
@@ -751,6 +886,97 @@ const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
     firstEntry: 1950,
     worldChampionships: [],
     currentDrivers: [],
+    stats: { championships: 0, totalRaces: 214, wins: 10, podiums: 26, poles: 12, fastestLaps: 16 },
+  },
+  brabham: {
+    fullName: 'Motor Racing Developments (Brabham)',
+    base: 'Chessington, United Kingdom',
+    teamPrincipal: 'Jack Brabham / Bernie Ecclestone',
+    powerUnit: 'Repco / Ford Cosworth / BMW',
+    firstEntry: 1962,
+    worldChampionships: [1966, 1967],
+    currentDrivers: [],
+    stats: { championships: 2, totalRaces: 394, wins: 35, podiums: 124, poles: 39, fastestLaps: 41 },
+  },
+  matra: {
+    fullName: 'Equipe Matra Sports',
+    base: 'Vélizy-Villacoublay, France',
+    teamPrincipal: 'Ken Tyrrell / Jean-Luc Lagardère',
+    powerUnit: 'Ford Cosworth / Matra',
+    firstEntry: 1967,
+    worldChampionships: [1969],
+    currentDrivers: [],
+    stats: { championships: 1, totalRaces: 125, wins: 9, podiums: 21, poles: 4, fastestLaps: 12 },
+  },
+  cooper: {
+    fullName: 'Cooper Car Company',
+    base: 'Surbiton, United Kingdom',
+    teamPrincipal: 'John Cooper',
+    powerUnit: 'Climax / Maserati',
+    firstEntry: 1950,
+    worldChampionships: [1959, 1960],
+    currentDrivers: [],
+    stats: { championships: 2, totalRaces: 129, wins: 16, podiums: 58, poles: 11, fastestLaps: 14 },
+  },
+  brm: {
+    fullName: 'British Racing Motors (BRM)',
+    base: 'Bourne, United Kingdom',
+    teamPrincipal: 'Raymond Mays / Louis Stanley',
+    powerUnit: 'BRM',
+    firstEntry: 1951,
+    worldChampionships: [1962],
+    currentDrivers: [],
+    stats: { championships: 1, totalRaces: 197, wins: 17, podiums: 61, poles: 11, fastestLaps: 15 },
+  },
+  minardi: {
+    fullName: 'Minardi F1 Team',
+    base: 'Faenza, Italy',
+    teamPrincipal: 'Gian Carlo Minardi / Paul Stoddart',
+    powerUnit: 'Cosworth / Ford',
+    firstEntry: 1985,
+    worldChampionships: [],
+    currentDrivers: [],
+    stats: { championships: 0, totalRaces: 340, wins: 0, podiums: 0, poles: 0, fastestLaps: 0 },
+  },
+  prost: {
+    fullName: 'Prost Grand Prix',
+    base: 'Guyancourt, France',
+    teamPrincipal: 'Alain Prost',
+    powerUnit: 'Mugen-Honda / Peugeot / Acer',
+    firstEntry: 1997,
+    worldChampionships: [],
+    currentDrivers: [],
+    stats: { championships: 0, totalRaces: 83, wins: 0, podiums: 3, poles: 0, fastestLaps: 0 },
+  },
+  stewart: {
+    fullName: 'Stewart Grand Prix',
+    base: 'Milton Keynes, United Kingdom',
+    teamPrincipal: 'Jackie Stewart / Paul Stewart',
+    powerUnit: 'Ford Cosworth',
+    firstEntry: 1997,
+    worldChampionships: [],
+    currentDrivers: [],
+    stats: { championships: 0, totalRaces: 49, wins: 1, podiums: 5, poles: 1, fastestLaps: 0 },
+  },
+  toyota: {
+    fullName: 'Panasonic Toyota Racing',
+    base: 'Cologne, Germany',
+    teamPrincipal: 'Ove Andersson / John Howett',
+    powerUnit: 'Toyota',
+    firstEntry: 2002,
+    worldChampionships: [],
+    currentDrivers: [],
+    stats: { championships: 0, totalRaces: 139, wins: 0, podiums: 13, poles: 3, fastestLaps: 3 },
+  },
+  bmw_sauber: {
+    fullName: 'BMW Sauber F1 Team',
+    base: 'Hinwil, Switzerland / Munich, Germany',
+    teamPrincipal: 'Mario Theissen',
+    powerUnit: 'BMW',
+    firstEntry: 2006,
+    worldChampionships: [],
+    currentDrivers: [],
+    stats: { championships: 0, totalRaces: 70, wins: 1, podiums: 17, poles: 1, fastestLaps: 2 },
   },
 };
 
@@ -780,6 +1006,12 @@ export async function getSeasonConstructors(season?: string | number): Promise<C
             ? 'American'
             : meta.base.includes('Germany')
             ? 'German'
+            : meta.base.includes('France')
+            ? 'French'
+            : meta.base.includes('Japan')
+            ? 'Japanese'
+            : meta.base.includes('Switzerland')
+            ? 'Swiss'
             : 'British',
           url: `https://en.wikipedia.org/wiki/${encodeURIComponent(meta.fullName)}`,
         });
@@ -789,6 +1021,8 @@ export async function getSeasonConstructors(season?: string | number): Promise<C
     return constructors;
   });
 }
+
+const inFlightConstructorProfiles = new Map<string, Promise<ConstructorProfile | null>>();
 
 export async function getConstructorProfile(constructorId: string): Promise<ConstructorProfile | null> {
   const rawId = constructorId.trim().toLowerCase();
@@ -804,124 +1038,190 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
     'kick-sauber': 'sauber',
     'kick_sauber': 'sauber',
     kicksauber: 'sauber',
+    'alfa-romeo': 'alfa',
+    'alfaromeo': 'alfa',
+    alfa_romeo: 'alfa',
+    'team-lotus': 'lotus',
+    'team_lotus': 'lotus',
+    'lotus-f1': 'lotus_f1',
+    'force-india': 'force_india',
+    forceindia: 'force_india',
+    'racing-point': 'racing_point',
+    racingpoint: 'racing_point',
+    'toro-rosso': 'toro_rosso',
+    tororosso: 'toro_rosso',
+    'bmw-sauber': 'bmw_sauber',
+    bmwsauber: 'bmw_sauber',
   };
   const id = idMap[rawId] ?? rawId;
   const cacheKey = `f1:constructor:profile:${id}`;
 
-  return cachedFetch<ConstructorProfile | null>(cacheKey, TTL.SCHEDULE_PAST, async () => {
-    // Parallel lean requests (Jolpica endpoints + 1 official F1 scraper call)
-    const [constructorRes, driversRes, seasonsRes, racesRes, p1Res, p2Res, p3Res, officialDetails] = await Promise.all([
-      jolpicaFetch<JolpicaConstructorsResponse>(`/constructors/${id}.json`).catch(() => null),
-      jolpicaFetch<JolpicaDriversResponse>(`/constructors/${id}/drivers.json?limit=100`).catch(() => null),
-      jolpicaFetch<JolpicaSeasonsResponse>(`/constructors/${id}/seasons.json?limit=100`).catch(() => null),
-      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/races.json?limit=1`).catch(() => null),
-      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/1.json?limit=1`).catch(() => null),
-      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/2.json?limit=1`).catch(() => null),
-      jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/3.json?limit=1`).catch(() => null),
-      getOfficialF1TeamDetails(id).catch(() => null),
-    ]);
+  const registryEntry = lookupConstructorRegistry(id) ?? lookupConstructorRegistry(rawId);
+  const isDebutTeam = registryEntry?.firstEntry === 2026;
 
-    let constructorEntity: Constructor | undefined = constructorRes?.MRData.ConstructorTable.Constructors[0];
-    const registryEntry = lookupConstructorRegistry(id) ?? lookupConstructorRegistry(rawId);
+  // Check cache first with sanity validation (established teams must have >0 races)
+  const cached = await cache.get<ConstructorProfile | NegativeCacheSentinel>(cacheKey);
+  if (cached !== null && cached !== undefined) {
+    if (isNegativeCacheSentinel(cached)) {
+      console.log(`[Cache NEGATIVE HIT] ${cacheKey}`);
+      return null;
+    }
+    if (isDebutTeam || registryEntry === undefined || (cached.stats && cached.stats.totalRaces > 0)) {
+      console.log(`[Cache HIT] ${cacheKey}`);
+      return cached;
+    }
+    console.log(`[Cache STALE/INVALID] ${cacheKey} had 0 races for established team, refreshing...`);
+  }
 
-    if (!constructorEntity) {
-      if (registryEntry) {
-        constructorEntity = {
-          constructorId: id,
-          name: registryEntry.fullName,
-          nationality: registryEntry.base.includes('Italy')
-            ? 'Italian'
-            : registryEntry.base.includes('United States')
-            ? 'American'
-            : registryEntry.base.includes('Germany')
-            ? 'German'
-            : 'British',
-          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(registryEntry.fullName)}`,
+  // Deduplicate concurrent in-flight requests for the same constructor
+  const inFlight = inFlightConstructorProfiles.get(cacheKey);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const promise = (async () => {
+    try {
+      // Lean requests via throttled queue + official F1 scraper
+      const [constructorRes, driversRes, seasonsRes, racesRes, p1Res, p2Res, p3Res, officialDetails] = await Promise.all([
+        jolpicaFetch<JolpicaConstructorsResponse>(`/constructors/${id}.json`).catch(() => null),
+        jolpicaFetch<JolpicaDriversResponse>(`/constructors/${id}/drivers.json?limit=100`).catch(() => null),
+        jolpicaFetch<JolpicaSeasonsResponse>(`/constructors/${id}/seasons.json?limit=100`).catch(() => null),
+        jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/races.json?limit=1`).catch(() => null),
+        jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/1.json?limit=1`).catch(() => null),
+        jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/2.json?limit=1`).catch(() => null),
+        jolpicaFetch<JolpicaRaceResultsResponse>(`/constructors/${id}/results/3.json?limit=1`).catch(() => null),
+        getOfficialF1TeamDetails(id).catch(() => null),
+      ]);
+
+      let constructorEntity: Constructor | undefined = constructorRes?.MRData.ConstructorTable.Constructors[0];
+
+      if (!constructorEntity) {
+        if (registryEntry) {
+          constructorEntity = {
+            constructorId: id,
+            name: registryEntry.fullName,
+            nationality: registryEntry.base.includes('Italy')
+              ? 'Italian'
+              : registryEntry.base.includes('United States')
+              ? 'American'
+              : registryEntry.base.includes('Germany')
+              ? 'German'
+              : registryEntry.base.includes('France')
+              ? 'French'
+              : registryEntry.base.includes('Japan')
+              ? 'Japanese'
+              : registryEntry.base.includes('Switzerland')
+              ? 'Swiss'
+              : 'British',
+            url: `https://en.wikipedia.org/wiki/${encodeURIComponent(registryEntry.fullName)}`,
+          };
+        } else {
+          const sentinel: NegativeCacheSentinel = { __negativeCache: true };
+          await cache.set(cacheKey, sentinel, TTL.NEGATIVE_CACHE);
+          return null;
+        }
+      }
+
+      const validConstructor: Constructor = constructorEntity;
+
+      // Aggregate drivers list
+      const rawDrivers = driversRes?.MRData.DriverTable.Drivers ?? [];
+      const historicalDrivers: ConstructorDriverHistory[] = rawDrivers.map((d) => ({
+        driverId: d.driverId,
+        givenName: d.givenName,
+        familyName: d.familyName,
+        code: d.code,
+        permanentNumber: d.permanentNumber,
+        nationality: d.nationality,
+      }));
+
+      // Current drivers from registry / 2026 grid
+      const currentDriverIds = registryEntry?.currentDrivers ?? [];
+      const currentDrivers: ConstructorDriverHistory[] = currentDriverIds.map((driverKey) => {
+        const foundHistorical = historicalDrivers.find((h) => h.driverId === driverKey);
+        if (foundHistorical) return foundHistorical;
+        const driverFallback = lookupDriverRegistry(driverKey);
+        return {
+          driverId: driverKey,
+          givenName: driverFallback?.givenName ?? driverKey,
+          familyName: driverFallback?.familyName ?? '',
+          code: driverFallback?.code,
+          permanentNumber: driverFallback?.permanentNumber,
+          nationality: driverFallback?.nationality ?? 'International',
         };
-      } else {
-        return null;
+      });
+
+      // Ensure current drivers are also in historical list
+      for (const cd of currentDrivers) {
+        if (!historicalDrivers.some((h) => h.driverId === cd.driverId)) {
+          historicalDrivers.unshift(cd);
+        }
       }
-    }
 
-    const validConstructor: Constructor = constructorEntity;
+      const fallbackStats = registryEntry?.stats;
+      const jolpicaRaces = parseInt(racesRes?.MRData.total ?? '0', 10);
+      const jolpicaWins = parseInt(p1Res?.MRData.total ?? '0', 10);
+      const p2Count = parseInt(p2Res?.MRData.total ?? '0', 10);
+      const p3Count = parseInt(p3Res?.MRData.total ?? '0', 10);
+      const jolpicaPodiums = jolpicaWins + p2Count + p3Count;
 
-    // Aggregate drivers list
-    const rawDrivers = driversRes?.MRData.DriverTable.Drivers ?? [];
-    const historicalDrivers: ConstructorDriverHistory[] = rawDrivers.map((d) => ({
-      driverId: d.driverId,
-      givenName: d.givenName,
-      familyName: d.familyName,
-      code: d.code,
-      permanentNumber: d.permanentNumber,
-      nationality: d.nationality,
-    }));
+      // Use higher of live Jolpica count, official F1 details, and verified registry baseline
+      const totalRaces = Math.max(jolpicaRaces, fallbackStats?.totalRaces ?? 0);
+      const wins = Math.max(jolpicaWins, fallbackStats?.wins ?? 0);
+      const podiums = Math.max(jolpicaPodiums, fallbackStats?.podiums ?? 0);
+      const poles = Math.max(officialDetails?.polePositions ?? 0, fallbackStats?.poles ?? 0);
+      const fastestLaps = Math.max(officialDetails?.fastestLaps ?? 0, fallbackStats?.fastestLaps ?? 0);
+      const championships = Math.max(
+        officialDetails?.worldChampionships ?? 0,
+        registryEntry?.worldChampionships?.length ?? 0,
+        fallbackStats?.championships ?? 0
+      );
 
-    // Current drivers from registry / 2026 grid
-    const currentDriverIds = registryEntry?.currentDrivers ?? [];
-    const currentDrivers: ConstructorDriverHistory[] = currentDriverIds.map((driverKey) => {
-      const foundHistorical = historicalDrivers.find((h) => h.driverId === driverKey);
-      if (foundHistorical) return foundHistorical;
-      const driverFallback = lookupDriverRegistry(driverKey);
-      return {
-        driverId: driverKey,
-        givenName: driverFallback?.givenName ?? driverKey,
-        familyName: driverFallback?.familyName ?? '',
-        code: driverFallback?.code,
-        permanentNumber: driverFallback?.permanentNumber,
-        nationality: driverFallback?.nationality ?? 'International',
+      const seasonsCount = parseInt(
+        seasonsRes?.MRData.total ??
+          (registryEntry?.firstEntry ? String(Number(getCurrentSeason()) - registryEntry.firstEntry + 1) : '1'),
+        10
+      );
+
+      const stats: ConstructorCareerStats = {
+        championships,
+        totalRaces,
+        wins,
+        podiums,
+        poles,
+        fastestLaps,
       };
-    });
 
-    // Ensure current drivers are also in historical list
-    for (const cd of currentDrivers) {
-      if (!historicalDrivers.some((h) => h.driverId === cd.driverId)) {
-        historicalDrivers.unshift(cd);
-      }
+      const meta: ConstructorMeta = {
+        fullName: officialDetails?.fullName ?? registryEntry?.fullName ?? validConstructor.name,
+        base: officialDetails?.base ?? registryEntry?.base ?? 'United Kingdom',
+        teamPrincipal: officialDetails?.teamPrincipal ?? registryEntry?.teamPrincipal ?? 'Team Leadership',
+        technicalChief: officialDetails?.technicalChief ?? registryEntry?.technicalChief,
+        chassis: officialDetails?.chassis ?? registryEntry?.chassis,
+        powerUnit: officialDetails?.powerUnit ?? registryEntry?.powerUnit,
+        firstEntry: officialDetails?.firstEntry ?? registryEntry?.firstEntry,
+        worldChampionships: registryEntry?.worldChampionships ?? [],
+      };
+
+      const result: ConstructorProfile = {
+        constructor: validConstructor,
+        meta,
+        stats,
+        currentDrivers,
+        historicalDrivers,
+        seasonsCount,
+        officialDetails,
+      };
+
+      await cache.set(cacheKey, result, TTL.CONSTRUCTOR_PROFILE);
+      return result;
+    } finally {
+      inFlightConstructorProfiles.delete(cacheKey);
     }
+  })();
 
-    const totalRaces = parseInt(racesRes?.MRData.total ?? '0', 10);
-    const wins = parseInt(p1Res?.MRData.total ?? '0', 10);
-    const p2Count = parseInt(p2Res?.MRData.total ?? '0', 10);
-    const p3Count = parseInt(p3Res?.MRData.total ?? '0', 10);
-    const podiums = wins + p2Count + p3Count;
-    const seasonsCount = parseInt(
-      seasonsRes?.MRData.total ??
-        (registryEntry?.firstEntry ? String(Number(getCurrentSeason()) - registryEntry.firstEntry + 1) : '1'),
-      10
-    );
-
-    const championships = officialDetails?.worldChampionships ?? (registryEntry?.worldChampionships?.length ?? 0);
-
-    const stats: ConstructorCareerStats = {
-      championships,
-      totalRaces: Math.max(totalRaces, wins),
-      wins,
-      podiums,
-      poles: officialDetails?.polePositions ?? 0,
-      fastestLaps: officialDetails?.fastestLaps,
-    };
-
-    const meta: ConstructorMeta = {
-      fullName: officialDetails?.fullName ?? registryEntry?.fullName ?? validConstructor.name,
-      base: officialDetails?.base ?? registryEntry?.base ?? 'United Kingdom',
-      teamPrincipal: officialDetails?.teamPrincipal ?? registryEntry?.teamPrincipal ?? 'Team Leadership',
-      technicalChief: officialDetails?.technicalChief ?? registryEntry?.technicalChief,
-      chassis: officialDetails?.chassis ?? registryEntry?.chassis,
-      powerUnit: officialDetails?.powerUnit ?? registryEntry?.powerUnit,
-      firstEntry: officialDetails?.firstEntry ?? registryEntry?.firstEntry,
-      worldChampionships: registryEntry?.worldChampionships ?? [],
-    };
-
-    return {
-      constructor: validConstructor,
-      meta,
-      stats,
-      currentDrivers,
-      historicalDrivers,
-      seasonsCount,
-      officialDetails,
-    };
-  });
+  inFlightConstructorProfiles.set(cacheKey, promise);
+  return promise;
 }
 
 // ── Cache Warming ─────────────────────────────────────────────────────────────

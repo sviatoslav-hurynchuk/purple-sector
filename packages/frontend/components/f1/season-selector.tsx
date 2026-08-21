@@ -26,7 +26,7 @@ export function SeasonSelector({ currentSeason, allYears }: SeasonSelectorProps)
   const displayedYears = ascYears.slice(startIdx, startIdx + 5);
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-2 transition-opacity duration-200', isPending && 'opacity-60 pointer-events-none')}>
+    <div className={cn('flex flex-wrap items-center gap-1.5 sm:gap-2 max-w-full transition-opacity duration-200', isPending && 'opacity-60 pointer-events-none')}>
       {displayedYears.map((y) => (
         <button
           key={y}
@@ -34,7 +34,7 @@ export function SeasonSelector({ currentSeason, allYears }: SeasonSelectorProps)
           disabled={isPending}
           onClick={() => handleSeasonChange(y)}
           className={cn(
-            'px-4 py-1.5 rounded-full text-sm font-semibold border transition-all',
+            'px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-all',
             y === currentSeason
               ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
               : 'border-border text-muted-foreground hover:border-primary hover:text-primary bg-zinc-900/50'
@@ -50,15 +50,15 @@ export function SeasonSelector({ currentSeason, allYears }: SeasonSelectorProps)
           disabled={isPending}
           value={currentSeason}
           onChange={(e) => handleSeasonChange(parseInt(e.target.value, 10))}
-          className="appearance-none bg-zinc-900 border border-border hover:border-primary text-foreground text-sm font-semibold px-4 py-1.5 pr-8 rounded-full cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="appearance-none bg-zinc-900 border border-border hover:border-primary text-foreground text-xs sm:text-sm font-semibold px-3 sm:px-4 py-1 sm:py-1.5 pr-7 sm:pr-8 rounded-full cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
         >
           {allYears.map((y) => (
-            <option key={y} value={y} className="bg-zinc-950 text-foreground py-1 font-mono">
+            <option key={y} value={y} className="bg-zinc-950 text-foreground py-1 font-mono text-xs sm:text-sm">
               {y} Season
             </option>
           ))}
         </select>
-        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground">
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted-foreground">
           <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="m6 9 6 6 6-6" />
           </svg>
