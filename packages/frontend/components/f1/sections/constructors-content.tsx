@@ -53,10 +53,6 @@ const SEASON_2026_LINEUP: Record<string, Array<{ driverId: string; givenName: st
     { driverId: 'lawson', givenName: 'Liam', familyName: 'Lawson', permanentNumber: '30' },
     { driverId: 'arvid_lindblad', givenName: 'Arvid', familyName: 'Lindblad', permanentNumber: '41' },
   ],
-  sauber: [
-    { driverId: 'hulkenberg', givenName: 'Nico', familyName: 'Hülkenberg', permanentNumber: '27' },
-    { driverId: 'bortoleto', givenName: 'Gabriel', familyName: 'Bortoleto', permanentNumber: '5' },
-  ],
   cadillac: [
     { driverId: 'bottas', givenName: 'Valtteri', familyName: 'Bottas', permanentNumber: '77' },
     { driverId: 'perez', givenName: 'Sergio', familyName: 'Perez', permanentNumber: '11' },

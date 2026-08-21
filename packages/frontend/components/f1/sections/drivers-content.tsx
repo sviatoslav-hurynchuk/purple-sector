@@ -52,8 +52,8 @@ const SEASON_2026_TEAMS: Record<string, { constructorId: string; constructorName
   ocon: { constructorId: 'haas', constructorName: 'Haas' },
   lawson: { constructorId: 'rb', constructorName: 'Racing Bulls' },
   arvid_lindblad: { constructorId: 'rb', constructorName: 'Racing Bulls' },
-  hulkenberg: { constructorId: 'sauber', constructorName: 'Sauber' },
-  bortoleto: { constructorId: 'sauber', constructorName: 'Sauber' },
+  hulkenberg: { constructorId: 'audi', constructorName: 'Audi' },
+  bortoleto: { constructorId: 'audi', constructorName: 'Audi' },
   bottas: { constructorId: 'cadillac', constructorName: 'Cadillac' },
   perez: { constructorId: 'cadillac', constructorName: 'Cadillac' },
 };
