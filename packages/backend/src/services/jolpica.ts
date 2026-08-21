@@ -1060,9 +1060,13 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
   const isDebutTeam = registryEntry?.firstEntry === 2026;
 
   // Check cache first with sanity validation (established teams must have >0 races)
-  const cached = await cache.get<ConstructorProfile>(cacheKey);
+  const cached = await cache.get<ConstructorProfile | NegativeCacheSentinel>(cacheKey);
   if (cached !== null && cached !== undefined) {
-    if (isDebutTeam || (cached.stats && cached.stats.totalRaces > 0)) {
+    if (isNegativeCacheSentinel(cached)) {
+      console.log(`[Cache NEGATIVE HIT] ${cacheKey}`);
+      return null;
+    }
+    if (isDebutTeam || registryEntry === undefined || (cached.stats && cached.stats.totalRaces > 0)) {
       console.log(`[Cache HIT] ${cacheKey}`);
       return cached;
     }
@@ -1112,6 +1116,8 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
             url: `https://en.wikipedia.org/wiki/${encodeURIComponent(registryEntry.fullName)}`,
           };
         } else {
+          const sentinel: NegativeCacheSentinel = { __negativeCache: true };
+          await cache.set(cacheKey, sentinel, TTL.NEGATIVE_CACHE);
           return null;
         }
       }
