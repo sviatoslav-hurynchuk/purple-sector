@@ -227,8 +227,6 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
             <PitStopButton
               season={race.season}
               round={race.round}
-              raceName={race.raceName}
-              raceResults={race.Results}
             />
           )}
         </div>

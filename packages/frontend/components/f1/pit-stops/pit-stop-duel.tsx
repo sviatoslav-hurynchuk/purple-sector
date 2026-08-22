@@ -1,219 +1,378 @@
 ﻿'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { PitStopEntry, RaceResultEntry } from '@/types/f1';
 import { cn } from '@/lib/utils';
 import { getTeamTheme } from '@/lib/team-colors';
-import { pitStopKey, formatDuration } from './pit-stop-chronicle';
+import { pitStopKey, formatDuration, parseDurationToSeconds } from './pit-stop-chronicle';
+import { Play, Trash2, Trophy, Check, Gauge } from 'lucide-react';
 
-// ── Animation constants ───────────────────────────────────────────────────────
+/** Base wall-clock simulation time for the longest selected stop (in ms) */
+const BASE_SIMULATION_MS = 6500;
+/** Proportion of total pit stop time spent decelerating into the pit box */
+const ENTRY_FRACTION = 0.35;
+/** Proportion of total pit stop time spent stationary changing tires */
+const STOPPED_FRACTION = 0.30;
+/** Proportion of total pit stop time spent accelerating out of pit lane */
+const EXIT_FRACTION = 0.35;
 
-/** Total wall-clock time for the "Race!" animation in ms */
-const RACE_DURATION_MS = 4000;
-/** How long the car decelerates/brakes when entering the pit box */
-const BRAKE_PHASE_FRACTION = 0.15;
-/** How long the car accelerates out of the pit box */
-const ACCEL_PHASE_FRACTION = 0.15;
-
-// ── F1 Car SVG (top-down view) ────────────────────────────────────────────────
-
-function F1CarSvg({ color, secondaryColor = '#ffffff' }: { color: string; secondaryColor?: string }) {
+/** High-fidelity top-down Formula 1 car vector with authentic compact proportions */
+function F1CarSvg({ color }: { color: string }) {
   return (
-    <svg viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      {/* Main chassis */}
-      <ellipse cx="60" cy="20" rx="44" ry="10" fill={color} />
-      {/* Nose cone */}
-      <polygon points="104,20 112,18 115,20 112,22" fill={color} />
-      {/* Cockpit/halo area */}
-      <ellipse cx="58" cy="20" rx="14" ry="7" fill={secondaryColor} opacity="0.15" />
-      <ellipse cx="58" cy="20" rx="10" ry="5" fill="#111" />
-      <ellipse cx="56" cy="19" rx="6" ry="3.5" fill="#1a1a2e" />
-      {/* Front wing */}
-      <rect x="100" y="13" width="12" height="3" rx="1" fill={color} opacity="0.85" />
-      <rect x="100" y="24" width="12" height="3" rx="1" fill={color} opacity="0.85" />
-      <rect x="108" y="13" width="2" height="14" rx="1" fill={color} />
-      {/* Rear wing */}
-      <rect x="8" y="11" width="14" height="4" rx="1.5" fill={color} opacity="0.9" />
-      <rect x="8" y="25" width="14" height="4" rx="1.5" fill={color} opacity="0.9" />
-      <rect x="12" y="11" width="2" height="18" rx="1" fill={color} />
-      {/* Sidepods */}
-      <ellipse cx="52" cy="11" rx="22" ry="5.5" fill={color} opacity="0.8" />
-      <ellipse cx="52" cy="29" rx="22" ry="5.5" fill={color} opacity="0.8" />
-      {/* Wheels - front */}
-      <ellipse cx="86" cy="10" rx="7" ry="4.5" fill="#1a1a1a" />
-      <ellipse cx="86" cy="10" rx="5" ry="3" fill="#2a2a2a" />
-      <ellipse cx="86" cy="30" rx="7" ry="4.5" fill="#1a1a1a" />
-      <ellipse cx="86" cy="30" rx="5" ry="3" fill="#2a2a2a" />
-      {/* Wheels - rear */}
-      <ellipse cx="34" cy="10" rx="8" ry="5" fill="#1a1a1a" />
-      <ellipse cx="34" cy="10" rx="6" ry="3.5" fill="#2a2a2a" />
-      <ellipse cx="34" cy="30" rx="8" ry="5" fill="#1a1a1a" />
-      <ellipse cx="34" cy="30" rx="6" ry="3.5" fill="#2a2a2a" />
-      {/* Team livery stripe */}
-      <rect x="30" y="16" width="60" height="3" rx="1.5" fill={secondaryColor} opacity="0.3" />
-      {/* Wheel covers highlight */}
-      <ellipse cx="86" cy="9" rx="3" ry="1.8" fill={color} opacity="0.6" />
-      <ellipse cx="86" cy="29" rx="3" ry="1.8" fill={color} opacity="0.6" />
-      <ellipse cx="34" cy="9" rx="3.5" ry="2" fill={color} opacity="0.6" />
-      <ellipse cx="34" cy="29" rx="3.5" ry="2" fill={color} opacity="0.6" />
+    <svg viewBox="0 0 170 64" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+      {/* ── Floor & Venturi Tunnels Underbody ── */}
+      <path
+        d="M 44 18 Q 85 13 124 20 L 124 44 Q 85 51 44 46 Z"
+        fill="#121215"
+        stroke="#27272a"
+        strokeWidth="1"
+      />
+      {/* Floor Edge Winglets / Strakes */}
+      <line x1="56" y1="13" x2="108" y2="13" stroke="#3f3f46" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="56" y1="51" x2="108" y2="51" stroke="#3f3f46" strokeWidth="1.5" strokeLinecap="round" />
+
+      {/* ── Rear Suspension Wishbones ── */}
+      <line x1="38" y1="32" x2="52" y2="14" stroke="#3f3f46" strokeWidth="1.5" />
+      <line x1="48" y1="32" x2="52" y2="14" stroke="#3f3f46" strokeWidth="1.5" />
+      <line x1="38" y1="32" x2="52" y2="50" stroke="#3f3f46" strokeWidth="1.5" />
+      <line x1="48" y1="32" x2="52" y2="50" stroke="#3f3f46" strokeWidth="1.5" />
+
+      {/* ── Rear Wheels (Wide Pirelli Slicks at x=52) ── */}
+      {/* Left Rear */}
+      <rect x="41" y="6" width="22" height="14" rx="3.5" fill="#18181b" />
+      <rect x="43" y="8" width="18" height="10" rx="2" fill="#27272a" />
+      <circle cx="52" cy="13" r="3.5" fill={color} />
+      <circle cx="52" cy="13" r="1.5" fill="#18181b" />
+      {/* Right Rear */}
+      <rect x="41" y="44" width="22" height="14" rx="3.5" fill="#18181b" />
+      <rect x="43" y="46" width="18" height="10" rx="2" fill="#27272a" />
+      <circle cx="52" cy="51" r="3.5" fill={color} />
+      <circle cx="52" cy="51" r="1.5" fill="#18181b" />
+
+      {/* ── Rear Wing & DRS Actuator ── */}
+      {/* Main Plane & Flap */}
+      <rect x="22" y="14" width="9" height="36" rx="2" fill="#18181b" />
+      <rect x="24.5" y="16" width="4.5" height="32" rx="1" fill={color} opacity="0.9" />
+      {/* Endplates */}
+      <rect x="19" y="12" width="15" height="3" rx="1" fill="#27272a" />
+      <rect x="19" y="49" width="15" height="3" rx="1" fill="#27272a" />
+      {/* DRS Pod */}
+      <rect x="25.5" y="30.5" width="4.5" height="3" rx="1" fill="#52525b" />
+      {/* Rain Light & Exhaust */}
+      <circle cx="31" cy="32" r="2.5" fill="#09090b" />
+      <circle cx="19.5" cy="32" r="1.5" fill="#ef4444" />
+
+      {/* ── Main Monocoque Chassis & Compact Sculpted Sidepods ── */}
+      <path
+        d="M 32 32 L 44 23 Q 75 16 110 23 L 132 27 L 155 31.5 L 160 32 L 155 32.5 L 132 37 L 110 41 Q 75 48 44 41 Z"
+        fill={color}
+      />
+      {/* Sidepod Radiator Air Intakes */}
+      <path d="M 106 19 L 114 19 L 111 23 L 103 23 Z" fill="#09090b" />
+      <path d="M 106 45 L 114 45 L 111 41 L 103 41 Z" fill="#09090b" />
+      {/* Sidepod Undercut Shadows */}
+      <path d="M 50 23 Q 80 20 104 25 L 104 26 Q 80 22 50 25 Z" fill="#000000" opacity="0.3" />
+      <path d="M 50 41 Q 80 44 104 39 L 104 38 Q 80 42 50 39 Z" fill="#000000" opacity="0.3" />
+
+      {/* Engine Cover Spine (Shark Fin) */}
+      <line x1="45" y1="32" x2="88" y2="32" stroke="#09090b" strokeWidth="2.5" strokeLinecap="round" />
+      {/* Engine Cooling Louvers */}
+      <line x1="60" y1="26" x2="80" y2="26" stroke="#000000" strokeWidth="1" strokeOpacity="0.45" strokeDasharray="2,2" />
+      <line x1="60" y1="38" x2="80" y2="38" stroke="#000000" strokeWidth="1" strokeOpacity="0.45" strokeDasharray="2,2" />
+
+      {/* Airbox Intake & T-Cam */}
+      <ellipse cx="89" cy="32" rx="4" ry="3.2" fill="#09090b" />
+      <rect x="86" y="30.5" width="5.5" height="3" rx="1" fill="#eab308" />
+
+      {/* ── Cockpit, Halo & Driver (Centered at x=104) ── */}
+      <ellipse cx="104" cy="32" rx="11" ry="6.5" fill="#09090b" />
+      {/* Driver Helmet */}
+      <circle cx="102" cy="32" r="3.8" fill="#f4f4f5" />
+      <ellipse cx="104" cy="32" rx="2" ry="1.6" fill="#18181b" />
+      {/* Titanium Halo */}
+      <path
+        d="M 94 28 Q 106 29 114 32 Q 106 35 94 36"
+        fill="none"
+        stroke="#27272a"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <line x1="114" y1="32" x2="110" y2="32" stroke="#27272a" strokeWidth="2.5" strokeLinecap="round" />
+
+      {/* Side Aero Mirrors */}
+      <rect x="108" y="18" width="3.5" height="2" rx="0.5" fill="#27272a" />
+      <line x1="107" y1="23" x2="108" y2="19" stroke="#3f3f46" strokeWidth="1" />
+      <rect x="108" y="44" width="3.5" height="2" rx="0.5" fill="#27272a" />
+      <line x1="107" y1="41" x2="108" y2="45" stroke="#3f3f46" strokeWidth="1" />
+
+      {/* ── Front Suspension Wishbones (at x=132) ── */}
+      <line x1="122" y1="32" x2="132" y2="19" stroke="#3f3f46" strokeWidth="1.5" />
+      <line x1="138" y1="32" x2="132" y2="19" stroke="#3f3f46" strokeWidth="1.5" />
+      <line x1="122" y1="32" x2="132" y2="45" stroke="#3f3f46" strokeWidth="1.5" />
+      <line x1="138" y1="32" x2="132" y2="45" stroke="#3f3f46" strokeWidth="1.5" />
+
+      {/* ── Front Wheels (at x=132) ── */}
+      {/* Left Front */}
+      <rect x="122" y="8" width="20" height="12" rx="3" fill="#18181b" />
+      <rect x="124" y="10" width="16" height="8" rx="1.5" fill="#27272a" />
+      <circle cx="132" cy="14" r="3" fill={color} />
+      <circle cx="132" cy="14" r="1.2" fill="#18181b" />
+      {/* Right Front */}
+      <rect x="122" y="44" width="20" height="12" rx="3" fill="#18181b" />
+      <rect x="124" y="46" width="16" height="8" rx="1.5" fill="#27272a" />
+      <circle cx="132" cy="50" r="3" fill={color} />
+      <circle cx="132" cy="50" r="1.2" fill="#18181b" />
+
+      {/* Front Wheel Wake Deflectors */}
+      <path d="M 119 6 L 134 6 L 132 8 L 119 8 Z" fill="#27272a" />
+      <path d="M 119 58 L 134 58 L 132 56 L 119 56 Z" fill="#27272a" />
+
+      {/* ── Front Wing Assembly ── */}
+      <path
+        d="M 144 13 L 156 17 L 159 28 L 156 32 L 159 36 L 156 47 L 144 51 L 146 54 L 161 49 L 164 32 L 161 15 L 146 10 Z"
+        fill={color}
+      />
+      {/* Front Wing Flap Elements */}
+      <line x1="146" y1="16" x2="158" y2="20" stroke="#18181b" strokeWidth="1" />
+      <line x1="146" y1="48" x2="158" y2="44" stroke="#18181b" strokeWidth="1" />
+      {/* Front Wing Endplates */}
+      <rect x="143" y="9" width="14" height="2.5" rx="0.5" fill="#27272a" />
+      <rect x="143" y="52.5" width="14" height="2.5" rx="0.5" fill="#27272a" />
+      {/* Nose Tip Camera Housing */}
+      <polygon points="159,32 163,30.5 165,32 163,33.5" fill="#27272a" />
     </svg>
   );
 }
 
-// ── Mechanic SVG figures ──────────────────────────────────────────────────────
+interface MechanicFigureProps {
+  working: boolean;
+  position: 'top' | 'bottom' | 'front';
+  color: string;
+}
 
-function MechanicFigure({ working, mirrorX = false, color }: { working: boolean; mirrorX?: boolean; color: string }) {
+function MechanicFigure({ working, position, color }: MechanicFigureProps) {
   return (
     <svg
       viewBox="0 0 24 36"
       xmlns="http://www.w3.org/2000/svg"
       className="w-full h-full"
-      style={mirrorX ? { transform: 'scaleX(-1)' } : undefined}
     >
-      {/* Head */}
-      <circle cx="12" cy="5" r="4" fill={color} />
-      {/* Helmet visor */}
-      <ellipse cx="12" cy="5.5" rx="2.5" ry="2" fill="#333" opacity="0.8" />
-      {/* Body */}
-      <rect x="7" y="10" width="10" height="12" rx="2" fill={color} />
-      {/* Stripes on suit */}
-      <rect x="7" y="14" width="10" height="1.5" fill="white" opacity="0.25" />
-      {/* Left arm */}
-      {working ? (
-        <line x1="7" y1="12" x2="2" y2="8" stroke={color} strokeWidth="3" strokeLinecap="round" />
+      {/* Helmet */}
+      <circle cx="12" cy="6" r="4.5" fill={color} />
+      <ellipse cx="12" cy="6.5" rx="2.8" ry="2" fill="#18181b" opacity="0.9" />
+
+      {/* Body Suit */}
+      <rect x="6.5" y="11" width="11" height="12" rx="2" fill={color} />
+      <rect x="6.5" y="15" width="11" height="1.5" fill="white" opacity="0.25" />
+
+      {/* Arms & Wheel Guns depending on Top / Bottom / Front position */}
+      {position === 'top' ? (
+        working ? (
+          <>
+            {/* Top mechanic reaches DOWN towards the car tire */}
+            <line x1="7" y1="13" x2="4" y2="25" stroke={color} strokeWidth="3" strokeLinecap="round" />
+            <line x1="17" y1="13" x2="20" y2="25" stroke={color} strokeWidth="3" strokeLinecap="round" />
+            <rect x="2" y="23" width="5" height="4" rx="1" fill="#52525b" />
+            <rect x="17" y="23" width="5" height="4" rx="1" fill="#52525b" />
+          </>
+        ) : (
+          <>
+            <line x1="7" y1="13" x2="3" y2="20" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="17" y1="13" x2="21" y2="20" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+          </>
+        )
+      ) : position === 'bottom' ? (
+        working ? (
+          <>
+            {/* Bottom mechanic reaches UP towards the car tire */}
+            <line x1="7" y1="13" x2="4" y2="2" stroke={color} strokeWidth="3" strokeLinecap="round" />
+            <line x1="17" y1="13" x2="20" y2="2" stroke={color} strokeWidth="3" strokeLinecap="round" />
+            <rect x="2" y="0" width="5" height="4" rx="1" fill="#52525b" />
+            <rect x="17" y="0" width="5" height="4" rx="1" fill="#52525b" />
+          </>
+        ) : (
+          <>
+            <line x1="7" y1="13" x2="3" y2="20" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="17" y1="13" x2="21" y2="20" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+          </>
+        )
       ) : (
-        <line x1="7" y1="12" x2="3" y2="18" stroke={color} strokeWidth="3" strokeLinecap="round" />
+        /* Front Jack Man */
+        working ? (
+          <>
+            <line x1="7" y1="13" x2="2" y2="10" stroke={color} strokeWidth="3" strokeLinecap="round" />
+            <line x1="17" y1="13" x2="22" y2="10" stroke={color} strokeWidth="3" strokeLinecap="round" />
+            <rect x="0" y="8" width="6" height="4" rx="1" fill="#71717a" />
+          </>
+        ) : (
+          <>
+            <line x1="7" y1="13" x2="3" y2="20" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="17" y1="13" x2="21" y2="20" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+          </>
+        )
       )}
-      {/* Right arm */}
-      {working ? (
-        <line x1="17" y1="12" x2="22" y2="8" stroke={color} strokeWidth="3" strokeLinecap="round" />
-      ) : (
-        <line x1="17" y1="12" x2="21" y2="18" stroke={color} strokeWidth="3" strokeLinecap="round" />
-      )}
+
       {/* Legs */}
-      <line x1="10" y1="22" x2="9" y2="34" stroke={color} strokeWidth="3" strokeLinecap="round" />
-      <line x1="14" y1="22" x2="15" y2="34" stroke={color} strokeWidth="3" strokeLinecap="round" />
-      {/* Tool/wheel gun in hands when working */}
-      {working && (
-        <>
-          <rect x="0" y="5" width="5" height="3" rx="1" fill="#555" />
-          <rect x="19" y="5" width="5" height="3" rx="1" fill="#555" />
-        </>
-      )}
+      <line x1="9" y1="23" x2="8" y2="35" stroke={color} strokeWidth="3" strokeLinecap="round" />
+      <line x1="15" y1="23" x2="16" y2="35" stroke={color} strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }
 
-// ── Pit box scene ─────────────────────────────────────────────────────────────
-
-type AnimPhase = 'idle' | 'entry' | 'stopped' | 'exit' | 'done';
+type AnimPhase = 'idle' | 'pre_entry' | 'entry' | 'stopped' | 'exit' | 'done';
 
 interface PitBoxSceneProps {
   teamColor: string;
   phase: AnimPhase;
-  /** Duration in seconds for the progress timer */
-  durationSec: number;
-  /** Elapsed fraction 0-1 during 'stopped' phase */
-  stoppedProgress: number;
+  currentElapsedSec: number;
+  entryDurationMs: number;
+  exitDurationMs: number;
   driverName: string;
+  teamName: string;
   duration: string;
+  lap: string;
 }
 
 function PitBoxScene({
   teamColor,
   phase,
-  durationSec,
-  stoppedProgress,
+  currentElapsedSec,
+  entryDurationMs,
+  exitDurationMs,
   driverName,
+  teamName,
   duration,
+  lap,
 }: PitBoxSceneProps) {
-  // Car X position: enters from left (-130%), stops at center, exits right (+130%)
-  const carX =
-    phase === 'idle' ? '-130%'
-    : phase === 'entry' ? '0%'
-    : phase === 'stopped' ? '0%'
-    : phase === 'exit' ? '130%'
-    : '130%';
+  const carTransform =
+    phase === 'idle' ? 'translateX(0px) translateY(-50%)'
+    : phase === 'pre_entry' ? 'translateX(-650px) translateY(-50%)'
+    : phase === 'entry' ? 'translateX(0px) translateY(-50%)'
+    : phase === 'stopped' ? 'translateX(0px) translateY(-50%)'
+    : phase === 'exit' ? 'translateX(650px) translateY(-50%)'
+    : 'translateX(650px) translateY(-50%)';
 
-  const entryDuration = `${RACE_DURATION_MS * BRAKE_PHASE_FRACTION}ms`;
-  const exitDuration = `${RACE_DURATION_MS * ACCEL_PHASE_FRACTION}ms`;
   const isWorking = phase === 'stopped';
 
+  const statusLabel =
+    phase === 'idle' ? 'Ready on Grid'
+    : phase === 'pre_entry' ? 'Entering Pit Lane'
+    : phase === 'entry' ? 'Decelerating to Box'
+    : phase === 'stopped' ? 'Stationary Service'
+    : phase === 'exit' ? 'Accelerating to Track'
+    : 'Complete';
+
   return (
-    <div className="relative h-28 bg-zinc-900/60 rounded-xl border border-zinc-800 overflow-hidden select-none">
-      {/* Pit lane floor markings */}
-      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-zinc-700/50" />
-      <div
-        className="absolute top-0 bottom-0 left-1/3 right-1/3 border-x-2 border-dashed opacity-20"
-        style={{ borderColor: teamColor }}
-      />
+    <div className="relative h-36 bg-zinc-950/80 rounded-xl border border-zinc-800 overflow-hidden select-none">
+      {/* Pit lane floor track line */}
+      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-zinc-800/80" />
 
-      {/* Mechanic figures — only visible when stopped */}
-      {(phase === 'stopped' || phase === 'done') && (
-        <>
-          {/* Front left */}
-          <div className="absolute top-2 left-[28%] w-7 h-10">
-            <MechanicFigure working={isWorking} color={teamColor} />
-          </div>
-          {/* Rear left */}
-          <div className="absolute top-2 left-[38%] w-7 h-10">
-            <MechanicFigure working={isWorking} mirrorX color={teamColor} />
-          </div>
-          {/* Front right */}
-          <div className="absolute bottom-2 left-[28%] w-7 h-10">
-            <MechanicFigure working={isWorking} mirrorX color={teamColor} />
-          </div>
-          {/* Rear right */}
-          <div className="absolute bottom-2 left-[38%] w-7 h-10">
-            <MechanicFigure working={isWorking} color={teamColor} />
-          </div>
-          {/* Jack man - front */}
-          <div className="absolute top-1/2 -translate-y-1/2 left-[56%] w-6 h-10">
-            <MechanicFigure working={isWorking} color={teamColor} />
-          </div>
-        </>
-      )}
+      {/* Centered Pit Box Area (240px wide) */}
+      <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[240px] pointer-events-none">
+        {/* Box boundaries */}
+        <div
+          className="absolute inset-y-0 left-0 right-0 border-x-2 border-dashed opacity-25"
+          style={{ borderColor: teamColor }}
+        />
 
-      {/* F1 Car */}
-      <div
-        className="absolute top-1/2 -translate-y-1/2 w-44 h-14"
-        style={{
-          left: '50%',
-          marginLeft: '-88px',
-          transform: `translateX(${carX}) translateY(-50%)`,
-          transition:
-            phase === 'entry'
-              ? `transform ${entryDuration} cubic-bezier(0.3,0,0.1,1)`
-              : phase === 'exit'
-              ? `transform ${exitDuration} cubic-bezier(0.6,0,0.8,1)`
-              : 'none',
-        }}
-      >
-        <F1CarSvg color={teamColor} />
+        {/* ── 4 Tire Mechanics + 1 Front Jack (Aligned exactly with wheels at x=165px & x=88px) ── */}
+        {/* Top-Front Left Tire Mechanic */}
+        <div
+          className="absolute top-1 left-[153px] w-6 h-9 transition-transform duration-300 ease-out"
+          style={{ transform: isWorking ? 'translateY(11px)' : 'translateY(0px)' }}
+        >
+          <MechanicFigure working={isWorking} position="top" color={teamColor} />
+        </div>
+
+        {/* Top-Rear Left Tire Mechanic */}
+        <div
+          className="absolute top-1 left-[76px] w-6 h-9 transition-transform duration-300 ease-out"
+          style={{ transform: isWorking ? 'translateY(11px)' : 'translateY(0px)' }}
+        >
+          <MechanicFigure working={isWorking} position="top" color={teamColor} />
+        </div>
+
+        {/* Bottom-Front Right Tire Mechanic */}
+        <div
+          className="absolute bottom-1 left-[153px] w-6 h-9 transition-transform duration-300 ease-out"
+          style={{ transform: isWorking ? 'translateY(-11px)' : 'translateY(0px)' }}
+        >
+          <MechanicFigure working={isWorking} position="bottom" color={teamColor} />
+        </div>
+
+        {/* Bottom-Rear Right Tire Mechanic */}
+        <div
+          className="absolute bottom-1 left-[76px] w-6 h-9 transition-transform duration-300 ease-out"
+          style={{ transform: isWorking ? 'translateY(-11px)' : 'translateY(0px)' }}
+        >
+          <MechanicFigure working={isWorking} position="bottom" color={teamColor} />
+        </div>
+
+        {/* Front Jack Man */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 left-[202px] w-5 h-9 transition-transform duration-300 ease-out"
+          style={{ transform: isWorking ? 'translateY(-50%) translateX(-8px)' : 'translateY(-50%) translateX(0px)' }}
+        >
+          <MechanicFigure working={isWorking} position="front" color={teamColor} />
+        </div>
+
+        {/* Animated Detailed F1 Car (164px length x 58px height) */}
+        <div
+          className="absolute top-1/2 left-[38px] w-[164px] h-[58px]"
+          style={{
+            transform: carTransform,
+            transition:
+              phase === 'entry'
+                ? `transform ${entryDurationMs}ms cubic-bezier(0.12, 0, 0.08, 1)`
+                : phase === 'exit'
+                ? `transform ${exitDurationMs}ms cubic-bezier(0.5, 0, 0.85, 1)`
+                : 'none',
+          }}
+        >
+          <F1CarSvg color={teamColor} />
+        </div>
       </div>
 
-      {/* Driver label */}
-      <div className="absolute bottom-1 right-3 text-right">
-        <p className="text-xs font-bold text-zinc-400 truncate max-w-[140px]">{driverName}</p>
-        {phase === 'stopped' && (
-          <p className="font-mono text-xs text-primary tabular-nums">
-            {(stoppedProgress * durationSec).toFixed(2)}s
-          </p>
+      {/* Driver info overlay (Left side) */}
+      <div className="absolute top-3 left-4 flex items-center gap-2.5 z-10">
+        <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: teamColor }} />
+        <div>
+          <p className="text-xs font-bold text-foreground leading-none">{driverName}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{teamName} · Lap {lap}</p>
+        </div>
+      </div>
+
+      {/* Live Telemetry stopwatch (Right side) */}
+      <div className="absolute bottom-3 right-4 text-right z-10">
+        <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground block mb-0.5">
+          {statusLabel}
+        </span>
+        {(phase === 'entry' || phase === 'stopped' || phase === 'exit') && (
+          <span className="font-mono text-base font-bold text-primary tabular-nums">
+            {currentElapsedSec.toFixed(3)}s
+          </span>
         )}
-        {(phase === 'exit' || phase === 'done') && (
-          <p className="font-mono text-xs text-green-400 tabular-nums">{formatDuration(duration)} ✓</p>
+        {phase === 'done' && (
+          <span className="font-mono text-base font-bold text-emerald-400 tabular-nums inline-flex items-center gap-1">
+            <Check className="size-3.5 stroke-[3]" />
+            {formatDuration(duration)}
+          </span>
+        )}
+        {(phase === 'idle' || phase === 'pre_entry') && (
+          <span className="font-mono text-sm font-semibold text-muted-foreground tabular-nums">
+            {formatDuration(duration)}
+          </span>
         )}
       </div>
     </div>
   );
 }
 
-// ── Main Duel component ───────────────────────────────────────────────────────
-
 interface SelectedStop {
   pitStop: PitStopEntry;
   constructorId: string | undefined;
   driverName: string;
+  teamName: string;
 }
 
 interface PitStopDuelProps {
@@ -223,18 +382,6 @@ interface PitStopDuelProps {
   onClear: () => void;
 }
 
-/**
- * Animated pit stop comparison ("Pit Stop Duel").
- *
- * Each selected pit stop is rendered as a pit box scene with:
- *   - An F1 car SVG (colored by team) that enters from the left, stops,
- *     then exits to the right.
- *   - Four mechanic SVG figures that animate (arms up = working).
- *   - A live timer that counts up to the actual stop duration.
- *
- * All scenes animate in sync. The longest stop normalises to RACE_DURATION_MS,
- * so shorter stops finish earlier — creating an intuitive sense of speed delta.
- */
 export function PitStopDuel({
   pitStops,
   raceResults,
@@ -242,16 +389,25 @@ export function PitStopDuel({
   onClear,
 }: PitStopDuelProps) {
   const [phases, setPhases] = useState<Record<string, AnimPhase>>({});
-  const [stoppedProgress, setStoppedProgress] = useState<Record<string, number>>({});
+  const [currentElapsedSec, setCurrentElapsedSec] = useState<Record<string, number>>({});
   const [isRacing, setIsRacing] = useState(false);
   const rafRef = useRef<number | null>(null);
+  const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
+
+  const clearAllTimers = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    timeoutsRef.current.forEach((t) => clearTimeout(t));
+    timeoutsRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    return () => clearAllTimers();
+  }, [clearAllTimers]);
 
   const selectedStops: SelectedStop[] = Array.from(selectedIds)
     .map((key) => {
       const [driverId, stopNum] = key.split(':');
-      const stop = pitStops.find(
-        (s) => s.driverId === driverId && s.stop === stopNum
-      );
+      const stop = pitStops.find((s) => s.driverId === driverId && s.stop === stopNum);
       if (!stop) return null;
       const result = raceResults.find((r) => r.Driver.driverId === driverId);
       return {
@@ -260,173 +416,213 @@ export function PitStopDuel({
         driverName: result
           ? `${result.Driver.givenName} ${result.Driver.familyName}`
           : driverId.replace(/_/g, ' '),
+        teamName: result?.Constructor.name ?? 'Independent',
       };
     })
     .filter(Boolean) as SelectedStop[];
 
-  const handleRace = useCallback(() => {
-    if (isRacing || selectedStops.length === 0) return;
-    setIsRacing(true);
-
-    // Resolve durations; use RACE_DURATION_MS as the wall-clock anchor for the longest
-    const durations = selectedStops.map((s) => parseFloat(s.pitStop.duration) || 24);
+  // Compute timing plan for each car
+  const carTimings = React.useMemo(() => {
+    if (selectedStops.length === 0) return {};
+    const durations = selectedStops.map((s) => parseDurationToSeconds(s.pitStop.duration) || 24);
     const maxDuration = Math.max(...durations);
 
-    // Phase 1: all cars enter
-    const entryMs = RACE_DURATION_MS * BRAKE_PHASE_FRACTION;
-    const initPhases: Record<string, AnimPhase> = {};
-    for (const s of selectedStops) initPhases[pitStopKey(s.pitStop)] = 'entry';
-    setPhases(initPhases);
+    const map: Record<string, { totalWallMs: number; entryMs: number; stoppedMs: number; exitMs: number; realSec: number }> = {};
+    selectedStops.forEach((s, idx) => {
+      const key = pitStopKey(s.pitStop);
+      const realSec = durations[idx];
+      const totalWallMs = (realSec / maxDuration) * BASE_SIMULATION_MS;
+      const entryMs = totalWallMs * ENTRY_FRACTION;
+      const stoppedMs = totalWallMs * STOPPED_FRACTION;
+      const exitMs = totalWallMs * EXIT_FRACTION;
+      map[key] = { totalWallMs, entryMs, stoppedMs, exitMs, realSec };
+    });
+    return map;
+  }, [selectedStops]);
 
-    // Phase 2: all cars stop and timers run proportionally
-    setTimeout(() => {
-      const stopPhases: Record<string, AnimPhase> = {};
-      for (const s of selectedStops) stopPhases[pitStopKey(s.pitStop)] = 'stopped';
-      setPhases(stopPhases);
+  const handleRace = useCallback(() => {
+    if (isRacing || selectedStops.length === 0) return;
+    clearAllTimers();
+    setIsRacing(true);
+
+    // Step 1: Teleport cars to off-screen left (pre_entry) with 0 transition
+    const preEntryPhases: Record<string, AnimPhase> = {};
+    for (const s of selectedStops) preEntryPhases[pitStopKey(s.pitStop)] = 'pre_entry';
+    setPhases(preEntryPhases);
+    setCurrentElapsedSec({});
+
+    // Step 2: Next frame start pit entry deceleration and continuous stopwatch
+    const t1 = setTimeout(() => {
+      const entryPhases: Record<string, AnimPhase> = {};
+      for (const s of selectedStops) entryPhases[pitStopKey(s.pitStop)] = 'entry';
+      setPhases(entryPhases);
 
       const startTime = performance.now();
 
       const tick = (now: number) => {
         const elapsed = now - startTime;
 
-        const nextProgress: Record<string, number> = {};
-        const nextPhases: Record<string, AnimPhase> = { ...stopPhases };
+        const nextElapsed: Record<string, number> = {};
+        const nextPhases: Record<string, AnimPhase> = {};
+        let allCompleted = true;
 
-        for (let i = 0; i < selectedStops.length; i++) {
-          const s = selectedStops[i];
+        for (const s of selectedStops) {
           const key = pitStopKey(s.pitStop);
-          const dur = durations[i];
-          // Wall-clock time allocated for this stop proportional to the longest
-          const wallMs = (dur / maxDuration) * RACE_DURATION_MS * (1 - BRAKE_PHASE_FRACTION - ACCEL_PHASE_FRACTION);
-          const progress = Math.min(elapsed / wallMs, 1);
-          nextProgress[key] = progress;
-          if (progress >= 1) nextPhases[key] = 'exit';
+          const timing = carTimings[key];
+          if (!timing) continue;
+
+          const progress = Math.min(elapsed / timing.totalWallMs, 1);
+          nextElapsed[key] = progress * timing.realSec;
+
+          if (elapsed < timing.entryMs) {
+            nextPhases[key] = 'entry';
+            allCompleted = false;
+          } else if (elapsed < timing.entryMs + timing.stoppedMs) {
+            nextPhases[key] = 'stopped';
+            allCompleted = false;
+          } else if (elapsed < timing.totalWallMs) {
+            nextPhases[key] = 'exit';
+            allCompleted = false;
+          } else {
+            nextPhases[key] = 'done';
+          }
         }
 
-        setStoppedProgress(nextProgress);
+        setCurrentElapsedSec(nextElapsed);
         setPhases(nextPhases);
 
-        if (Object.values(nextProgress).some((p) => p < 1)) {
+        if (!allCompleted) {
           rafRef.current = requestAnimationFrame(tick);
         } else {
-          // All done — exit phase
-          setTimeout(() => {
-            const donePhases: Record<string, AnimPhase> = {};
-            for (const s of selectedStops) donePhases[pitStopKey(s.pitStop)] = 'done';
-            setPhases(donePhases);
-            setIsRacing(false);
-          }, RACE_DURATION_MS * ACCEL_PHASE_FRACTION);
+          setIsRacing(false);
         }
       };
 
       rafRef.current = requestAnimationFrame(tick);
-    }, entryMs);
-  }, [isRacing, selectedStops]);
+    }, 40);
+    timeoutsRef.current.push(t1);
+  }, [isRacing, selectedStops, carTimings, clearAllTimers]);
 
-  const handleReset = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    setPhases({});
-    setStoppedProgress({});
-    setIsRacing(false);
-  }, []);
+  if (selectedStops.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40 p-8 text-center">
+        <div className="size-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-3 text-muted-foreground">
+          <Gauge className="size-5" />
+        </div>
+        <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">
+          Pit Stop Duel Arena
+        </h4>
+        <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+          Select up to 4 pit stops from the tables above to simulate and compare their real-time pit lane execution.
+        </p>
+      </div>
+    );
+  }
 
-  if (selectedStops.length === 0) return null;
+  const isDone = Object.values(phases).length > 0 && Object.values(phases).every((p) => p === 'done');
 
   return (
-    <div className="border-t border-zinc-800 mt-0 bg-zinc-950/80">
-      {/* Duel header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-zinc-800/60">
+    <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden space-y-4 p-5">
+      {/* Duel Controls Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
         <div className="flex items-center gap-3">
-          <div className="bg-primary text-primary-foreground font-black italic px-2 py-0.5 rounded text-xs tracking-wider">
+          <div className="bg-primary text-primary-foreground font-black italic px-2.5 py-0.5 rounded text-xs tracking-wider">
             F1
           </div>
-          <span className="font-black uppercase tracking-wider text-sm">
-            PIT STOP DUEL
-          </span>
-          <span className="text-xs font-mono text-zinc-500 bg-zinc-800 rounded-full px-2 py-0.5">
-            {selectedStops.length}/4
-          </span>
+          <div>
+            <h3 className="font-black uppercase tracking-tight text-base">
+              Pit Stop Duel Comparison
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              {selectedStops.length} of 4 stops selected
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={isRacing}
-            className="text-xs text-zinc-400 hover:text-zinc-100 px-3 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-40"
-          >
-            Reset
-          </button>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <button
             type="button"
             onClick={onClear}
             disabled={isRacing}
-            className="text-xs text-zinc-400 hover:text-zinc-100 px-3 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg border border-zinc-800 hover:bg-zinc-900 transition-colors disabled:opacity-40"
           >
-            Clear all
+            <Trash2 className="size-3.5" />
+            <span>Clear</span>
           </button>
+
           <button
             type="button"
             onClick={handleRace}
             disabled={isRacing}
             className={cn(
-              'px-5 py-2 rounded-xl text-sm font-black uppercase tracking-wider transition-all',
-              'bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20',
+              'inline-flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all',
+              'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20',
               'disabled:opacity-50 disabled:cursor-not-allowed'
             )}
           >
-            {isRacing ? 'Racing...' : 'Race! 🏁'}
+            <Play className="size-3.5 fill-current" />
+            <span>{isRacing ? 'Simulating...' : 'Start Duel'}</span>
           </button>
         </div>
       </div>
 
-      {/* Pit box scenes */}
-      <div className="px-6 py-4 space-y-3">
+      {/* Lanes */}
+      <div className="space-y-3">
         {selectedStops.map((s) => {
           const key = pitStopKey(s.pitStop);
           const theme = getTeamTheme(s.constructorId);
+          const timing = carTimings[key] ?? { entryMs: 2000, exitMs: 2000 };
           return (
             <PitBoxScene
               key={key}
               teamColor={theme.primary}
               phase={phases[key] ?? 'idle'}
-              durationSec={parseFloat(s.pitStop.duration) || 24}
-              stoppedProgress={stoppedProgress[key] ?? 0}
+              currentElapsedSec={currentElapsedSec[key] ?? 0}
+              entryDurationMs={timing.entryMs}
+              exitDurationMs={timing.exitMs}
               driverName={s.driverName}
+              teamName={s.teamName}
               duration={s.pitStop.duration}
+              lap={s.pitStop.lap}
             />
           );
         })}
       </div>
 
-      {/* Delta summary after racing */}
-      {Object.values(phases).every((p) => p === 'done') && selectedStops.length > 1 && (
-        <div className="px-6 pb-4">
-          <div className="bg-zinc-900 rounded-xl p-3 border border-zinc-800">
-            <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">
-              Delta
-            </p>
+      {/* Delta Leaderboard */}
+      {isDone && selectedStops.length > 1 && (
+        <div className="mt-4 pt-4 border-t border-zinc-800">
+          <div className="bg-zinc-900/80 rounded-xl p-4 border border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <span>Duel Timing Analysis</span>
+              <span>Delta</span>
+            </div>
             {(() => {
               const sorted = [...selectedStops].sort(
-                (a, b) => parseFloat(a.pitStop.duration) - parseFloat(b.pitStop.duration)
+                (a, b) => parseDurationToSeconds(a.pitStop.duration) - parseDurationToSeconds(b.pitStop.duration)
               );
-              const fastest = parseFloat(sorted[0].pitStop.duration);
+              const fastest = parseDurationToSeconds(sorted[0].pitStop.duration);
               return sorted.map((s, i) => {
-                const dur = parseFloat(s.pitStop.duration);
+                const dur = parseDurationToSeconds(s.pitStop.duration);
                 const delta = dur - fastest;
                 const theme = getTeamTheme(s.constructorId);
                 return (
-                  <div key={pitStopKey(s.pitStop)} className="flex items-center justify-between py-1">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.primary }} />
-                      <span className="text-sm font-semibold">{s.driverName}</span>
+                  <div key={pitStopKey(s.pitStop)} className="flex items-center justify-between py-1.5 border-b border-zinc-800/40 last:border-0">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-1.5 h-4 rounded-full shrink-0" style={{ backgroundColor: theme.primary }} />
+                      <span className="text-sm font-semibold text-foreground">{s.driverName}</span>
+                      <span className="text-xs text-muted-foreground">Lap {s.pitStop.lap}</span>
                     </div>
                     <div className="font-mono text-sm tabular-nums">
                       {i === 0 ? (
-                        <span className="text-green-400 font-bold">{formatDuration(s.pitStop.duration)} 🏆</span>
+                        <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+                          <Trophy className="size-3.5" />
+                          {formatDuration(s.pitStop.duration)}
+                        </span>
                       ) : (
-                        <span className="text-zinc-400">
+                        <span className="text-muted-foreground">
                           {formatDuration(s.pitStop.duration)}{' '}
-                          <span className="text-red-400">+{delta.toFixed(3)}s</span>
+                          <span className="text-rose-400 font-semibold ml-1.5">+{delta.toFixed(3)}s</span>
                         </span>
                       )}
                     </div>
