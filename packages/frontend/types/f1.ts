@@ -125,6 +125,32 @@ export interface RaceResult extends Race {
     QualifyingResults?: QualifyingResultEntry[];
 }
 
+// ── Pit Stops ────────────────────────────────────────────────────────────────
+
+/**
+ * A single pit stop event recorded by the FIA timing system.
+ * All fields are strings to match the Ergast/Jolpica JSON convention.
+ */
+export interface PitStopEntry {
+    /** Jolpica driver slug (e.g. "max_verstappen") */
+    driverId: string;
+    /** Sequential stop number for this driver in the race (first stop = "1") */
+    stop: string;
+    /** Lap number on which the car entered the pit lane */
+    lap: string;
+    /** Time of day in HH:MM:SS format when the pit stop occurred */
+    time: string;
+    /** Total pit lane time in seconds, e.g. "24.474" or "1:04.195" for long stops */
+    duration: string;
+}
+
+export interface PitStopsResponse {
+    season: string;
+    round: string;
+    pitStops: PitStopEntry[];
+}
+
+
 // ── Driver Profiles ──────────────────────────────────────────────────────────
 
 export interface DriverCareerStats {

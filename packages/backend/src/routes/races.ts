@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getRaceSchedule, getRaceResult, getNextRace, isRaceWeekend } from '../services/jolpica';
+import { getRaceSchedule, getRaceResult, getNextRace, isRaceWeekend, getRacePitStops } from '../services/jolpica';
 
 const router: Router = Router();
 function getCurrentSeason(): string {
@@ -72,5 +72,35 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
     res.status(500).json({ error: message });
   }
 });
+
+/**
+ * GET /api/races/:season/:round/pitstops
+ * Returns all pit stops for a specific race, sorted chronologically by lap.
+ * Data is available for 2012+ races. Returns 404 for pre-2012 or future races.
+ *
+ * NOTE: Registered after /:season/:round intentionally — Express matches the
+ * 3-segment path before attempting /:season/:round on a 2-segment URL.
+ */
+router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
+  try {
+    const { season, round } = req.params;
+    const pitStops = await getRacePitStops(season, round);
+
+    if (!pitStops) {
+      res.status(404).json({
+        error: `Pit stop data not available for season ${season}, round ${round}. Data is available from 2012 onwards for completed races.`,
+      });
+      return;
+    }
+
+    // Pit stop records are immutable after a race ends — cache aggressively
+    setCacheHeaders(res, 86400);
+    res.json({ season, round, pitStops });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
+
 
 export default router;
