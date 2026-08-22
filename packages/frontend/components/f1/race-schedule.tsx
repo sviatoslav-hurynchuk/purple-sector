@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { CountdownWidget } from '@/components/f1/countdown-widget';
 import { RaceResultsTable } from '@/components/f1/race-results-table';
 import { QualifyingResultsTable } from '@/components/f1/qualifying-results-table';
+import { PitStopButton } from '@/components/f1/pit-stops/pit-stop-button';
 import { ChevronDown } from 'lucide-react';
 
 interface RaceScheduleProps {
@@ -199,27 +200,38 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
         </div>
       </div>
 
-      {/* Controls Bar: Add to calendar + Timezone Switcher */}
+      {/* Controls Bar: Actions + Timezone Switcher */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <button
-          type="button"
-          onClick={() => alert('Add to calendar feature coming soon!')}
-          className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-5 py-2.5 rounded-xl text-sm transition-all shadow-md shadow-primary/20"
-        >
-          <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-            <line x1="16" x2="16" y1="2" y2="6" />
-            <line x1="8" x2="8" y1="2" y2="6" />
-            <line x1="3" x2="21" y1="10" y2="10" />
-            <path d="M8 14h.01" />
-            <path d="M12 14h.01" />
-            <path d="M16 14h.01" />
-            <path d="M8 18h.01" />
-            <path d="M12 18h.01" />
-            <path d="M16 18h.01" />
-          </svg>
-          Add F1 calendar (in progress)
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => alert('Add to calendar feature coming soon!')}
+            className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-5 py-2.5 rounded-xl text-sm transition-all shadow-md shadow-primary/20"
+          >
+            <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+              <line x1="16" x2="16" y1="2" y2="6" />
+              <line x1="8" x2="8" y1="2" y2="6" />
+              <line x1="3" x2="21" y1="10" y2="10" />
+              <path d="M8 14h.01" />
+              <path d="M12 14h.01" />
+              <path d="M16 14h.01" />
+              <path d="M8 18h.01" />
+              <path d="M12 18h.01" />
+              <path d="M16 18h.01" />
+            </svg>
+            Add F1 calendar (in progress)
+          </button>
+
+          {'Results' in race && Array.isArray(race.Results) && race.Results.length > 0 && (
+            <PitStopButton
+              season={race.season}
+              round={race.round}
+              raceName={race.raceName}
+              raceResults={race.Results}
+            />
+          )}
+        </div>
 
         {/* Timezone Switcher */}
         <div className="inline-flex items-center bg-zinc-900 border border-zinc-800 p-1 rounded-xl self-start sm:self-auto">
