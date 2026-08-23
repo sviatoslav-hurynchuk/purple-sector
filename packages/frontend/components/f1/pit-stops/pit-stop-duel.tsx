@@ -430,6 +430,8 @@ export function PitStopDuel({
       const [driverId, stopNum] = key.split(':');
       const stop = pitStops.find((s) => s.driverId === driverId && s.stop === stopNum);
       if (!stop) return null;
+      const dur = parseDurationToSeconds(stop.duration);
+      if (!Number.isFinite(dur) || dur <= 0) return null;
       const result = raceResults.find((r) => r.Driver.driverId === driverId);
       return {
         pitStop: stop,
@@ -445,7 +447,7 @@ export function PitStopDuel({
   // Compute timing plan for each car
   const carTimings = React.useMemo(() => {
     if (selectedStops.length === 0) return {};
-    const durations = selectedStops.map((s) => parseDurationToSeconds(s.pitStop.duration) || 24);
+    const durations = selectedStops.map((s) => parseDurationToSeconds(s.pitStop.duration));
     const maxDuration = Math.max(...durations);
 
     const map: Record<string, { totalWallMs: number; entryMs: number; stoppedMs: number; exitMs: number; realSec: number }> = {};

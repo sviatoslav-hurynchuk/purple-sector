@@ -37,11 +37,11 @@ export function PitStopFastest({
   }));
 
   const normalStops = withDuration
-    .filter((s) => !isNaN(s.durationNum) && s.durationNum < ANOMALY_THRESHOLD_SECONDS)
+    .filter((s) => !isNaN(s.durationNum) && s.durationNum > 0 && s.durationNum < ANOMALY_THRESHOLD_SECONDS)
     .sort((a, b) => a.durationNum - b.durationNum);
 
   const incidentStops = withDuration
-    .filter((s) => isNaN(s.durationNum) || s.durationNum >= ANOMALY_THRESHOLD_SECONDS)
+    .filter((s) => isNaN(s.durationNum) || s.durationNum <= 0 || s.durationNum >= ANOMALY_THRESHOLD_SECONDS)
     .sort((a, b) => a.durationNum - b.durationNum);
 
   const fastestTime = normalStops[0]?.durationNum ?? 0;

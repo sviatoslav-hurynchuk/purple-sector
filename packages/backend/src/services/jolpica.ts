@@ -271,7 +271,7 @@ function isNegativeCacheSentinel(val: unknown): val is NegativeCacheSentinel {
 
 const inFlight = new Map<string, Promise<unknown>>();
 
-type TTLResolver<T> = number | ((data: T) => number);
+type TTLResolver<T> = number | ((data: T) => number | Promise<number>);
 
 async function cachedFetch<T>(
   key: string,
@@ -301,7 +301,7 @@ async function cachedFetch<T>(
     .then(async (fresh) => {
       // Negative caching protection: if fresh is null/undefined, store sentinel with negativeTtl
       if (fresh !== null && fresh !== undefined) {
-        const computedTtl = typeof ttl === 'function' ? ttl(fresh) : ttl;
+        const computedTtl = typeof ttl === 'function' ? await ttl(fresh) : ttl;
         await cache.set(key, fresh, computedTtl);
       } else {
         const sentinel: NegativeCacheSentinel = { __negativeCache: true };
@@ -1261,7 +1261,21 @@ export async function getRacePitStops(
 
   return cachedFetch<PitStopEntry[] | null>(
     cacheKey,
-    TTL.PIT_STOPS,
+    async (data) => {
+      if (!data || data.length === 0) return TTL.NEGATIVE_CACHE;
+      // Past seasons are immutable -> 24h
+      if (s !== getCurrentSeason()) return TTL.PIT_STOPS;
+
+      // For current season, check if the race has official results completed
+      const race = await getRaceResult(s, r).catch(() => null);
+      const isCompleted =
+        race &&
+        'Results' in race &&
+        Array.isArray(race.Results) &&
+        race.Results.length > 0;
+
+      return isCompleted ? TTL.PIT_STOPS : (isRaceWeekend() ? 60 : 300);
+    },
     async () => {
       const res = await jolpicaFetch<JolpicaPitStopsResponse>(
         `/${s}/${r}/pitstops?limit=100`
