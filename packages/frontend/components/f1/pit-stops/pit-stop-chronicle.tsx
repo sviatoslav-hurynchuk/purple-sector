@@ -16,6 +16,7 @@ interface PitStopChronicleProps {
   raceResults: RaceResultEntry[];
   selectedIds: Set<string>;
   onToggle: (key: string) => void;
+  isLocked?: boolean;
 }
 
 export function pitStopKey(stop: PitStopEntry): string {
@@ -25,24 +26,24 @@ export function pitStopKey(stop: PitStopEntry): string {
 /**
  * Parses Ergast/Jolpica pit stop duration into total seconds.
  * Correctly parses both "SS.mmm" (e.g. "24.474") and "MM:SS.mmm" (e.g. "1:14.195" or "35:54.149" under Red Flag).
+ * Returns Number.NaN for empty or malformed inputs.
  */
 export function parseDurationToSeconds(duration: string): number {
-  if (!duration) return 0;
+  if (!duration) return Number.NaN;
   if (duration.includes(':')) {
-    const parts = duration.split(':');
+    const parts = duration.split(':').map(Number.parseFloat);
+    if (parts.some((part) => !Number.isFinite(part))) return Number.NaN;
     if (parts.length === 2) {
-      const mins = parseFloat(parts[0]) || 0;
-      const secs = parseFloat(parts[1]) || 0;
+      const [mins, secs] = parts;
       return mins * 60 + secs;
     }
     if (parts.length === 3) {
-      const hrs = parseFloat(parts[0]) || 0;
-      const mins = parseFloat(parts[1]) || 0;
-      const secs = parseFloat(parts[2]) || 0;
+      const [hrs, mins, secs] = parts;
       return hrs * 3600 + mins * 60 + secs;
     }
+    return Number.NaN;
   }
-  return parseFloat(duration) || 0;
+  return Number.parseFloat(duration);
 }
 
 export function formatDuration(raw: string): string {
@@ -65,6 +66,7 @@ export function PitStopChronicle({
   raceResults,
   selectedIds,
   onToggle,
+  isLocked = false,
 }: PitStopChronicleProps) {
   const maxSelections = 4;
 
@@ -89,13 +91,13 @@ export function PitStopChronicle({
             const result = raceResults.find((r) => r.Driver.driverId === stop.driverId);
             const constructorId = result?.Constructor.constructorId;
             const theme = getTeamTheme(constructorId);
-            const canSelect = isSelected || selectedIds.size < maxSelections;
+            const canSelect = !isLocked && (isSelected || selectedIds.size < maxSelections);
             const driverName = result
               ? `${result.Driver.givenName} ${result.Driver.familyName}`
               : stop.driverId.replace(/_/g, ' ');
             const teamName = result?.Constructor.name ?? constructorId ?? '—';
             const durationSec = parseDurationToSeconds(stop.duration);
-            const isAnomaly = durationSec >= 60;
+            const isAnomaly = !isNaN(durationSec) && durationSec >= 60;
 
             return (
               <TableRow
@@ -114,13 +116,14 @@ export function PitStopChronicle({
                   <button
                     type="button"
                     onClick={() => canSelect && onToggle(key)}
-                    disabled={!canSelect}
+                    disabled={!canSelect || isLocked}
                     aria-label={`Select pit stop by ${driverName} on lap ${stop.lap}`}
                     className={cn(
                       'size-4 mx-auto rounded border transition-colors flex items-center justify-center',
                       isSelected
                         ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500'
+                        : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500',
+                      isLocked && 'cursor-not-allowed opacity-60'
                     )}
                   >
                     {isSelected && <Check className="size-3 stroke-[3]" />}

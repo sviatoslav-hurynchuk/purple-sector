@@ -17,6 +17,7 @@ interface PitStopFastestProps {
   raceResults: RaceResultEntry[];
   selectedIds: Set<string>;
   onToggle: (key: string) => void;
+  isLocked?: boolean;
 }
 
 const ANOMALY_THRESHOLD_SECONDS = 60;
@@ -26,6 +27,7 @@ export function PitStopFastest({
   raceResults,
   selectedIds,
   onToggle,
+  isLocked = false,
 }: PitStopFastestProps) {
   const maxSelections = 4;
 
@@ -80,7 +82,7 @@ export function PitStopFastest({
     const result = raceResults.find((r) => r.Driver.driverId === stop.driverId);
     const constructorId = result?.Constructor.constructorId;
     const theme = getTeamTheme(constructorId);
-    const canSelect = isSelected || selectedIds.size < maxSelections;
+    const canSelect = !isLocked && (isSelected || selectedIds.size < maxSelections);
     const driverName = result
       ? `${result.Driver.givenName} ${result.Driver.familyName}`
       : stop.driverId.replace(/_/g, ' ');
@@ -106,13 +108,14 @@ export function PitStopFastest({
           <button
             type="button"
             onClick={() => canSelect && onToggle(key)}
-            disabled={!canSelect}
+            disabled={!canSelect || isLocked}
             aria-label={`Select pit stop by ${driverName} for comparison`}
             className={cn(
               'size-4 mx-auto rounded border transition-colors flex items-center justify-center',
               isSelected
                 ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500'
+                : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500',
+              isLocked && 'cursor-not-allowed opacity-60'
             )}
           >
             {isSelected && <Check className="size-3 stroke-[3]" />}

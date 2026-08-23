@@ -24,8 +24,10 @@ export function PitStopPageContent({
   raceResults = [],
 }: PitStopPageContentProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isRacing, setIsRacing] = useState(false);
 
   const handleToggle = useCallback((key: string) => {
+    if (isRacing) return;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -35,11 +37,12 @@ export function PitStopPageContent({
       }
       return next;
     });
-  }, []);
+  }, [isRacing]);
 
   const handleClear = useCallback(() => {
+    if (isRacing) return;
     setSelectedIds(new Set());
-  }, []);
+  }, [isRacing]);
 
   return (
     <div className="space-y-8">
@@ -100,6 +103,7 @@ export function PitStopPageContent({
               raceResults={raceResults}
               selectedIds={selectedIds}
               onToggle={handleToggle}
+              isLocked={isRacing}
             />
           </TabsContent>
 
@@ -109,6 +113,7 @@ export function PitStopPageContent({
               raceResults={raceResults}
               selectedIds={selectedIds}
               onToggle={handleToggle}
+              isLocked={isRacing}
             />
           </TabsContent>
         </Tabs>
@@ -130,6 +135,8 @@ export function PitStopPageContent({
           raceResults={raceResults}
           selectedIds={selectedIds}
           onClear={handleClear}
+          isRacing={isRacing}
+          onRacingChange={setIsRacing}
         />
       </div>
     </div>

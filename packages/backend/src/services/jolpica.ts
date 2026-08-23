@@ -276,7 +276,8 @@ type TTLResolver<T> = number | ((data: T) => number);
 async function cachedFetch<T>(
   key: string,
   ttl: TTLResolver<T>,
-  fetcher: () => Promise<T>
+  fetcher: () => Promise<T>,
+  negativeTtl = TTL.NEGATIVE_CACHE
 ): Promise<T> {
   const cached = await cache.get<T | NegativeCacheSentinel>(key);
   if (cached !== null && cached !== undefined) {
@@ -298,13 +299,13 @@ async function cachedFetch<T>(
 
   const promise = fetcher()
     .then(async (fresh) => {
-      // Negative caching protection: if fresh is null/undefined, store sentinel with short TTL (5s)
+      // Negative caching protection: if fresh is null/undefined, store sentinel with negativeTtl
       if (fresh !== null && fresh !== undefined) {
         const computedTtl = typeof ttl === 'function' ? ttl(fresh) : ttl;
         await cache.set(key, fresh, computedTtl);
       } else {
         const sentinel: NegativeCacheSentinel = { __negativeCache: true };
-        await cache.set(key, sentinel, 5);
+        await cache.set(key, sentinel, negativeTtl);
       }
       inFlight.delete(key);
       return fresh;
@@ -1260,11 +1261,11 @@ export async function getRacePitStops(
 
   return cachedFetch<PitStopEntry[] | null>(
     cacheKey,
-    (data) => (data && data.length > 0 ? TTL.PIT_STOPS : TTL.NEGATIVE_CACHE),
+    TTL.PIT_STOPS,
     async () => {
       const res = await jolpicaFetch<JolpicaPitStopsResponse>(
         `/${s}/${r}/pitstops?limit=100`
-      ).catch(() => null);
+      );
 
       const pitStops = res?.MRData.RaceTable.Races[0]?.PitStops;
       if (!pitStops || pitStops.length === 0) return null;
@@ -1275,7 +1276,8 @@ export async function getRacePitStops(
         if (lapDiff !== 0) return lapDiff;
         return a.time.localeCompare(b.time);
       });
-    }
+    },
+    TTL.NEGATIVE_CACHE
   );
 }
 

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { PitStopEntry, RaceResultEntry } from '@/types/f1';
@@ -380,6 +380,8 @@ interface PitStopDuelProps {
   raceResults: RaceResultEntry[];
   selectedIds: Set<string>;
   onClear: () => void;
+  isRacing?: boolean;
+  onRacingChange?: (isRacing: boolean) => void;
 }
 
 export function PitStopDuel({
@@ -387,12 +389,23 @@ export function PitStopDuel({
   raceResults,
   selectedIds,
   onClear,
+  isRacing: controlledIsRacing,
+  onRacingChange,
 }: PitStopDuelProps) {
   const [phases, setPhases] = useState<Record<string, AnimPhase>>({});
   const [currentElapsedSec, setCurrentElapsedSec] = useState<Record<string, number>>({});
-  const [isRacing, setIsRacing] = useState(false);
+  const [internalIsRacing, setInternalIsRacing] = useState(false);
+  const isRacing = controlledIsRacing !== undefined ? controlledIsRacing : internalIsRacing;
   const rafRef = useRef<number | null>(null);
   const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
+
+  const setIsRacing = useCallback(
+    (val: boolean) => {
+      setInternalIsRacing(val);
+      onRacingChange?.(val);
+    },
+    [onRacingChange]
+  );
 
   const clearAllTimers = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -403,6 +416,14 @@ export function PitStopDuel({
   useEffect(() => {
     return () => clearAllTimers();
   }, [clearAllTimers]);
+
+  // Reset duel visuals when selection changes while not racing
+  useEffect(() => {
+    if (!isRacing) {
+      setPhases({});
+      setCurrentElapsedSec({});
+    }
+  }, [selectedIds, isRacing]);
 
   const selectedStops: SelectedStop[] = Array.from(selectedIds)
     .map((key) => {
