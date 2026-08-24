@@ -12,6 +12,7 @@ import type {
   ConstructorMeta,
   ConstructorCareerStats,
   ConstructorDriverHistory,
+  PitStopEntry,
 } from '../types/f1';
 import { cache } from './cache';
 import { getOfficialF1DriverStats, getOfficialF1TeamDetails, warmOfficialDriverStats } from './f1-official';
@@ -45,9 +46,11 @@ const TTL = {
   SCHEDULE_CURRENT: 6 * 60 * 60,   // 6 hours
   SCHEDULE_PAST: 24 * 60 * 60,     // 24 hours
   RACE_WITH_RESULTS: 24 * 60 * 60, // 24 hours (immutable data)
+  PIT_STOPS: 24 * 60 * 60,         // 24 hours (immutable once race finishes)
   NEGATIVE_CACHE: 5 * 60,          // 5 minutes for non-existent races
   CONSTRUCTOR_PROFILE: 5 * 60,     // 5 minutes for constructor profiles
 } as const;
+
 
 export interface RaceResultEntry {
   number: string;
@@ -143,6 +146,18 @@ type JolpicaConstructorsResponse = JolpicaResponse<'ConstructorTable', Construct
 type JolpicaSeasonsResponse = JolpicaResponse<'SeasonTable', SeasonTable>;
 type JolpicaRaceResultsResponse = JolpicaResponse<'RaceTable', RaceResultsTable>;
 type JolpicaStandingsResponse = JolpicaResponse<'StandingsTable', StandingsTable>;
+
+// Pit stop table shape returned by Jolpica /{season}/{round}/pitstops.json
+interface PitStopRaceRow extends Race {
+  PitStops: PitStopEntry[];
+}
+interface PitStopTable {
+  season: string;
+  round?: string;
+  Races: PitStopRaceRow[];
+}
+type JolpicaPitStopsResponse = JolpicaResponse<'RaceTable', PitStopTable>;
+
 // ── HTTP Fetch Helper with Throttled Queue & Resilient Backoff ──────────────
 
 interface JolpicaQueueItem {
@@ -256,12 +271,13 @@ function isNegativeCacheSentinel(val: unknown): val is NegativeCacheSentinel {
 
 const inFlight = new Map<string, Promise<unknown>>();
 
-type TTLResolver<T> = number | ((data: T) => number);
+type TTLResolver<T> = number | ((data: T) => number | Promise<number>);
 
 async function cachedFetch<T>(
   key: string,
   ttl: TTLResolver<T>,
-  fetcher: () => Promise<T>
+  fetcher: () => Promise<T>,
+  negativeTtl = TTL.NEGATIVE_CACHE
 ): Promise<T> {
   const cached = await cache.get<T | NegativeCacheSentinel>(key);
   if (cached !== null && cached !== undefined) {
@@ -283,13 +299,13 @@ async function cachedFetch<T>(
 
   const promise = fetcher()
     .then(async (fresh) => {
-      // Negative caching protection: if fresh is null/undefined, store sentinel with short TTL (5s)
+      // Negative caching protection: if fresh is null/undefined, store sentinel with negativeTtl
       if (fresh !== null && fresh !== undefined) {
-        const computedTtl = typeof ttl === 'function' ? ttl(fresh) : ttl;
+        const computedTtl = typeof ttl === 'function' ? await ttl(fresh) : ttl;
         await cache.set(key, fresh, computedTtl);
       } else {
         const sentinel: NegativeCacheSentinel = { __negativeCache: true };
-        await cache.set(key, sentinel, 5);
+        await cache.set(key, sentinel, negativeTtl);
       }
       inFlight.delete(key);
       return fresh;
@@ -1224,9 +1240,65 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
   return promise;
 }
 
+// ── Pit Stops ─────────────────────────────────────────────────────────────────
+
+/**
+ * Returns all pit stops for a given race round.
+ *
+ * Data is fetched from Jolpica /{season}/{round}/pitstops.json with limit=100
+ * (covers the theoretical maximum of ~50 stops in a 20-car race).
+ * Results are cached for 24 h because pit stop records are immutable once a race ends.
+ * Returns null when pit stop data is unavailable (pre-2012 races, future races,
+ * or Jolpica lookup failure), which triggers a 5-min negative-cache sentinel.
+ */
+export async function getRacePitStops(
+  season: string | number,
+  round: string | number
+): Promise<PitStopEntry[] | null> {
+  const s = String(season);
+  const r = String(round);
+  const cacheKey = `f1:race:pitstops:${s}:${r}`;
+
+  return cachedFetch<PitStopEntry[] | null>(
+    cacheKey,
+    async (data) => {
+      if (!data || data.length === 0) return TTL.NEGATIVE_CACHE;
+      // Past seasons are immutable -> 24h
+      if (s !== getCurrentSeason()) return TTL.PIT_STOPS;
+
+      // For current season, check if the race has official results completed
+      const race = await getRaceResult(s, r).catch(() => null);
+      const isCompleted =
+        race &&
+        'Results' in race &&
+        Array.isArray(race.Results) &&
+        race.Results.length > 0;
+
+      return isCompleted ? TTL.PIT_STOPS : (isRaceWeekend() ? 60 : 300);
+    },
+    async () => {
+      const res = await jolpicaFetch<JolpicaPitStopsResponse>(
+        `/${s}/${r}/pitstops?limit=100`
+      );
+
+      const pitStops = res?.MRData.RaceTable.Races[0]?.PitStops;
+      if (!pitStops || pitStops.length === 0) return null;
+
+      // Sort chronologically: by lap number first, then by time-of-day string
+      return [...pitStops].sort((a, b) => {
+        const lapDiff = parseInt(a.lap, 10) - parseInt(b.lap, 10);
+        if (lapDiff !== 0) return lapDiff;
+        return a.time.localeCompare(b.time);
+      });
+    },
+    TTL.NEGATIVE_CACHE
+  );
+}
+
 // ── Cache Warming ─────────────────────────────────────────────────────────────
 
 export async function warmCache(): Promise<void> {
+
   console.log('[CacheWarming] Pre-fetching core F1 data...');
   const start = Date.now();
   const currentSeason = getCurrentSeason();
