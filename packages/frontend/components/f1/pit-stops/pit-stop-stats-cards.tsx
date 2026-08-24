@@ -44,15 +44,22 @@ export function PitStopStatsCards({ pitStops, raceResults }: PitStopStatsCardsPr
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Fastest Pit Stop */}
-      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden">
+      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
         <div
           className="absolute top-0 left-0 right-0 h-0.5"
           style={{ backgroundColor: fastest ? fastestTheme.primary : 'var(--primary)' }}
         />
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between text-muted-foreground mb-2">
+        {/* Large right-aligned feature icon */}
+        <div
+          className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 transition-all duration-300 group-hover:scale-110 group-hover:opacity-75"
+          style={{ color: fastest ? fastestTheme.primary : '#fbbf24' }}
+        >
+          <Trophy className="size-14 sm:size-16 stroke-[1.25]" />
+        </div>
+
+        <CardContent className="p-5 relative z-10">
+          <div className="text-muted-foreground mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Fastest Pit Stop</span>
-            <Trophy className="size-4 text-amber-400" />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground tabular-nums">
@@ -77,11 +84,15 @@ export function PitStopStatsCards({ pitStops, raceResults }: PitStopStatsCardsPr
       </Card>
 
       {/* Total Stops */}
-      <Card className="border-zinc-800 bg-zinc-950/70">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between text-muted-foreground mb-2">
+      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
+        {/* Large right-aligned feature icon */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-primary transition-all duration-300 group-hover:scale-110 group-hover:opacity-75">
+          <Gauge className="size-14 sm:size-16 stroke-[1.25]" />
+        </div>
+
+        <CardContent className="p-5 relative z-10">
+          <div className="text-muted-foreground mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Total Pit Stops</span>
-            <Gauge className="size-4 text-primary" />
           </div>
           <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground tabular-nums">
             {totalStops}
@@ -93,11 +104,15 @@ export function PitStopStatsCards({ pitStops, raceResults }: PitStopStatsCardsPr
       </Card>
 
       {/* Average Pit Duration */}
-      <Card className="border-zinc-800 bg-zinc-950/70">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between text-muted-foreground mb-2">
+      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
+        {/* Large right-aligned feature icon */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-blue-400 transition-all duration-300 group-hover:scale-110 group-hover:opacity-75">
+          <Timer className="size-14 sm:size-16 stroke-[1.25]" />
+        </div>
+
+        <CardContent className="p-5 relative z-10">
+          <div className="text-muted-foreground mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Average Lane Time</span>
-            <Timer className="size-4 text-blue-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground tabular-nums">
             {avgDuration > 0 ? `${avgDuration.toFixed(2)}s` : '—'}
@@ -109,11 +124,15 @@ export function PitStopStatsCards({ pitStops, raceResults }: PitStopStatsCardsPr
       </Card>
 
       {/* Active Drivers */}
-      <Card className="border-zinc-800 bg-zinc-950/70">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between text-muted-foreground mb-2">
+      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
+        {/* Large right-aligned feature icon */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-emerald-400 transition-all duration-300 group-hover:scale-110 group-hover:opacity-75">
+          <Users className="size-14 sm:size-16 stroke-[1.25]" />
+        </div>
+
+        <CardContent className="p-5 relative z-10">
+          <div className="text-muted-foreground mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Drivers Serviced</span>
-            <Users className="size-4 text-emerald-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground tabular-nums">
             {uniqueDrivers}
