@@ -159,6 +159,18 @@ export function PaceComparison({
     return PADDING_TOP + fraction * innerHeight;
   };
 
+  // Deduplicated X-axis lap ticks
+  const paceLapTicks = useMemo(() => {
+    const ticks: number[] = [];
+    const step = totalLaps > 50 ? 10 : totalLaps > 25 ? 5 : 2;
+    for (let l = 1; l <= totalLaps; l++) {
+      if (l === 1 || l === totalLaps || l % step === 0) {
+        ticks.push(l);
+      }
+    }
+    return Array.from(new Set(ticks)).sort((a, b) => a - b);
+  }, [totalLaps]);
+
   if (selectedDrivers.length === 0) {
     return null;
   }
@@ -365,13 +377,11 @@ export function PaceComparison({
             })}
 
             {/* X Axis Lap Labels */}
-            {Array.from({ length: Math.min(12, totalLaps) }).map((_, i) => {
-              const step = Math.max(1, Math.floor(totalLaps / 10));
-              const lap = Math.min(totalLaps, 1 + i * step);
+            {paceLapTicks.map((lap) => {
               const x = getPaceX(lap);
               return (
                 <text
-                  key={`lap-lbl-${lap}`}
+                  key={`pace-lap-lbl-${lap}`}
                   x={x}
                   y={CHART_HEIGHT - PADDING_BOTTOM + 18}
                   textAnchor="middle"

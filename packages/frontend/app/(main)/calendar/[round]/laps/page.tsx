@@ -54,8 +54,53 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
     race = schedule.find((r) => parseInt(r.round, 10) === parsedRound) ?? null;
   }
 
-  if (!race || !lapsData || lapsData.laps.length === 0) {
+  if (!race) {
     notFound();
+  }
+
+  // If the race is valid but lap data is not yet available (e.g. upcoming race)
+  if (!lapsData || lapsData.laps.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <a
+            href={`/calendar/${race.round}?season=${race.season}`}
+            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors mb-3 group"
+          >
+            <span className="transition-transform group-hover:-translate-x-1">←</span>
+            <span>Back to {race.raceName}</span>
+          </a>
+          <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-foreground">
+            {race.raceName}
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            {race.Circuit.circuitName} · Round {race.round} · {year}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-8 sm:p-12 text-center space-y-4 shadow-lg max-w-2xl mx-auto">
+          <div className="size-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-muted-foreground mx-auto">
+            📊
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-lg sm:text-xl font-bold text-foreground">
+              Lap-by-Lap Data Not Available Yet
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Lap times and position tracking become available once the Grand Prix has started or concluded.
+            </p>
+          </div>
+          <div className="pt-2">
+            <a
+              href={`/calendar/${race.round}?season=${race.season}`}
+              className="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md"
+            >
+              Back to Race Details
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const validResults =
