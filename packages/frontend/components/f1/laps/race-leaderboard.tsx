@@ -3,8 +3,9 @@
 import React, { useMemo } from 'react';
 import type { LapData, DriverLapSummary, PitStopEntry } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
+import { isDnfStatus, isLappedStatus } from '@/lib/f1-status';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUp, ArrowDown, Minus, Check, Timer } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Check, Timer, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface RaceLeaderboardProps {
@@ -32,6 +33,8 @@ interface LeaderboardRow {
   pitDuration?: string;
   isDnf: boolean;
   dnfStatus?: string;
+  isLapped: boolean;
+  lappedStatus?: string;
   totalLapsCompleted: number;
 }
 
@@ -80,7 +83,8 @@ export function RaceLeaderboard({
 
     for (const driver of drivers) {
       const timing = timingsMap.get(driver.driverId);
-      const isDnf = driver.totalLaps < currentLap && driver.status !== 'Finished' && !driver.status.startsWith('+');
+      const isDnf = isDnfStatus(driver.status, driver.positionText) && currentLap > driver.totalLaps;
+      const isLapped = isLappedStatus(driver.status);
       const pitEntries = pitStopsByLap.get(`${driver.driverId}:${currentLap}`);
       const latestPit = pitEntries?.[0];
 
@@ -99,6 +103,7 @@ export function RaceLeaderboard({
           pitStopNumber: latestPit?.stop,
           pitDuration: latestPit?.duration,
           isDnf: false,
+          isLapped: false,
           totalLapsCompleted: currentLap,
         });
       } else if (isDnf) {
@@ -113,20 +118,37 @@ export function RaceLeaderboard({
           isPitStopThisLap: false,
           isDnf: true,
           dnfStatus: driver.status,
+          isLapped: false,
           totalLapsCompleted: driver.totalLaps,
         });
       } else {
-        // Driver might not have timing this lap (lapped / gap in data)
+        // Driver might not have timing this exact lap (lapped / took flag on earlier lap)
+        let lastTimingPos: number | undefined;
+        let lastTimingTime: string | undefined;
+
+        for (let l = currentLap - 1; l >= 1; l--) {
+          const lapObj = lapsData.find((x) => parseInt(x.number, 10) === l);
+          const t = lapObj?.Timings.find((x) => x.driverId === driver.driverId);
+          if (t) {
+            lastTimingPos = parseInt(t.position, 10);
+            lastTimingTime = t.time;
+            break;
+          }
+        }
+
         activeRows.push({
           driverId: driver.driverId,
           driverName: `${driver.givenName} ${driver.familyName}`,
           code: driver.code,
           constructorId: driver.constructorId,
           constructorName: driver.constructorName,
-          position: driver.finishPosition || 99,
+          position: lastTimingPos ?? driver.finishPosition ?? 99,
           gridPosition: driver.gridPosition,
+          lapTime: lastTimingTime,
           isPitStopThisLap: false,
           isDnf: false,
+          isLapped,
+          lappedStatus: isLapped ? driver.status : undefined,
           totalLapsCompleted: driver.totalLaps,
         });
       }
@@ -136,7 +158,7 @@ export function RaceLeaderboard({
     dnfRows.sort((a, b) => a.position - b.position);
 
     return [...activeRows, ...dnfRows];
-  }, [currentLap, currentLapTimings, drivers, pitStopsByLap]);
+  }, [currentLap, currentLapTimings, drivers, lapsData, pitStopsByLap]);
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 overflow-hidden flex flex-col h-[600px] shadow-md">
@@ -242,11 +264,25 @@ export function RaceLeaderboard({
                   </Badge>
                 )}
 
-                {/* Lap Time or DNF Reason */}
+                {/* Status Column: DNF vs Lapped vs Active Lap Time */}
                 {row.isDnf ? (
-                  <span className="text-[10px] font-mono text-destructive/80 font-medium truncate max-w-[90px]">
-                    Lap {row.totalLapsCompleted} ({row.dnfStatus})
-                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[11px] font-mono font-bold text-red-400">
+                      OUT L{row.totalLapsCompleted}
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-500 truncate max-w-[85px]" title={row.dnfStatus}>
+                      {row.dnfStatus}
+                    </span>
+                  </div>
+                ) : row.isLapped && currentLap >= row.totalLapsCompleted ? (
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs font-mono font-bold text-blue-400">
+                      {row.lappedStatus || '+1 Lap'}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      Fin L{row.totalLapsCompleted}
+                    </span>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-end">
                     <span className="text-xs font-mono font-medium text-foreground tabular-nums">

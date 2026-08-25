@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useRef } from 'react';
 import type { LapData, DriverLapSummary, PitStopEntry } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
+import { isDnfStatus, isLappedStatus } from '@/lib/f1-status';
 import { cn } from '@/lib/utils';
 
 interface PositionChartProps {
@@ -36,6 +37,9 @@ interface DriverLine {
   lastPoint?: Point;
   isDnf: boolean;
   dnfStatus?: string;
+  isLapped: boolean;
+  lappedStatus?: string;
+  finishPosition?: number;
   pitPoints: Point[];
 }
 
@@ -60,6 +64,10 @@ export function PositionChart({
     position: number;
     time: string;
     color: string;
+    isDnf: boolean;
+    dnfStatus?: string;
+    isLapped: boolean;
+    lappedStatus?: string;
     x: number;
     y: number;
   } | null>(null);
@@ -150,7 +158,8 @@ export function PositionChart({
       }
 
       const theme = getTeamTheme(d.constructorId);
-      const isDnf = d.totalLaps < totalLaps && d.status !== 'Finished' && !d.status.startsWith('+');
+      const isDnf = isDnfStatus(d.status, d.positionText);
+      const isLapped = isLappedStatus(d.status);
       const pitPoints = pts.filter((pt) => pitMap.has(`${d.driverId}:${pt.lap}`));
 
       lines.push({
@@ -164,6 +173,9 @@ export function PositionChart({
         lastPoint: pts[pts.length - 1],
         isDnf,
         dnfStatus: d.status,
+        isLapped,
+        lappedStatus: d.status,
+        finishPosition: d.finishPosition,
         pitPoints,
       });
     }
@@ -389,7 +401,9 @@ export function PositionChart({
                     fill={isSelected || isHovered ? '#ffffff' : line.color}
                     opacity={hasSelectedDrivers && !isSelected ? 0.3 : 1}
                   >
-                    {line.code}
+                    {line.isLapped && !line.isDnf
+                      ? `${line.code} (${line.lappedStatus ? line.lappedStatus.replace(' Laps', 'L').replace(' Lap', 'L') : '+1L'})`
+                      : line.code}
                   </text>
                 )}
 
@@ -407,7 +421,20 @@ export function PositionChart({
                   />
                 ))}
 
-                {/* DNF Marker */}
+                {/* Lapped Finish Indicator Dot */}
+                {line.isLapped && !line.isDnf && line.lastPoint && (
+                  <circle
+                    cx={line.lastPoint.x}
+                    cy={line.lastPoint.y}
+                    r="4"
+                    fill="#60a5fa"
+                    stroke="#18181b"
+                    strokeWidth="1.5"
+                    opacity={hasSelectedDrivers && !isSelected ? 0.3 : 0.9}
+                  />
+                )}
+
+                {/* DNF Marker (Only for true retired/DNF cars) */}
                 {line.isDnf && line.lastPoint && (
                   <g>
                     <circle
@@ -454,6 +481,10 @@ export function PositionChart({
                           position: currPt.position,
                           time: currPt.time,
                           color: line.color,
+                          isDnf: line.isDnf,
+                          dnfStatus: line.dnfStatus,
+                          isLapped: line.isLapped,
+                          lappedStatus: line.lappedStatus,
                           x: currPt.x,
                           y: currPt.y,
                         });
@@ -473,8 +504,8 @@ export function PositionChart({
         <div
           className="absolute z-20 pointer-events-none rounded-lg border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-xl text-xs font-mono backdrop-blur-sm"
           style={{
-            left: `${Math.min(Math.max(10, hoveredPoint.x - 40), SVG_WIDTH - 150)}px`,
-            top: `${Math.max(10, hoveredPoint.y - 70)}px`,
+            left: `${Math.min(Math.max(10, hoveredPoint.x - 40), SVG_WIDTH - 160)}px`,
+            top: `${Math.max(10, hoveredPoint.y - 75)}px`,
           }}
         >
           <div className="flex items-center gap-2 font-bold text-foreground">
@@ -487,6 +518,16 @@ export function PositionChart({
           <div className="text-muted-foreground mt-1 space-y-0.5 text-[11px]">
             <div>Lap {hoveredPoint.lap} · <span className="font-bold text-foreground">P{hoveredPoint.position}</span></div>
             <div>Time: <span className="text-zinc-300">{hoveredPoint.time}</span></div>
+            {hoveredPoint.isDnf && (
+              <div className="text-red-400 font-bold">
+                DNF · {hoveredPoint.dnfStatus}
+              </div>
+            )}
+            {hoveredPoint.isLapped && (
+              <div className="text-blue-400 font-medium">
+                {hoveredPoint.lappedStatus}
+              </div>
+            )}
           </div>
         </div>
       )}

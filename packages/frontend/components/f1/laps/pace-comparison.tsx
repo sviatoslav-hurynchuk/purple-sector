@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import type { LapData, DriverLapSummary, PitStopEntry } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
+import { formatRaceOutcome } from '@/lib/f1-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Swords, X, Trophy, Timer, TrendingUp, Gauge, Disc } from 'lucide-react';
@@ -256,7 +257,7 @@ export function PaceComparison({
                 <span className="font-bold text-sm text-foreground">{stat.driver.givenName} {stat.driver.familyName}</span>
               </div>
               <Badge variant="outline" className="font-mono text-xs border-zinc-700">
-                P{stat.finishPosition || stat.driver.positionText}
+                {formatRaceOutcome(stat.driver.status, stat.driver.positionText, stat.finishPosition)}
               </Badge>
             </div>
 
@@ -279,8 +280,8 @@ export function PaceComparison({
               </div>
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase">Grid → Finish</span>
-                <div className="font-bold text-foreground tabular-nums">
-                  P{stat.gridPosition} → P{stat.finishPosition || stat.driver.positionText}
+                <div className="font-bold text-foreground tabular-nums truncate" title={formatRaceOutcome(stat.driver.status, stat.driver.positionText, stat.finishPosition)}>
+                  P{stat.gridPosition} → {formatRaceOutcome(stat.driver.status, stat.driver.positionText, stat.finishPosition)}
                 </div>
               </div>
             </div>
