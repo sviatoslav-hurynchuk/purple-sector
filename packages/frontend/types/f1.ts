@@ -265,3 +265,92 @@ export interface ConstructorProfile {
     seasonsCount: number;
     officialDetails?: OfficialTeamDetails | null;
 }
+
+// ── Lap Data ─────────────────────────────────────────────────────────────────
+
+/** A single driver's timing entry for one lap of a race. */
+export interface LapTiming {
+    /** Jolpica driver slug (e.g. "max_verstappen") */
+    driverId: string;
+    /** Driver's track position at the end of this lap (as string, e.g. "1") */
+    position: string;
+    /** Lap time formatted as M:SS.mmm (e.g. "1:33.450") */
+    time: string;
+}
+
+/** All timing entries for a single lap number. */
+export interface LapData {
+    /** Lap number (as string, e.g. "1") */
+    number: string;
+    /** All driver timings for this lap */
+    Timings: LapTiming[];
+}
+
+/** Summary information about a driver's race participation, enriched from results. */
+export interface DriverLapSummary {
+    driverId: string;
+    code: string;
+    givenName: string;
+    familyName: string;
+    constructorId: string;
+    constructorName: string;
+    gridPosition: number;
+    finishPosition: number;
+    positionText: string;
+    status: string;
+    totalLaps: number;
+    fastestLap?: {
+        lap: number;
+        time: string;
+        rank: number;
+    };
+}
+
+/** Complete lap-by-lap data for a race, returned by the backend API. */
+export interface RaceLapsResponse {
+    season: string;
+    round: string;
+    totalLaps: number;
+    laps: LapData[];
+    drivers: DriverLapSummary[];
+}
+
+// ── Race Events (placeholder for future OpenF1 integration) ──────────────────
+
+/** Type of race control event. */
+export type RaceEventType =
+    | 'safety_car'
+    | 'vsc'
+    | 'yellow_flag'
+    | 'red_flag'
+    | 'drs_enabled'
+    | 'drs_disabled'
+    | 'fastest_lap'
+    | 'chequered_flag';
+
+/** A race control event mapped to a specific lap range. */
+export interface RaceEvent {
+    type: RaceEventType;
+    /** Lap number when the event started */
+    lap: number;
+    /** Lap number when the event ended (e.g. safety car in) */
+    endLap?: number;
+    /** Raw race control message from FIA */
+    message: string;
+    /** Driver number involved (if applicable) */
+    driverNumber?: number;
+}
+
+// ── Tire Stints (placeholder for future OpenF1 integration) ──────────────────
+
+/** Tire compound used during a stint. */
+export type TireCompound = 'SOFT' | 'MEDIUM' | 'HARD' | 'INTERMEDIATE' | 'WET' | 'UNKNOWN';
+
+/** A tire stint for a driver during a race. */
+export interface TireStint {
+    driverId: string;
+    stintNumber: number;
+    compound: TireCompound;
+    startLap: number;
+    endLap: number;
+}

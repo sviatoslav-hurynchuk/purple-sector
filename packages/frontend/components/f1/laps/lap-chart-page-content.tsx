@@ -1,0 +1,200 @@
+'use client';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import type { Race, RaceResult, RaceLapsResponse, PitStopEntry, RaceResultEntry } from '@/types/f1';
+import { CountryFlag } from '@/components/f1/country-flag';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, LineChart } from 'lucide-react';
+import Link from 'next/link';
+import { PlaybackControls } from './playback-controls';
+import { RaceLeaderboard } from './race-leaderboard';
+import { PositionChart } from './position-chart';
+import { RaceEventsOverlay } from './race-events-overlay';
+import { PaceComparison } from './pace-comparison';
+
+interface LapChartPageContentProps {
+  race: Race | RaceResult;
+  lapsData: RaceLapsResponse;
+  pitStops: PitStopEntry[];
+  raceResults?: RaceResultEntry[];
+}
+
+export function LapChartPageContent({
+  race,
+  lapsData,
+  pitStops,
+}: LapChartPageContentProps) {
+  const totalLaps = Math.max(1, lapsData.totalLaps);
+  const [currentLap, setCurrentLap] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [selectedDriverIds, setSelectedDriverIds] = useState<Set<string>>(new Set());
+
+  // Ref to hold isPlaying across timer ticks
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+
+  // Playback timer loop
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const intervalMs = Math.max(200, Math.round(1000 / playbackSpeed));
+    const timer = setInterval(() => {
+      setCurrentLap((prev) => {
+        if (prev >= totalLaps) {
+          setIsPlaying(false);
+          return totalLaps;
+        }
+        return prev + 1;
+      });
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [isPlaying, playbackSpeed, totalLaps]);
+
+  const handlePlayToggle = useCallback(() => {
+    if (currentLap >= totalLaps && !isPlaying) {
+      setCurrentLap(1);
+    }
+    setIsPlaying((prev) => !prev);
+  }, [currentLap, totalLaps, isPlaying]);
+
+  const handleLapChange = useCallback((lap: number) => {
+    setCurrentLap(Math.min(Math.max(1, lap), totalLaps));
+  }, [totalLaps]);
+
+  const handleToggleDriver = useCallback((driverId: string) => {
+    // Only allow selecting drivers when paused!
+    if (isPlayingRef.current) return;
+
+    setSelectedDriverIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(driverId)) {
+        next.delete(driverId);
+      } else if (next.size < 4) {
+        next.add(driverId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleRemoveDriver = useCallback((driverId: string) => {
+    setSelectedDriverIds((prev) => {
+      const next = new Set(prev);
+      next.delete(driverId);
+      return next;
+    });
+  }, []);
+
+  const handleClearDrivers = useCallback(() => {
+    setSelectedDriverIds(new Set());
+  }, []);
+
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      {/* Top Breadcrumb Navigation */}
+      <div>
+        <Link
+          href={`/calendar/${race.round}?season=${race.season}`}
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors mb-3 group"
+        >
+          <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-1" />
+          <span>Back to {race.raceName}</span>
+        </Link>
+
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-1 uppercase tracking-wider">
+              <LineChart className="size-3.5 text-primary" />
+              <span>Lap-by-Lap Replay</span>
+              <span>·</span>
+              <span>Round {race.round}</span>
+              <span>·</span>
+              <span>{race.date}</span>
+            </div>
+            <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-foreground flex items-center gap-3">
+              <span>{race.raceName}</span>
+              <CountryFlag
+                countryName={race.Circuit.Location.country}
+                className="w-7 h-5 rounded-xs shrink-0 shadow-xs"
+              />
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              {race.Circuit.circuitName} · {race.Circuit.Location.locality}, {race.Circuit.Location.country}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs font-mono border-zinc-700 bg-zinc-900/60 px-3 py-1">
+              {totalLaps} Total Laps
+            </Badge>
+            <Badge variant="outline" className="text-xs font-mono border-zinc-700 bg-zinc-900/60 px-3 py-1">
+              {lapsData.drivers.length} Drivers
+            </Badge>
+          </div>
+        </div>
+      </div>
+
+      {/* Fastest Lap & Race Control Overview Cards */}
+      <RaceEventsOverlay drivers={lapsData.drivers} />
+
+      {/* Main Grid: Leaderboard (4 cols) | Position Chart & Controls (8 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Leaderboard */}
+        <div className="lg:col-span-4 w-full">
+          <RaceLeaderboard
+            currentLap={currentLap}
+            totalLaps={totalLaps}
+            lapsData={lapsData.laps}
+            drivers={lapsData.drivers}
+            pitStops={pitStops}
+            selectedDriverIds={selectedDriverIds}
+            isPaused={!isPlaying}
+            onToggleDriver={handleToggleDriver}
+          />
+        </div>
+
+        {/* Right Column: Chart + Playback Controls */}
+        <div className="lg:col-span-8 w-full space-y-4">
+          <PositionChart
+            currentLap={currentLap}
+            totalLaps={totalLaps}
+            lapsData={lapsData.laps}
+            drivers={lapsData.drivers}
+            pitStops={pitStops}
+            selectedDriverIds={selectedDriverIds}
+            isPaused={!isPlaying}
+            onLapChange={handleLapChange}
+            onToggleDriver={handleToggleDriver}
+          />
+
+          <PlaybackControls
+            currentLap={currentLap}
+            totalLaps={totalLaps}
+            isPlaying={isPlaying}
+            playbackSpeed={playbackSpeed}
+            onPlayToggle={handlePlayToggle}
+            onLapChange={handleLapChange}
+            onSpeedChange={setPlaybackSpeed}
+          />
+        </div>
+      </div>
+
+      {/* Bottom Section: Pace Comparison (Appears when 1+ drivers are selected) */}
+      {selectedDriverIds.size > 0 && (
+        <div className="pt-2 animate-in fade-in slide-in-from-bottom-3 duration-300">
+          <PaceComparison
+            selectedDriverIds={selectedDriverIds}
+            totalLaps={totalLaps}
+            lapsData={lapsData.laps}
+            drivers={lapsData.drivers}
+            pitStops={pitStops}
+            onRemoveDriver={handleRemoveDriver}
+            onClearAll={handleClearDrivers}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
