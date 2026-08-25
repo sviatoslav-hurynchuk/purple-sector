@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Race, RaceResult, RaceLapsResponse, PitStopEntry, RaceResultEntry } from '@/types/f1';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, LineChart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, LineChart, Minimize2 } from 'lucide-react';
 import Link from 'next/link';
 import { PlaybackControls } from './playback-controls';
 import { RaceLeaderboard } from './race-leaderboard';
@@ -29,10 +30,34 @@ export function LapChartPageContent({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [selectedDriverIds, setSelectedDriverIds] = useState<Set<string>>(new Set());
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Ref to hold isPlaying across timer ticks
-  const isPlayingRef = useRef(isPlaying);
-  isPlayingRef.current = isPlaying;
+  // Lock body scroll in fullscreen
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isFullscreen]);
+
+  // Fullscreen keyboard shortcut ('Escape' to exit)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (e.key === 'Escape' && isFullscreen) {
+        e.preventDefault();
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
 
   // Playback timer loop
   useEffect(() => {
@@ -65,7 +90,7 @@ export function LapChartPageContent({
 
   const handleToggleDriver = useCallback((driverId: string) => {
     // Only allow selecting drivers when paused!
-    if (isPlayingRef.current) return;
+    if (isPlaying) return;
 
     setSelectedDriverIds((prev) => {
       const next = new Set(prev);
@@ -76,7 +101,7 @@ export function LapChartPageContent({
       }
       return next;
     });
-  }, []);
+  }, [isPlaying]);
 
   const handleRemoveDriver = useCallback((driverId: string) => {
     setSelectedDriverIds((prev) => {
@@ -165,8 +190,10 @@ export function LapChartPageContent({
             pitStops={pitStops}
             selectedDriverIds={selectedDriverIds}
             isPaused={!isPlaying}
+            isFullscreen={false}
             onLapChange={handleLapChange}
             onToggleDriver={handleToggleDriver}
+            onToggleFullscreen={() => setIsFullscreen(true)}
           />
 
           <PlaybackControls
@@ -193,6 +220,86 @@ export function LapChartPageContent({
             onRemoveDriver={handleRemoveDriver}
             onClearAll={handleClearDrivers}
           />
+        </div>
+      )}
+
+      {/* Fullscreen Replay Theater Mode */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/98 p-4 sm:p-6 flex flex-col justify-between overflow-hidden backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200">
+          {/* Fullscreen Top Bar */}
+          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 shrink-0">
+            <div className="flex items-center gap-3">
+              <h2 className="text-base sm:text-xl font-black uppercase tracking-tight text-foreground flex items-center gap-2.5">
+                <span>{race.raceName}</span>
+                <CountryFlag
+                  countryName={race.Circuit.Location.country}
+                  className="w-7 h-5 rounded-xs shrink-0 shadow-xs"
+                />
+              </h2>
+              <Badge variant="outline" className="font-mono text-xs sm:text-sm border-zinc-700 bg-zinc-900/80 px-2.5 py-0.5">
+                Round {race.round} · Lap {currentLap}/{totalLaps}
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFullscreen(false)}
+                className="h-8 sm:h-9 px-3 sm:px-4 border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-foreground text-xs sm:text-sm font-semibold gap-2 shadow-sm"
+              >
+                <Minimize2 className="size-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Fullscreen Main View: Driver Position Strips (Left) + Chart (Right) */}
+          <div className="flex-1 min-h-0 py-3 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch overflow-hidden">
+            {/* Left: Real-time Driver Position Strips Leaderboard */}
+            <div className="lg:col-span-4 xl:col-span-3 flex flex-col h-full overflow-hidden">
+              <RaceLeaderboard
+                currentLap={currentLap}
+                totalLaps={totalLaps}
+                lapsData={lapsData.laps}
+                drivers={lapsData.drivers}
+                pitStops={pitStops}
+                selectedDriverIds={selectedDriverIds}
+                isPaused={!isPlaying}
+                isFullscreen={true}
+                onToggleDriver={handleToggleDriver}
+              />
+            </div>
+
+            {/* Right: Expanded Bump Chart */}
+            <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full overflow-hidden">
+              <PositionChart
+                currentLap={currentLap}
+                totalLaps={totalLaps}
+                lapsData={lapsData.laps}
+                drivers={lapsData.drivers}
+                pitStops={pitStops}
+                selectedDriverIds={selectedDriverIds}
+                isPaused={!isPlaying}
+                isFullscreen={true}
+                onLapChange={handleLapChange}
+                onToggleDriver={handleToggleDriver}
+                onToggleFullscreen={() => setIsFullscreen(false)}
+              />
+            </div>
+          </div>
+
+          {/* Fullscreen Bottom Playback Controls */}
+          <div className="pt-2 shrink-0">
+            <PlaybackControls
+              currentLap={currentLap}
+              totalLaps={totalLaps}
+              isPlaying={isPlaying}
+              playbackSpeed={playbackSpeed}
+              onPlayToggle={handlePlayToggle}
+              onLapChange={handleLapChange}
+              onSpeedChange={setPlaybackSpeed}
+            />
+          </div>
         </div>
       )}
     </div>

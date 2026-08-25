@@ -16,6 +16,7 @@ interface RaceLeaderboardProps {
   pitStops: PitStopEntry[];
   selectedDriverIds: Set<string>;
   isPaused: boolean;
+  isFullscreen?: boolean;
   onToggleDriver: (driverId: string) => void;
 }
 
@@ -46,6 +47,7 @@ export function RaceLeaderboard({
   pitStops,
   selectedDriverIds,
   isPaused,
+  isFullscreen = false,
   onToggleDriver,
 }: RaceLeaderboardProps) {
   // Driver lookup map
@@ -161,33 +163,37 @@ export function RaceLeaderboard({
   }, [currentLap, currentLapTimings, drivers, lapsData, pitStopsByLap]);
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 overflow-hidden flex flex-col h-[600px] shadow-md">
+    <div
+      className={cn(
+        'rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden flex flex-col shadow-md',
+        isFullscreen ? 'h-full' : 'h-[640px] lg:h-[660px]'
+      )}
+    >
       {/* Leaderboard Header */}
-      <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
+      <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/40">
+          <h2 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-3">
             <span>Race Leaderboard</span>
             <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 border-zinc-700 bg-zinc-800/50">
               Lap {currentLap}/{totalLaps}
             </Badge>
+            <p className="text-sm text-muted-foreground">
+              {isPaused ? (
+                  <span className="text-primary font-medium">Select drivers to compare</span>
+              ) : (
+                  <span>Pause replay to select drivers</span>
+              )}
+            </p>
+            {selectedDriverIds.size > 0 && (
+              <Badge
+                  variant="secondary"
+                  className="text-[10px] font-mono bg-primary/20 text-primary border-primary/30"
+              >
+                {selectedDriverIds.size}
+              </Badge>
+          )}
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            {isPaused ? (
-              <span className="text-primary font-medium">Click a driver to compare pace</span>
-            ) : (
-              <span>Pause replay to select drivers for comparison</span>
-            )}
-          </p>
-        </div>
 
-        {selectedDriverIds.size > 0 && (
-          <Badge
-            variant="secondary"
-            className="text-[10px] font-mono bg-primary/20 text-primary border-primary/30"
-          >
-            {selectedDriverIds.size} selected
-          </Badge>
-        )}
+
       </div>
 
       {/* Driver list */}

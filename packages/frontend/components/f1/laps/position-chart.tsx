@@ -4,6 +4,8 @@ import React, { useMemo, useState, useRef } from 'react';
 import type { LapData, DriverLapSummary, PitStopEntry } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
 import { isDnfStatus, isLappedStatus } from '@/lib/f1-status';
+import { Maximize2, Minimize2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface PositionChartProps {
@@ -14,8 +16,10 @@ interface PositionChartProps {
   pitStops: PitStopEntry[];
   selectedDriverIds: Set<string>;
   isPaused: boolean;
+  isFullscreen?: boolean;
   onLapChange: (lap: number) => void;
   onToggleDriver: (driverId: string) => void;
+  onToggleFullscreen?: () => void;
 }
 
 interface Point {
@@ -51,8 +55,10 @@ export function PositionChart({
   pitStops,
   selectedDriverIds,
   isPaused,
+  isFullscreen = false,
   onLapChange,
   onToggleDriver,
+  onToggleFullscreen,
 }: PositionChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredDriverId, setHoveredDriverId] = useState<string | null>(null);
@@ -72,13 +78,13 @@ export function PositionChart({
     y: number;
   } | null>(null);
 
-  // SVG dimensions
-  const SVG_WIDTH = Math.max(860, totalLaps * 16);
-  const SVG_HEIGHT = 480;
-  const PADDING_TOP = 28;
-  const PADDING_BOTTOM = 36;
-  const PADDING_LEFT = 36;
-  const PADDING_RIGHT = 54;
+  // SVG dimensions - dynamically expands height in fullscreen
+  const SVG_WIDTH = Math.max(960, totalLaps * 18);
+  const SVG_HEIGHT = isFullscreen ? 640 : 540;
+  const PADDING_TOP = 44;
+  const PADDING_BOTTOM = 44;
+  const PADDING_LEFT = 44;
+  const PADDING_RIGHT = 75;
 
   const chartWidth = SVG_WIDTH - PADDING_LEFT - PADDING_RIGHT;
   const chartHeight = SVG_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
@@ -195,53 +201,91 @@ export function PositionChart({
     return ticks;
   }, [totalLaps]);
 
-  // Y-axis position ticks (P1, P5, P10, P15, P20)
-  const positionTicks = [1, 5, 10, 15, 20];
+  // Y-axis position ticks (P1..P20 in fullscreen, key ticks in normal view)
+  const positionTicks = useMemo(() => {
+    if (isFullscreen) {
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+    }
+    return [1, 2, 3, 5, 8, 10, 12, 15, 18, 20];
+  }, [isFullscreen]);
 
   const currentLapX = getX(currentLap);
   const hasSelectedDrivers = selectedDriverIds.size > 0;
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:p-5 shadow-lg flex flex-col space-y-3 relative overflow-hidden">
+    <div
+      className={cn(
+        'rounded-xl border border-zinc-800 bg-zinc-950/80 p-3 sm:p-4 shadow-lg flex flex-col justify-between relative overflow-hidden',
+        isFullscreen ? 'h-full' : 'space-y-2'
+      )}
+    >
       {/* Chart Title & Hint */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900 pb-2">
         <div>
-          <h3 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
-            <span>Lap Chart · Race Trace</span>
-            <span className="text-[11px] font-normal text-muted-foreground">
-              (Position evolution across {totalLaps} laps)
-            </span>
+          <h3 className="text-xs sm:text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
+            <span>Lap Chart</span>
           </h3>
         </div>
 
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono">
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-amber-400 inline-block" /> Pit Stop
+        <div className="flex flex-wrap items-center gap-3.5 text-xs sm:text-sm text-muted-foreground font-mono">
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="size-3 rounded-full bg-amber-400 border border-zinc-950 inline-block shadow-xs" /> Pit Stop
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="text-red-400 font-bold">✕</span> DNF
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="size-3 rounded-full bg-blue-400 border border-zinc-950 inline-block shadow-xs" /> Lapped
           </span>
-          {isPaused && (
-            <span className="text-primary font-medium hidden md:inline">
-              ✦ Click any line to compare pace
-            </span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="text-red-400 font-extrabold text-sm leading-none">✕</span> DNF
+          </span>
+
+          {onToggleFullscreen && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onToggleFullscreen}
+              title={isFullscreen ? "Exit Fullscreen (Esc)" : "Fullscreen"}
+              className="h-7 px-2.5 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-muted-foreground hover:text-foreground text-xs gap-1.5 ml-1 font-medium"
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="size-3.5" />
+                  <span className="hidden sm:inline">Exit Fullscreen</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="size-3.5" />
+                  <span className="hidden sm:inline">Fullscreen</span>
+                </>
+              )}
+            </Button>
           )}
         </div>
       </div>
 
-      {/* SVG Scroll Container */}
+      {/* SVG Scroll Container - horizontal only, no vertical scrollbar */}
       <div
         ref={containerRef}
-        className="w-full overflow-x-auto custom-scrollbar relative select-none"
+        className={cn(
+          'w-full overflow-x-auto overflow-y-hidden custom-scrollbar relative select-none',
+          isFullscreen ? 'flex-1 flex flex-col justify-center min-h-0' : ''
+        )}
       >
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-          className="w-full h-auto min-w-[720px] max-h-[500px]"
+          className={cn(
+            'w-full h-auto min-w-[760px] block',
+            isFullscreen ? 'max-h-[calc(100vh-230px)]' : 'max-h-[580px]'
+          )}
           style={{ overflow: 'visible' }}
         >
           {/* Background Grid Lines (Horizontal Positions) */}
           {positionTicks.map((pos) => {
             const y = getY(pos);
+            const isP1 = pos === 1;
+            const isP2 = pos === 2;
+            const isP3 = pos === 3;
+            const labelColor = isP1 ? '#facc15' : isP2 ? '#e4e4e7' : isP3 ? '#fb923c' : '#a1a1aa';
+
             return (
               <g key={`y-grid-${pos}`}>
                 <line
@@ -249,19 +293,19 @@ export function PositionChart({
                   y1={y}
                   x2={SVG_WIDTH - PADDING_RIGHT}
                   y2={y}
-                  stroke="#27272a"
-                  strokeWidth="1"
-                  strokeDasharray={pos === 1 ? 'none' : '3 3'}
-                  opacity={pos === 1 ? 0.8 : 0.4}
+                  stroke={isP1 ? '#eab308' : '#27272a'}
+                  strokeWidth={isP1 ? 1.5 : 1}
+                  strokeDasharray={isP1 ? 'none' : '3 3'}
+                  opacity={isP1 ? 0.9 : pos % 5 === 0 ? 0.5 : 0.25}
                 />
                 <text
-                  x={PADDING_LEFT - 8}
-                  y={y + 4}
+                  x={PADDING_LEFT - 10}
+                  y={y + 4.5}
                   textAnchor="end"
-                  fontSize="10"
+                  fontSize={isFullscreen ? '12' : '11'}
                   fontFamily="monospace"
-                  fill="#71717a"
-                  fontWeight={pos === 1 ? 'bold' : 'normal'}
+                  fill={labelColor}
+                  fontWeight="bold"
                 >
                   P{pos}
                 </text>
@@ -282,16 +326,16 @@ export function PositionChart({
                   stroke="#27272a"
                   strokeWidth="1"
                   strokeDasharray="2 2"
-                  opacity={0.3}
+                  opacity={0.35}
                 />
                 {/* Clickable Lap Label on X-axis */}
                 <text
                   x={x}
-                  y={SVG_HEIGHT - PADDING_BOTTOM + 18}
+                  y={SVG_HEIGHT - PADDING_BOTTOM + 22}
                   textAnchor="middle"
-                  fontSize="10"
+                  fontSize="11"
                   fontFamily="monospace"
-                  fill={lap === currentLap ? '#f43f5e' : '#a1a1aa'}
+                  fill={lap === currentLap ? '#f43f5e' : '#d4d4d8'}
                   fontWeight={lap === currentLap ? 'bold' : 'normal'}
                   className="cursor-pointer hover:fill-primary transition-colors"
                   onClick={() => onLapChange(lap)}
@@ -306,28 +350,29 @@ export function PositionChart({
           <g>
             <line
               x1={currentLapX}
-              y1={PADDING_TOP - 6}
+              y1={PADDING_TOP - 10}
               x2={currentLapX}
-              y2={SVG_HEIGHT - PADDING_BOTTOM + 4}
+              y2={SVG_HEIGHT - PADDING_BOTTOM + 6}
               stroke="var(--primary, #e10600)"
-              strokeWidth="2"
+              strokeWidth="2.5"
               strokeDasharray="4 2"
-              opacity={0.9}
+              opacity={0.95}
             />
             {/* Lap Tag at Top */}
             <rect
-              x={currentLapX - 22}
-              y={PADDING_TOP - 22}
-              width={44}
-              height={18}
-              rx={4}
+              x={currentLapX - 24}
+              y={PADDING_TOP - 28}
+              width={48}
+              height={20}
+              rx={5}
               fill="var(--primary, #e10600)"
+              className="shadow-sm"
             />
             <text
               x={currentLapX}
-              y={PADDING_TOP - 9}
+              y={PADDING_TOP - 14}
               textAnchor="middle"
-              fontSize="9"
+              fontSize="10"
               fontFamily="monospace"
               fontWeight="bold"
               fill="#ffffff"
@@ -341,19 +386,19 @@ export function PositionChart({
             const isSelected = selectedDriverIds.has(line.driverId);
             const isHovered = hoveredDriverId === line.driverId;
 
-            let strokeWidth = 2;
-            let opacity = 0.7;
+            let strokeWidth = 2.4;
+            let opacity = 0.75;
 
             if (hasSelectedDrivers) {
               if (isSelected) {
-                strokeWidth = 3.5;
+                strokeWidth = 4.2;
                 opacity = 1;
               } else {
-                strokeWidth = 1.2;
-                opacity = 0.15;
+                strokeWidth = 1.8;
+                opacity = 0.22;
               }
             } else if (isHovered) {
-              strokeWidth = 3.5;
+              strokeWidth = 4.2;
               opacity = 1;
             }
 
@@ -370,7 +415,7 @@ export function PositionChart({
                   d={line.pathD}
                   fill="none"
                   stroke="transparent"
-                  strokeWidth="14"
+                  strokeWidth="16"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -386,25 +431,38 @@ export function PositionChart({
                   opacity={opacity}
                   style={{
                     transition: 'stroke-width 0.2s, opacity 0.2s',
-                    filter: isSelected || isHovered ? `drop-shadow(0 0 4px ${line.color}80)` : 'none',
+                    filter: isSelected || isHovered ? `drop-shadow(0 0 5px ${line.color}90)` : 'none',
                   }}
                 />
 
-                {/* Driver End Code Label */}
+                {/* Driver End Code & Status Label */}
                 {line.lastPoint && (
-                  <text
-                    x={line.lastPoint.x + 8}
-                    y={line.lastPoint.y + 3.5}
-                    fontSize="9"
-                    fontFamily="monospace"
-                    fontWeight={isSelected || isHovered ? 'bold' : 'normal'}
-                    fill={isSelected || isHovered ? '#ffffff' : line.color}
-                    opacity={hasSelectedDrivers && !isSelected ? 0.3 : 1}
-                  >
-                    {line.isLapped && !line.isDnf
-                      ? `${line.code} (${line.lappedStatus ? line.lappedStatus.replace(' Laps', 'L').replace(' Lap', 'L') : '+1L'})`
-                      : line.code}
-                  </text>
+                  <g>
+                    <text
+                      x={line.lastPoint.x + 10}
+                      y={line.lastPoint.y + 4}
+                      fontSize="11"
+                      fontFamily="monospace"
+                      fontWeight={isSelected || isHovered ? 'bold' : 'bold'}
+                      fill={isSelected || isHovered ? '#ffffff' : line.color}
+                      opacity={hasSelectedDrivers && !isSelected ? 0.35 : 1}
+                    >
+                      {line.code}
+                    </text>
+                    {line.isLapped && !line.isDnf && (
+                      <text
+                        x={line.lastPoint.x + 36}
+                        y={line.lastPoint.y + 4}
+                        fontSize="9"
+                        fontFamily="monospace"
+                        fontWeight="bold"
+                        fill="#60a5fa"
+                        opacity={hasSelectedDrivers && !isSelected ? 0.35 : 0.9}
+                      >
+                        {line.lappedStatus ? line.lappedStatus.replace(' Laps', 'L').replace(' Lap', 'L') : '+1L'}
+                      </text>
+                    )}
+                  </g>
                 )}
 
                 {/* Pit Stop Dots */}
@@ -413,11 +471,11 @@ export function PositionChart({
                     key={`pit-${line.driverId}-${pitPt.lap}`}
                     cx={pitPt.x}
                     cy={pitPt.y}
-                    r={isSelected || isHovered ? 4.5 : 3.5}
+                    r={isSelected || isHovered ? 5.5 : 4.5}
                     fill="#fbbf24"
                     stroke="#18181b"
-                    strokeWidth="1.5"
-                    opacity={hasSelectedDrivers && !isSelected ? 0.2 : 0.9}
+                    strokeWidth="2"
+                    opacity={hasSelectedDrivers && !isSelected ? 0.25 : 0.95}
                   />
                 ))}
 
@@ -426,11 +484,11 @@ export function PositionChart({
                   <circle
                     cx={line.lastPoint.x}
                     cy={line.lastPoint.y}
-                    r="4"
+                    r="4.5"
                     fill="#60a5fa"
                     stroke="#18181b"
-                    strokeWidth="1.5"
-                    opacity={hasSelectedDrivers && !isSelected ? 0.3 : 0.9}
+                    strokeWidth="2"
+                    opacity={hasSelectedDrivers && !isSelected ? 0.3 : 0.95}
                   />
                 )}
 
@@ -440,16 +498,16 @@ export function PositionChart({
                     <circle
                       cx={line.lastPoint.x}
                       cy={line.lastPoint.y}
-                      r="6"
+                      r="7.5"
                       fill="#ef4444"
                       stroke="#18181b"
-                      strokeWidth="1.5"
+                      strokeWidth="2"
                     />
                     <text
                       x={line.lastPoint.x}
-                      y={line.lastPoint.y + 3}
+                      y={line.lastPoint.y + 3.5}
                       textAnchor="middle"
-                      fontSize="8"
+                      fontSize="9"
                       fontWeight="bold"
                       fill="#ffffff"
                     >
@@ -466,11 +524,11 @@ export function PositionChart({
                     <circle
                       cx={currPt.x}
                       cy={currPt.y}
-                      r={isSelected || isHovered ? 5.5 : 4}
+                      r={isSelected || isHovered ? 6.5 : 5}
                       fill={line.color}
                       stroke="#18181b"
-                      strokeWidth="2"
-                      opacity={hasSelectedDrivers && !isSelected ? 0.3 : 1}
+                      strokeWidth="2.5"
+                      opacity={hasSelectedDrivers && !isSelected ? 0.35 : 1}
                       onMouseEnter={(e) => {
                         e.stopPropagation();
                         setHoveredPoint({
