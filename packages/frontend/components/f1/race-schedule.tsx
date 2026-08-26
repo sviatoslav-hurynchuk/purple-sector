@@ -14,6 +14,7 @@ import { CountdownWidget } from '@/components/f1/countdown-widget';
 import { RaceResultsTable } from '@/components/f1/race-results-table';
 import { QualifyingResultsTable } from '@/components/f1/qualifying-results-table';
 import { PitStopButton } from '@/components/f1/pit-stops/pit-stop-button';
+import { LapsButton } from '@/components/f1/laps/laps-button';
 import { ChevronDown } from 'lucide-react';
 
 interface RaceScheduleProps {
@@ -224,10 +225,16 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
           </button>
 
           {'Results' in race && Array.isArray(race.Results) && race.Results.length > 0 && (
-            <PitStopButton
-              season={race.season}
-              round={race.round}
-            />
+            <>
+              <LapsButton
+                season={race.season}
+                round={race.round}
+              />
+              <PitStopButton
+                season={race.season}
+                round={race.round}
+              />
+            </>
           )}
         </div>
 

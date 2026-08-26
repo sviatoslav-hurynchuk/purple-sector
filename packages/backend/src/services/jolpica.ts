@@ -13,6 +13,10 @@ import type {
   ConstructorCareerStats,
   ConstructorDriverHistory,
   PitStopEntry,
+  LapTiming,
+  LapData,
+  DriverLapSummary,
+  RaceLapsResponse,
 } from '../types/f1';
 import { cache } from './cache';
 import { getOfficialF1DriverStats, getOfficialF1TeamDetails, warmOfficialDriverStats } from './f1-official';
@@ -47,6 +51,7 @@ const TTL = {
   SCHEDULE_PAST: 24 * 60 * 60,     // 24 hours
   RACE_WITH_RESULTS: 24 * 60 * 60, // 24 hours (immutable data)
   PIT_STOPS: 24 * 60 * 60,         // 24 hours (immutable once race finishes)
+  LAPS: 24 * 60 * 60,              // 24 hours (immutable once race finishes)
   NEGATIVE_CACHE: 5 * 60,          // 5 minutes for non-existent races
   CONSTRUCTOR_PROFILE: 5 * 60,     // 5 minutes for constructor profiles
 } as const;
@@ -157,6 +162,17 @@ interface PitStopTable {
   Races: PitStopRaceRow[];
 }
 type JolpicaPitStopsResponse = JolpicaResponse<'RaceTable', PitStopTable>;
+
+// Lap timing table shape returned by Jolpica /{season}/{round}/laps.json
+interface LapRaceRow extends Race {
+  Laps: LapData[];
+}
+interface LapTable {
+  season: string;
+  round?: string;
+  Races: LapRaceRow[];
+}
+type JolpicaLapsResponse = JolpicaResponse<'RaceTable', LapTable>;
 
 // ── HTTP Fetch Helper with Throttled Queue & Resilient Backoff ──────────────
 
@@ -1290,6 +1306,138 @@ export async function getRacePitStops(
         if (lapDiff !== 0) return lapDiff;
         return a.time.localeCompare(b.time);
       });
+    },
+    TTL.NEGATIVE_CACHE
+  );
+}
+
+// ── Lap Data ──────────────────────────────────────────────────────────────────
+
+/**
+ * Returns all lap-by-lap timing data for a given race round.
+ *
+ * Lap data is fetched from Jolpica /{season}/{round}/laps.json with paginated
+ * requests (max 100 records per page). A typical race has 1000-1400 records
+ * (50-70 laps × 20 drivers), requiring ~11-14 sequential page fetches.
+ * Results are also fetched to build driver summary information (grid, finish,
+ * status, fastest lap, constructor mapping).
+ *
+ * Returns null when lap data is unavailable (future races, pre-1996 races,
+ * or Jolpica lookup failure), which triggers a 5-min negative-cache sentinel.
+ */
+export async function getRaceLaps(
+  season: string | number,
+  round: string | number
+): Promise<RaceLapsResponse | null> {
+  const s = String(season);
+  const r = String(round);
+  const cacheKey = `f1:race:laps:${s}:${r}`;
+
+  return cachedFetch<RaceLapsResponse | null>(
+    cacheKey,
+    async (data) => {
+      if (!data) return TTL.NEGATIVE_CACHE;
+      // Past seasons are immutable -> 24h
+      if (s !== getCurrentSeason()) return TTL.LAPS;
+
+      // For current season, check if the race has official results completed
+      const race = await getRaceResult(s, r).catch(() => null);
+      const isCompleted =
+        race &&
+        'Results' in race &&
+        Array.isArray(race.Results) &&
+        race.Results.length > 0;
+
+      return isCompleted ? TTL.LAPS : (isRaceWeekend() ? 60 : 300);
+    },
+    async () => {
+      // 1. First page to determine total records
+      const firstPage = await jolpicaFetch<JolpicaLapsResponse>(
+        `/${s}/${r}/laps?limit=100&offset=0`
+      );
+
+      const total = parseInt(firstPage.MRData.total, 10);
+      const firstRace = firstPage.MRData.RaceTable.Races[0];
+      if (!firstRace || !firstRace.Laps || firstRace.Laps.length === 0) {
+        return null;
+      }
+
+      let allLaps: LapData[] = [...firstRace.Laps];
+
+      // 2. Fetch remaining pages if needed (sequentially to respect rate limits)
+      if (total > 100) {
+        const remainingPages = Math.ceil((total - 100) / 100);
+        for (let i = 1; i <= remainingPages; i++) {
+          const offset = i * 100;
+          const page = await jolpicaFetch<JolpicaLapsResponse>(
+            `/${s}/${r}/laps?limit=100&offset=${offset}`
+          );
+          const pageRace = page.MRData.RaceTable.Races[0];
+          if (pageRace?.Laps) {
+            allLaps = allLaps.concat(pageRace.Laps);
+          }
+        }
+      }
+
+      // 3. Merge duplicate LapData entries by lap number (in case a lap was split across pages)
+      const lapMap = new Map<string, LapData>();
+      for (const lap of allLaps) {
+        const existing = lapMap.get(lap.number);
+        if (existing) {
+          existing.Timings.push(...lap.Timings);
+        } else {
+          lapMap.set(lap.number, {
+            number: lap.number,
+            Timings: [...lap.Timings],
+          });
+        }
+      }
+
+      const mergedLaps = Array.from(lapMap.values());
+      mergedLaps.sort((a, b) => parseInt(a.number, 10) - parseInt(b.number, 10));
+
+      // 4. Fetch race results for driver summaries
+      const raceResult = await getRaceResult(s, r).catch(() => null);
+      const results: RaceResultEntry[] =
+        raceResult &&
+        'Results' in raceResult &&
+        Array.isArray(raceResult.Results)
+          ? raceResult.Results
+          : [];
+
+      // 5. Build driver summaries from results
+      const drivers: DriverLapSummary[] = results.map((entry) => ({
+        driverId: entry.Driver.driverId,
+        code: entry.Driver.code ?? entry.Driver.driverId.slice(0, 3).toUpperCase(),
+        givenName: entry.Driver.givenName,
+        familyName: entry.Driver.familyName,
+        constructorId: entry.Constructor.constructorId,
+        constructorName: entry.Constructor.name,
+        gridPosition: parseInt(entry.grid, 10) || 0,
+        finishPosition: parseInt(entry.position, 10) || 0,
+        positionText: entry.positionText,
+        status: entry.status,
+        totalLaps: parseInt(entry.laps, 10) || 0,
+        fastestLap: entry.FastestLap
+          ? {
+              lap: parseInt(entry.FastestLap.lap, 10),
+              time: entry.FastestLap.Time.time,
+              rank: parseInt(entry.FastestLap.rank, 10),
+            }
+          : undefined,
+      }));
+
+      const totalLaps = mergedLaps.length > 0
+        ? parseInt(mergedLaps[mergedLaps.length - 1].number, 10)
+        : 0;
+
+      return {
+        season: s,
+        round: r,
+        totalLaps,
+        laps: mergedLaps,
+        drivers,
+      };
     },
     TTL.NEGATIVE_CACHE
   );

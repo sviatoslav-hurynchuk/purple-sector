@@ -15,6 +15,7 @@ import type {
   ConstructorProfile,
   PitStopEntry,
   PitStopsResponse,
+  RaceLapsResponse,
 } from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -136,6 +137,16 @@ export async function getRacePitStops(
   const revalidate = season === currentYear ? 3600 : 86400;
   const data = await apiFetchNullable<PitStopsResponse>(`/api/races/${season}/${round}/pitstops`, revalidate);
   return data?.pitStops ?? null;
+}
+
+export async function getRaceLaps(
+  season: number,
+  round: number
+): Promise<RaceLapsResponse | null> {
+  const currentYear = getCurrentYear();
+  // Current season gets 1h revalidate; past seasons get 24h (immutable)
+  const revalidate = season === currentYear ? 3600 : 86400;
+  return apiFetchNullable<RaceLapsResponse>(`/api/races/${season}/${round}/laps`, revalidate);
 }
 
 // ── Next Race ────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getRaceSchedule, getRaceResult, getNextRace, isRaceWeekend, getRacePitStops } from '../services/jolpica';
+import { getRaceSchedule, getRaceResult, getNextRace, isRaceWeekend, getRacePitStops, getRaceLaps } from '../services/jolpica';
 
 const router: Router = Router();
 function getCurrentSeason(): string {
@@ -102,5 +102,31 @@ router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/races/:season/:round/laps
+ * Returns all lap-by-lap timing data for a specific race.
+ * Includes driver positions and lap times for every lap of the race.
+ * Data is available for completed races (1996+ seasons). Returns 404 otherwise.
+ */
+router.get('/:season/:round/laps', async (req: Request, res: Response) => {
+  try {
+    const { season, round } = req.params;
+    const lapsData = await getRaceLaps(season, round);
+
+    if (!lapsData) {
+      res.status(404).json({
+        error: `Lap data not available for season ${season}, round ${round}. Data is available for completed races.`,
+      });
+      return;
+    }
+
+    // Lap records are immutable after a race ends — cache aggressively
+    setCacheHeaders(res, 86400);
+    res.json(lapsData);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
 
 export default router;
