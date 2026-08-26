@@ -30,6 +30,8 @@ export function PlaybackControls({
 }: PlaybackControlsProps) {
   // Keyboard navigation shortcuts
   useEffect(() => {
+    if (disabled) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -56,7 +58,7 @@ export function PlaybackControls({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentLap, totalLaps, onPlayToggle, onLapChange]);
+  }, [currentLap, totalLaps, onPlayToggle, onLapChange, disabled]);
 
   const progressPercent = totalLaps > 1 ? ((currentLap - 1) / (totalLaps - 1)) * 100 : 0;
 
@@ -168,9 +170,10 @@ export function PlaybackControls({
             <button
               key={speed}
               type="button"
+              disabled={disabled}
               onClick={() => onSpeedChange(speed)}
               className={cn(
-                'px-2 sm:px-2.5 py-1 text-xs font-mono font-bold rounded transition-colors',
+                'px-2 sm:px-2.5 py-1 text-xs font-mono font-bold rounded transition-colors disabled:opacity-50 disabled:pointer-events-none',
                 playbackSpeed === speed
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground hover:bg-zinc-800/60'

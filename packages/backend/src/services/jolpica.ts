@@ -1379,8 +1379,22 @@ export async function getRaceLaps(
         }
       }
 
-      // 3. Sort laps by lap number
-      allLaps.sort((a, b) => parseInt(a.number, 10) - parseInt(b.number, 10));
+      // 3. Merge duplicate LapData entries by lap number (in case a lap was split across pages)
+      const lapMap = new Map<string, LapData>();
+      for (const lap of allLaps) {
+        const existing = lapMap.get(lap.number);
+        if (existing) {
+          existing.Timings.push(...lap.Timings);
+        } else {
+          lapMap.set(lap.number, {
+            number: lap.number,
+            Timings: [...lap.Timings],
+          });
+        }
+      }
+
+      const mergedLaps = Array.from(lapMap.values());
+      mergedLaps.sort((a, b) => parseInt(a.number, 10) - parseInt(b.number, 10));
 
       // 4. Fetch race results for driver summaries
       const raceResult = await getRaceResult(s, r).catch(() => null);
@@ -1413,15 +1427,15 @@ export async function getRaceLaps(
           : undefined,
       }));
 
-      const totalLaps = allLaps.length > 0
-        ? parseInt(allLaps[allLaps.length - 1].number, 10)
+      const totalLaps = mergedLaps.length > 0
+        ? parseInt(mergedLaps[mergedLaps.length - 1].number, 10)
         : 0;
 
       return {
         season: s,
         round: r,
         totalLaps,
-        laps: allLaps,
+        laps: mergedLaps,
         drivers,
       };
     },

@@ -531,6 +531,11 @@ export function PositionChart({
                       opacity={hasSelectedDrivers && !isSelected ? 0.35 : 1}
                       onMouseEnter={(e) => {
                         e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const containerRect = containerRef.current?.getBoundingClientRect();
+                        const clientX = rect.left - (containerRect?.left ?? 0) + rect.width / 2;
+                        const clientY = rect.top - (containerRect?.top ?? 0);
+
                         setHoveredPoint({
                           driverId: line.driverId,
                           code: line.code,
@@ -543,8 +548,8 @@ export function PositionChart({
                           dnfStatus: line.dnfStatus,
                           isLapped: line.isLapped,
                           lappedStatus: line.lappedStatus,
-                          x: currPt.x,
-                          y: currPt.y,
+                          x: clientX,
+                          y: clientY,
                         });
                       }}
                       onMouseLeave={() => setHoveredPoint(null)}
@@ -562,7 +567,7 @@ export function PositionChart({
         <div
           className="absolute z-20 pointer-events-none rounded-lg border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-xl text-xs font-mono backdrop-blur-sm"
           style={{
-            left: `${Math.min(Math.max(10, hoveredPoint.x - 40), SVG_WIDTH - 160)}px`,
+            left: `${Math.max(10, Math.min(hoveredPoint.x - 70, (containerRef.current?.clientWidth ?? 800) - 160))}px`,
             top: `${Math.max(10, hoveredPoint.y - 75)}px`,
           }}
         >

@@ -17,7 +17,6 @@ interface LapChartPageContentProps {
   race: Race | RaceResult;
   lapsData: RaceLapsResponse;
   pitStops: PitStopEntry[];
-  raceResults?: RaceResultEntry[];
 }
 
 export function LapChartPageContent({
@@ -65,17 +64,18 @@ export function LapChartPageContent({
 
     const intervalMs = Math.max(200, Math.round(1000 / playbackSpeed));
     const timer = setInterval(() => {
-      setCurrentLap((prev) => {
-        if (prev >= totalLaps) {
-          setIsPlaying(false);
-          return totalLaps;
-        }
-        return prev + 1;
-      });
+      setCurrentLap((prev) => (prev >= totalLaps ? totalLaps : prev + 1));
     }, intervalMs);
 
     return () => clearInterval(timer);
   }, [isPlaying, playbackSpeed, totalLaps]);
+
+  // Auto-stop playback when race ends
+  useEffect(() => {
+    if (isPlaying && currentLap >= totalLaps) {
+      setIsPlaying(false);
+    }
+  }, [isPlaying, currentLap, totalLaps]);
 
   const handlePlayToggle = useCallback(() => {
     if (currentLap >= totalLaps && !isPlaying) {
@@ -201,6 +201,7 @@ export function LapChartPageContent({
             totalLaps={totalLaps}
             isPlaying={isPlaying}
             playbackSpeed={playbackSpeed}
+            disabled={isFullscreen}
             onPlayToggle={handlePlayToggle}
             onLapChange={handleLapChange}
             onSpeedChange={setPlaybackSpeed}

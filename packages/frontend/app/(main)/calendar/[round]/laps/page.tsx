@@ -103,20 +103,12 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
     );
   }
 
-  const validResults =
-    'Results' in race &&
-    Array.isArray((race as { Results?: unknown[] }).Results) &&
-    (race as { Results: unknown[] }).Results.every((r) => Boolean(r && typeof r === 'object'))
-      ? (race as { Results: import('@/types/f1').RaceResultEntry[] }).Results
-      : undefined;
-
   return (
     <Suspense fallback={<LapsLoading />}>
       <LapChartPageContent
         race={race}
         lapsData={lapsData}
         pitStops={pitStops ?? []}
-        raceResults={validResults}
       />
     </Suspense>
   );

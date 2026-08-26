@@ -77,6 +77,15 @@ export function RaceLeaderboard({
     return map;
   }, [pitStops]);
 
+  // Map lap number to LapData for O(1) direct lookup
+  const lapsByNumber = useMemo(() => {
+    const map = new Map<number, LapData>();
+    for (const l of lapsData) {
+      map.set(parseInt(l.number, 10), l);
+    }
+    return map;
+  }, [lapsData]);
+
   // Build sorted leaderboard rows
   const leaderboardRows = useMemo<LeaderboardRow[]>(() => {
     const timingsMap = new Map(currentLapTimings.map((t) => [t.driverId, t]));
@@ -129,7 +138,7 @@ export function RaceLeaderboard({
         let lastTimingTime: string | undefined;
 
         for (let l = currentLap - 1; l >= 1; l--) {
-          const lapObj = lapsData.find((x) => parseInt(x.number, 10) === l);
+          const lapObj = lapsByNumber.get(l);
           const t = lapObj?.Timings.find((x) => x.driverId === driver.driverId);
           if (t) {
             lastTimingPos = parseInt(t.position, 10);
@@ -160,7 +169,7 @@ export function RaceLeaderboard({
     dnfRows.sort((a, b) => a.position - b.position);
 
     return [...activeRows, ...dnfRows];
-  }, [currentLap, currentLapTimings, drivers, lapsData, pitStopsByLap]);
+  }, [currentLap, currentLapTimings, drivers, lapsByNumber, pitStopsByLap]);
 
   return (
     <div

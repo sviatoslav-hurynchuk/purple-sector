@@ -330,7 +330,7 @@ export function PaceComparison({
                     fontFamily="monospace"
                     fill="#71717a"
                   >
-                    {formatSecondsToLapTime(sec).split('.')[0]}s
+                    {formatSecondsToLapTime(sec).split('.')[0]}
                   </text>
                 </g>
               );
@@ -343,33 +343,40 @@ export function PaceComparison({
 
               if (pts.length === 0) return null;
 
-              const pathD = pts
-                .map((pt, idx) => {
-                  const x = getPaceX(pt.lap);
-                  const y = getPaceY(pt.seconds);
-                  return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
-                })
+              const pathData = pts
+                .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${getPaceX(pt.lap)} ${getPaceY(pt.seconds)}`)
                 .join(' ');
 
               return (
                 <g key={`pace-line-${d.driverId}`}>
+                  {/* Outer line glow */}
                   <path
-                    d={pathD}
+                    d={pathData}
                     fill="none"
                     stroke={theme.primary}
-                    strokeWidth="2.2"
+                    strokeWidth="3.5"
+                    strokeOpacity="0.4"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    opacity={0.85}
                   />
+                  {/* Main pace line */}
+                  <path
+                    d={pathData}
+                    fill="none"
+                    stroke={theme.primary}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {/* Data Points */}
                   {pts.map((pt) => (
                     <circle
                       key={`pt-${d.driverId}-${pt.lap}`}
                       cx={getPaceX(pt.lap)}
                       cy={getPaceY(pt.seconds)}
-                      r="2.5"
-                      fill={theme.primary}
-                      stroke="#18181b"
+                      r={pt.lap === d.fastestLap?.lap ? 4 : 2}
+                      fill={pt.lap === d.fastestLap?.lap ? '#e10600' : theme.primary}
+                      stroke="#09090b"
                       strokeWidth="1"
                     />
                   ))}
@@ -377,14 +384,14 @@ export function PaceComparison({
               );
             })}
 
-            {/* X Axis Lap Labels */}
+            {/* Lap numbers on X-axis */}
             {paceLapTicks.map((lap) => {
               const x = getPaceX(lap);
               return (
                 <text
-                  key={`pace-lap-lbl-${lap}`}
+                  key={`pace-lap-tick-${lap}`}
                   x={x}
-                  y={CHART_HEIGHT - PADDING_BOTTOM + 18}
+                  y={CHART_HEIGHT - PADDING_BOTTOM + 16}
                   textAnchor="middle"
                   fontSize="9"
                   fontFamily="monospace"
@@ -398,27 +405,57 @@ export function PaceComparison({
         </div>
       </div>
 
-      {/* Mocked Tire Stints Section (Placeholder for OpenF1 Pirelli Stint Telemetry) */}
+      {/* Real Stint Evolution Derived from Pit Stops */}
       <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <div className="flex items-center gap-2">
             <Disc className="size-4 text-muted-foreground" />
             <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Tire Compound & Stint Evolution
+              Stint Evolution & Pit Window
             </span>
             <Badge variant="outline" className="text-[9px] font-mono border-zinc-700 text-muted-foreground">
-              Mock Preview
+              {pitStops.length > 0 ? 'Telemetry' : 'Single Stint'}
             </Badge>
           </div>
           <span className="text-[11px] text-zinc-500 font-mono">
-            Detailed Pirelli degradation telemetry coming in next update
+            Pirelli compound degradation coming in OpenF1 update
           </span>
         </div>
 
-        {/* Mock Stint Bars for Selected Drivers */}
+        {/* Stint Bars for Selected Drivers */}
         <div className="space-y-2 pt-1">
           {selectedDrivers.map((d) => {
             const theme = getTeamTheme(d.constructorId);
+            const driverStops = pitStops
+              .filter((p) => p.driverId === d.driverId)
+              .sort((a, b) => (parseInt(a.stop, 10) || 0) - (parseInt(b.stop, 10) || 0));
+
+            const effectiveTotal = Math.max(1, d.totalLaps || totalLaps);
+            const stints: { stintNum: number; startLap: number; endLap: number; percent: number }[] = [];
+
+            let currentStart = 1;
+            for (let i = 0; i < driverStops.length; i++) {
+              const stopLap = Math.min(parseInt(driverStops[i].lap, 10) || effectiveTotal, effectiveTotal);
+              const lapCount = Math.max(1, stopLap - currentStart + 1);
+              stints.push({
+                stintNum: i + 1,
+                startLap: currentStart,
+                endLap: stopLap,
+                percent: (lapCount / effectiveTotal) * 100,
+              });
+              currentStart = stopLap + 1;
+            }
+
+            if (currentStart <= effectiveTotal) {
+              const lapCount = Math.max(1, effectiveTotal - currentStart + 1);
+              stints.push({
+                stintNum: driverStops.length + 1,
+                startLap: currentStart,
+                endLap: effectiveTotal,
+                percent: (lapCount / effectiveTotal) * 100,
+              });
+            }
+
             return (
               <div key={`stint-${d.driverId}`} className="flex items-center gap-3">
                 <span className="w-12 text-xs font-mono font-bold text-foreground shrink-0 flex items-center gap-1">
@@ -428,18 +465,20 @@ export function PaceComparison({
 
                 {/* Stint Segments */}
                 <div className="flex-1 h-6 rounded-md bg-zinc-950 flex overflow-hidden border border-zinc-800 font-mono text-[10px]">
-                  {/* Stint 1: Medium */}
-                  <div className="w-[35%] bg-yellow-500/20 border-r border-yellow-500/40 text-yellow-300 flex items-center justify-center font-bold">
-                    🟡 M (L1-18)
-                  </div>
-                  {/* Stint 2: Hard */}
-                  <div className="w-[45%] bg-zinc-100/15 border-r border-zinc-500/30 text-zinc-200 flex items-center justify-center font-bold">
-                    ⚪ H (L19-42)
-                  </div>
-                  {/* Stint 3: Soft */}
-                  <div className="w-[20%] bg-red-500/20 text-red-300 flex items-center justify-center font-bold">
-                    🔴 S (L43-{totalLaps})
-                  </div>
+                  {stints.map((stint, idx) => (
+                    <div
+                      key={`stint-${d.driverId}-${stint.stintNum}`}
+                      style={{ width: `${stint.percent}%` }}
+                      className={cn(
+                        'flex items-center justify-center font-bold truncate px-1 text-zinc-300',
+                        idx % 2 === 0 ? 'bg-zinc-800/60' : 'bg-zinc-700/40',
+                        idx < stints.length - 1 ? 'border-r border-zinc-700/80' : ''
+                      )}
+                      title={`Stint ${stint.stintNum}: Lap ${stint.startLap} - Lap ${stint.endLap} (${stint.endLap - stint.startLap + 1} laps)`}
+                    >
+                      Stint {stint.stintNum} (L{stint.startLap}–{stint.endLap})
+                    </div>
+                  ))}
                 </div>
               </div>
             );
