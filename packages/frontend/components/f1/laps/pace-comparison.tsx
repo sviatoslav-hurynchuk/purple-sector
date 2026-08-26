@@ -191,9 +191,6 @@ export function PaceComparison({
                 {selectedDrivers.length} Drivers
               </Badge>
             </h3>
-            <p className="text-xs text-muted-foreground">
-              Lap-by-lap pace evolution, fastest sectors, and stint comparison
-            </p>
           </div>
         </div>
 
@@ -295,9 +292,6 @@ export function PaceComparison({
           <span className="font-bold text-foreground uppercase tracking-wider text-[11px] flex items-center gap-1.5">
             <TrendingUp className="size-3.5 text-primary" />
             Lap Time Progression (Seconds)
-          </span>
-          <span className="text-[11px] font-mono">
-            Faster pace is higher ↑
           </span>
         </div>
 
