@@ -2,8 +2,8 @@
 
 import React, { useMemo } from 'react';
 import type { LapData, DriverLapSummary, PitStopEntry } from '@/types/f1';
-import { getTeamTheme } from '@/lib/team-colors';
 import { isDnfStatus, isLappedStatus } from '@/lib/f1-status';
+import { TeamLogo } from '@/components/f1/team-logo';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUp, ArrowDown, Minus, Check, Timer, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ interface RaceLeaderboardProps {
   pitStops: PitStopEntry[];
   selectedDriverIds: Set<string>;
   isPaused: boolean;
+  season?: string | number;
   isFullscreen?: boolean;
   onToggleDriver: (driverId: string) => void;
 }
@@ -23,6 +24,8 @@ interface RaceLeaderboardProps {
 interface LeaderboardRow {
   driverId: string;
   driverName: string;
+  givenName: string;
+  familyName: string;
   code: string;
   constructorId: string;
   constructorName: string;
@@ -53,6 +56,7 @@ export function RaceLeaderboard({
   pitStops,
   selectedDriverIds,
   isPaused,
+  season = '2026',
   isFullscreen = false,
   onToggleDriver,
 }: RaceLeaderboardProps) {
@@ -129,6 +133,8 @@ export function RaceLeaderboard({
         activeRows.push({
           driverId: driver.driverId,
           driverName: `${driver.givenName} ${driver.familyName}`,
+          givenName: driver.givenName,
+          familyName: driver.familyName || driver.code,
           code: driver.code,
           constructorId: driver.constructorId,
           constructorName: driver.constructorName,
@@ -149,6 +155,8 @@ export function RaceLeaderboard({
         dnfRows.push({
           driverId: driver.driverId,
           driverName: `${driver.givenName} ${driver.familyName}`,
+          givenName: driver.givenName,
+          familyName: driver.familyName || driver.code,
           code: driver.code,
           constructorId: driver.constructorId,
           constructorName: driver.constructorName,
@@ -194,6 +202,8 @@ export function RaceLeaderboard({
         activeRows.push({
           driverId: driver.driverId,
           driverName: `${driver.givenName} ${driver.familyName}`,
+          givenName: driver.givenName,
+          familyName: driver.familyName || driver.code,
           code: driver.code,
           constructorId: driver.constructorId,
           constructorName: driver.constructorName,
@@ -313,7 +323,6 @@ export function RaceLeaderboard({
       {/* Driver list */}
       <div className="flex-1 overflow-y-auto divide-y divide-zinc-900/60 p-2 space-y-1 custom-scrollbar">
         {leaderboardRows.map((row) => {
-          const theme = getTeamTheme(row.constructorId);
           const isSelected = selectedDriverIds.has(row.driverId);
           const posDelta = row.gridPosition > 0 ? row.gridPosition - row.position : 0;
 
@@ -325,23 +334,23 @@ export function RaceLeaderboard({
               onClick={() => isPaused && onToggleDriver(row.driverId)}
               disabled={!isPaused}
               className={cn(
-                'w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-colors select-none relative will-change-transform',
+                'w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors select-none relative will-change-transform',
                 isSelected
                   ? 'bg-zinc-800/90 border border-primary/40 shadow-xs'
                   : 'hover:bg-zinc-900/60 border border-transparent',
                 !isPaused && 'cursor-default opacity-90'
               )}
             >
-              {/* Left: Position, Overtake Arrow, Color Pillar, Driver Info */}
+              {/* Left: Position, Overtake Arrow, Team Logo, Driver Surname */}
               <div className="flex items-center gap-2 min-w-0">
-                {/* Position Badge */}
+                {/* Position Badge (P1 in broadcast red) */}
                 <div
                   className={cn(
-                    'size-6.5 rounded-md flex items-center justify-center font-mono font-bold text-xs shrink-0',
+                    'size-6 rounded-md flex items-center justify-center font-mono font-bold text-xs shrink-0',
                     row.isDnf
                       ? 'bg-zinc-900 text-zinc-500 border border-zinc-800'
                       : row.position === 1
-                      ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
+                      ? 'bg-red-600 text-white font-black border border-red-500 shadow-xs'
                       : row.position <= 3
                       ? 'bg-zinc-800 text-foreground border border-zinc-700'
                       : 'bg-zinc-900/80 text-muted-foreground border border-zinc-800'
@@ -373,28 +382,17 @@ export function RaceLeaderboard({
                   )}
                 </div>
 
-                {/* Team Color Pillar */}
-                <div
-                  className="w-1 h-5 rounded-full shrink-0"
-                  style={{ backgroundColor: theme.primary }}
-                />
+                {/* Team Logo (Fetched from Official F1 CDN / Wikimedia) */}
+                <TeamLogo constructorId={row.constructorId} season={season} size={22} className="size-5.5 shrink-0" />
 
-                {/* Driver Info */}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-bold text-xs text-foreground tracking-tight">
-                      {row.code}
-                    </span>
-                    <span className="text-xs text-muted-foreground truncate hidden sm:inline">
-                      {row.driverName}
-                    </span>
-                    {isSelected && (
-                      <Check className="size-3 text-primary shrink-0 ml-0.5" />
-                    )}
-                  </div>
-                  <div className="text-[10px] text-zinc-500 truncate">
-                    {row.constructorName}
-                  </div>
+                {/* Driver Full Surname in Uppercase (F1 Broadcast Style) */}
+                <div className="min-w-0 flex items-center gap-1.5">
+                  <span className="font-sans font-black text-xs tracking-wider text-foreground uppercase truncate">
+                    {row.familyName}
+                  </span>
+                  {isSelected && (
+                    <Check className="size-3 text-primary shrink-0 ml-0.5" />
+                  )}
                 </div>
               </div>
 
