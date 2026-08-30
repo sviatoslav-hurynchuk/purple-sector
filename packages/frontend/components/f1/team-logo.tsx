@@ -37,7 +37,7 @@ const LOGO_MAP: Record<string, string> = {
   alfa: '/teams/alfa_romeo.svg',
 
   // 2010–2023 Era
-  alphatauri: '/teams/rb.webp',
+  alphatauri: '/teams/alphatauri.svg',
   racing_point: '/teams/racing_point.svg',
   toro_rosso: '/teams/toro_rosso.svg',
   force_india: '/teams/force_india.svg',
@@ -76,6 +76,7 @@ const DARK_LOGO_TEAMS = new Set([
   'sauber',
   'alfa_romeo',
   'alfa',
+  'alphatauri',
   'cadillac',
   'caterham',
   'marussia',
@@ -103,6 +104,7 @@ const ALIASES: Record<string, string> = {
   racingbulls: 'rb',
   kicksauber: 'kick_sauber',
   alfaromeo: 'alfa_romeo',
+  scuderia_alphatauri: 'alphatauri',
   racingpoint: 'racing_point',
   tororosso: 'toro_rosso',
   forceindia: 'force_india',
