@@ -176,6 +176,7 @@ export function LapChartPageContent({
             pitStops={pitStops}
             selectedDriverIds={selectedDriverIds}
             isPaused={!isPlaying}
+            season={race.season}
             onToggleDriver={handleToggleDriver}
           />
         </div>
@@ -266,6 +267,7 @@ export function LapChartPageContent({
                 pitStops={pitStops}
                 selectedDriverIds={selectedDriverIds}
                 isPaused={!isPlaying}
+                season={race.season}
                 isFullscreen={true}
                 onToggleDriver={handleToggleDriver}
               />
