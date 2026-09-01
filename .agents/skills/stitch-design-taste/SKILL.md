@@ -89,7 +89,7 @@ Every design must work across all viewports:
 
 ### 8. Encode Motion Philosophy
 - **Spring Physics default:** `stiffness: 100, damping: 20` — premium, weighty feel. No linear easing
-- **Perpetual Micro-Interactions:** Every active component should have an infinite loop state (Pulse, Typewriter, Float, Shimmer)
+- **Perpetual Micro-Interactions:** Active components may use subtle infinite loop states (Pulse, Typewriter, Float, Shimmer) when reduced motion is not requested. **CRITICAL:** Output MUST be static when `prefers-reduced-motion: reduce` is enabled
 - **Staggered Orchestration:** Never mount lists instantly — use cascade delays for waterfall reveals
 - **Performance:** Animate exclusively via `transform` and `opacity`. Never animate `top`, `left`, `width`, `height`. Grain/noise filters on fixed pseudo-elements only
 

@@ -84,7 +84,7 @@ To prevent the design from appearing purely digital, simulated analog degradatio
 
 *   **Halftone and 1-Bit Dithering:** Transforming continuous-tone images or large serif typography into dot-matrix patterns. Achieved via pre-processing or CSS `mix-blend-mode: multiply` overlays combined with SVG radial dot patterns.
 *   **CRT Scanlines:** For terminal interfaces, applying a `repeating-linear-gradient` to the background to simulate horizontal electron beam sweeps (e.g., `repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)`).
-*   **Mechanical Noise:** A global, low-opacity SVG static/noise filter applied to the DOM root to introduce a unified physical grain across both dark and light modes.
+*   **Mechanical Noise:** A low-opacity SVG static/noise filter scoped to an isolated, fixed, pointer-events-none overlay layer (e.g., `fixed inset-0 pointer-events-none z-50 opacity-[0.03]`) rather than the DOM root to introduce a unified physical grain across both dark and light modes without causing whole-page repaints.
 
 ## 8. Web Engineering Directives
 1.  **Grid Determinism:** Utilize `display: grid; gap: 1px;` with contrasting parent/child background colors to generate mathematically perfect, razor-thin dividing lines without complex border declarations.

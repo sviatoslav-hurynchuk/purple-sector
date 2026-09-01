@@ -334,8 +334,8 @@ export type RaceEventType =
 /** A race control event mapped to a specific lap or timestamp. */
 export interface RaceEvent {
     type: RaceEventType;
-    /** Lap number when the event occurred/started */
-    lap: number;
+    /** Lap number when the event occurred/started (if stated in message) */
+    lap?: number;
     /** Lap number when the event ended (e.g. safety car in) */
     endLap?: number;
     /** ISO timestamp when the message was broadcast */

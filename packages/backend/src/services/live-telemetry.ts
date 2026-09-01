@@ -7,6 +7,16 @@ const MAX_TELEMETRY_WINDOW_SEC = 30;
 const MAX_LOCATION_WINDOW_SEC = 10;
 
 /**
+ * Validates and parses an ISO date string. Returns epoch ms or null if invalid.
+ * Prevents RangeError from unparsable dates reaching toISOString().
+ */
+function parseIsoDate(value?: string): number | null {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/**
  * Normalizes OpenF1 car_data record to CarTelemetrySample.
  */
 function mapCarDataSample(raw: OpenF1CarData): CarTelemetrySample {
@@ -46,15 +56,21 @@ export async function getRecentDriverTelemetry(
   explicitDateFrom?: string
 ): Promise<CarTelemetrySample[]> {
   const boundedWindow = Math.min(Math.max(1, windowSeconds), MAX_TELEMETRY_WINDOW_SEC);
-  const dateFrom = explicitDateFrom ?? new Date(Date.now() - boundedWindow * 1000).toISOString();
+  const fromMs = parseIsoDate(explicitDateFrom);
+  if (explicitDateFrom && fromMs === null) {
+    throw new Error(`Invalid timestamp: ${explicitDateFrom}`);
+  }
+  const dateFrom = fromMs !== null
+    ? new Date(fromMs).toISOString()
+    : new Date(Date.now() - boundedWindow * 1000).toISOString();
   const params: Record<string, string | number> = {
     session_key: sessionKey,
     driver_number: driverNumber,
     'date>=': dateFrom,
   };
 
-  if (explicitDateFrom) {
-    params['date<='] = new Date(new Date(explicitDateFrom).getTime() + boundedWindow * 1000).toISOString();
+  if (fromMs !== null) {
+    params['date<='] = new Date(fromMs + boundedWindow * 1000).toISOString();
   }
 
   const rawData = await openF1Fetch<OpenF1CarData>('/car_data', params);
@@ -148,14 +164,20 @@ export async function getLocationSnapshot(
   explicitDateFrom?: string
 ): Promise<CarLocationSample[]> {
   const boundedWindow = Math.min(Math.max(1, windowSeconds), MAX_LOCATION_WINDOW_SEC);
-  const dateFrom = explicitDateFrom ?? new Date(Date.now() - boundedWindow * 1000).toISOString();
+  const fromMs = parseIsoDate(explicitDateFrom);
+  if (explicitDateFrom && fromMs === null) {
+    throw new Error(`Invalid timestamp: ${explicitDateFrom}`);
+  }
+  const dateFrom = fromMs !== null
+    ? new Date(fromMs).toISOString()
+    : new Date(Date.now() - boundedWindow * 1000).toISOString();
   const params: Record<string, string | number> = {
     session_key: sessionKey,
     'date>=': dateFrom,
   };
 
-  if (explicitDateFrom) {
-    params['date<='] = new Date(new Date(explicitDateFrom).getTime() + boundedWindow * 1000).toISOString();
+  if (fromMs !== null) {
+    params['date<='] = new Date(fromMs + boundedWindow * 1000).toISOString();
   }
 
   const rawLocations = await openF1Fetch<OpenF1Location>('/location', params);

@@ -1,4 +1,4 @@
-﻿import { EventEmitter } from 'events';
+import { EventEmitter } from 'events';
 import type {
   LiveSessionState,
   LiveDriverState,
@@ -21,6 +21,7 @@ import {
   getOpenF1Stints,
   getOpenF1Weather,
   getOpenF1RaceControlEvents,
+  buildDriverMap,
 } from './openf1';
 import {
   mapRaceControlEvents,
@@ -96,6 +97,9 @@ export class LivePollingEngine extends EventEmitter {
 
     let sKey = targetSessionKey;
 
+    // Clear stale metadata from prior session
+    this.sessionMeta = null;
+
     // 1. If sessionKey not provided, query latest session from OpenF1
     if (!sKey) {
       const latestSessions = await openF1Fetch<OpenF1Session>('/sessions', { session_key: 'latest' }).catch(() => []);
@@ -105,6 +109,12 @@ export class LivePollingEngine extends EventEmitter {
       }
       this.sessionMeta = latestSessions[0];
       sKey = this.sessionMeta.session_key;
+    } else {
+      // Fetch metadata for the explicit session key
+      const sessions = await openF1Fetch<OpenF1Session>('/sessions', { session_key: sKey }).catch(() => []);
+      if (sessions.length > 0) {
+        this.sessionMeta = sessions[0];
+      }
     }
 
     this.sessionKey = sKey;
@@ -112,17 +122,20 @@ export class LivePollingEngine extends EventEmitter {
 
     console.log(`[LivePolling] Starting live polling for session_key=${this.sessionKey}...`);
 
-    // 2. Fetch session drivers and build driver registry
-    const openF1Drivers = await getOpenF1Drivers(this.sessionKey).catch(() => []);
+    // 2. Fetch session drivers and build driver registry with canonical Jolpica driver IDs
+    const [openF1Drivers, canonicalMap] = await Promise.all([
+      getOpenF1Drivers(this.sessionKey).catch(() => []),
+      buildDriverMap(this.sessionKey).catch(() => new Map<number, string>()),
+    ]);
     this.driverMap.clear();
 
     for (const d of openF1Drivers) {
-      const derivedSlug = d.last_name
+      const canonicalId = canonicalMap.get(d.driver_number) || (d.last_name
         ? `${d.first_name || ''}_${d.last_name}`.toLowerCase().replace(/\s+/g, '_')
-        : `driver_${d.driver_number}`;
+        : `driver_${d.driver_number}`);
 
       this.driverMap.set(d.driver_number, {
-        driverId: derivedSlug,
+        driverId: canonicalId,
         driverNumber: d.driver_number,
         code: d.name_acronym,
         name: d.full_name || `${d.first_name} ${d.last_name}`,
@@ -319,11 +332,18 @@ export class LivePollingEngine extends EventEmitter {
 
       // 3. Process Race Control Messages (Safety Car, Flags, Penalties)
       if (raceControl.length > 0) {
-        const mappedEvents = mapRaceControlEvents(raceControl);
-        this.state.raceControlFeed = [...this.state.raceControlFeed, ...mappedEvents];
+        // Deduplicate: date>= is inclusive, so filter out events at the exact watermark
+        const freshRaceControl = this.lastRaceControlDate
+          ? raceControl.filter((rc) => rc.date > this.lastRaceControlDate!)
+          : raceControl;
+
+        if (freshRaceControl.length > 0) {
+          const mappedEvents = mapRaceControlEvents(freshRaceControl);
+          this.state.raceControlFeed = [...this.state.raceControlFeed, ...mappedEvents];
+          this.emit('raceControl', mappedEvents);
+          stateChanged = true;
+        }
         this.lastRaceControlDate = raceControl[raceControl.length - 1].date;
-        this.emit('raceControl', mappedEvents);
-        stateChanged = true;
       }
 
       // 4. Process Weather (every ~4 cycles / ~14s)
@@ -380,7 +400,7 @@ export class LivePollingEngine extends EventEmitter {
       }
     } catch (err) {
       console.warn('[LivePolling] Error in poll cycle:', err instanceof Error ? err.message : err);
-      this.emit('error', err);
+      this.emit('pollError', err);
     } finally {
       this.isPolling = false;
     }

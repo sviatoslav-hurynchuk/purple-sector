@@ -104,7 +104,7 @@ export function mapRaceControlEvents(
 
     return {
       type,
-      lap: parsedLap ?? 0,
+      ...(parsedLap !== null ? { lap: parsedLap } : {}),
       date: item.date,
       message: item.message,
       flag: item.flag ?? undefined,

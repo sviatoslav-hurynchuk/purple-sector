@@ -134,9 +134,9 @@ Interpretation:
 - If the user says "Android", bias toward stronger Material-like structure and navigation clarity.
 - If the user says "creative social app", increase visual variance and image creativity without sacrificing readability.
 - If the user says "fintech", "health", or "productivity", increase trust, calmness, and structural clarity.
-- Do not be lazy with screen count.
-- If more screens would make the flow better, generate more screens.
-- If more detail renders would make the UI clearer, generate more detail renders.
+- Do not be lazy with screen count (generate up to 5 screens/detail renders per request; require explicit confirmation to exceed).
+- If more screens would make the flow better, generate more screens within the budget.
+- If more detail renders would make the UI clearer, generate more detail renders within the budget.
 - Default toward richer art direction than standard AI mobile output.
 - Use creative assets, texture, and imagery deliberately, not randomly.
 - Always keep the color palette clean, controlled, and intentional.
@@ -1285,7 +1285,7 @@ Regenerate when:
 - the device mockup framing feels uneven or sloppy
 
 Do not settle for the first mediocre render.
-Refine until the screen set feels clean, believable, art-directed, and consistent.
+Refine (up to 3 regeneration cycles per screen set before requesting user confirmation) until the screen set feels clean, believable, art-directed, and consistent.
 
 ---
 

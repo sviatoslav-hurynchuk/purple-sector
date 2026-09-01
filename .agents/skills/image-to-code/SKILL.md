@@ -151,9 +151,10 @@ If more images would improve:
 then generate more images.
 
 Strong rule:
-- it is better to generate too many clear images than too few compressed images
+- it is better to generate clear images than compressed boards
 - it is better to generate one clear image per section than one unreadable board for the whole site
-- it is better to create an extra detail image than to guess details later
+- it is better to create a detail image than to guess details later
+- **Request Bound:** Limit automatic generation to a maximum of 5 images per request; require explicit user confirmation before exceeding this limit.
 
 Never reduce image count just for convenience if that harms quality.
 

@@ -92,7 +92,7 @@ Every screen must work flawlessly across all viewports. **Responsive is not opti
 > **Note:** Stitch generates static screens — it does not animate. This section documents the **intended motion behavior** so that the coding agent (Antigravity, Cursor, etc.) knows exactly how to implement animations when building the exported design into a live product.
 
 - **Physics Engine:** Spring-based exclusively. `stiffness: 100, damping: 20`. No linear easing anywhere. Premium, weighty feel on all interactive elements
-- **Perpetual Micro-Loops:** Every active dashboard component has an infinite-loop state — Pulse on status dots, Typewriter on search bars, Float on feature icons, Shimmer on loading states
+- **Perpetual Micro-Loops:** Opt-in: reserve loops for components conveying live state (Pulse on active live dots, Shimmer on loading states). Pause animations when offscreen and honor `prefers-reduced-motion: reduce` by providing static states
 - **Staggered Orchestration:** Lists and grids mount with cascaded delays (`animation-delay: calc(var(--index) * 100ms)`). Waterfall reveals, never instant mount
 - **Layout Transitions:** Smooth re-ordering via shared element IDs. Items swap positions with physics, simulating real-time intelligence
 - **Hardware Rules:** Animate ONLY `transform` and `opacity`. Never `top`, `left`, `width`, `height`. Grain/noise filters on fixed, pointer-events-none pseudo-elements only
@@ -114,7 +114,7 @@ Every screen must work flawlessly across all viewports. **Responsive is not opti
 - No generic names: "John Doe", "Sarah Chan", "Acme", "Nexus", "SmartFlow"
 - No fake round numbers: `99.99%`, `50%`, `1234567` — use organic data: `47.2%`, `+1 (312) 847-1928`
 - No AI copywriting clichés: "Elevate", "Seamless", "Unleash", "Next-Gen", "Revolutionize"
-- No broken Unsplash links — use `picsum.photos/seed/{id}/800/600` or SVG UI Avatars
+- No broken Unsplash links — use `picsum.photos/seed/{id}/800/600` for development only; require local or approved CDN assets for production output
 - No generic `shadcn/ui` defaults — customize radii, colors, shadows to match this system
 - No `z-index` spam — use only for Navbar, Modal, Overlay layer contexts
 - No `h-screen` — always `min-h-[100dvh]`

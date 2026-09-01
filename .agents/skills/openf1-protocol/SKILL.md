@@ -1,4 +1,4 @@
-﻿---
+---
 name: openf1-protocol
 description: Specification guide, rate limiting constraints (3 req/sec), query parameters, endpoint shapes, and best practices for integrating the OpenF1 REST API (2023+).
 ---
@@ -14,6 +14,7 @@ This skill documents the OpenF1 REST API architecture, rate limits, endpoint con
 - **Base URL**: `https://api.openf1.org/v1`
 - **Data Coverage**: **2023 season onwards** (2023, 2024, 2025, 2026+). Pre-2023 historical data is not on OpenF1 (use Jolpica/Ergast).
 - **Free Tier Rate Limit**: **3 requests/second**, 30 requests/minute per IP.
+- **Authentication**: Historical data access (2023+) is open/unauthenticated. Active live session access may require OAuth2 Bearer token authentication via `POST /token` for sponsored/subscriber access when enabled. Token should be cached on the backend and refreshed on expiry.
 - **Error on Exceeded**: HTTP 429 `{"detail":"Rate limit exceeded. Max 3 requests/second."}`.
 
 ---

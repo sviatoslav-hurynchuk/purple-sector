@@ -160,6 +160,65 @@ router.get('/timing/tower', (_req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/live/telemetry/compare/:driver1/:driver2
+ * Returns side-by-side telemetry comparison for two drivers (for lap comparison overlays).
+ * Query params:
+ *   - sessionKey: target session ID
+ *   - lap: optional lap number to compare
+ *   - window: time window in seconds (default 15)
+ *   - since / date: optional timestamp watermark
+ *
+ * NOTE: This route MUST be registered before /telemetry/:driverNumber
+ * so Express doesn't interpret "compare" as a driver number param.
+ */
+router.get('/telemetry/compare/:driver1/:driver2', async (req: Request, res: Response) => {
+  try {
+    const { driver1, driver2 } = req.params;
+    const d1 = parseInt(driver1, 10);
+    const d2 = parseInt(driver2, 10);
+
+    if (isNaN(d1) || isNaN(d2)) {
+      res.status(400).json({ error: `Invalid driver numbers: ${driver1}, ${driver2}` });
+      return;
+    }
+
+    const sessionKeyQuery = req.query['sessionKey'];
+    const sessionKey = sessionKeyQuery
+      ? parseInt(String(sessionKeyQuery), 10)
+      : livePollingEngine.getState().sessionKey;
+
+    if (!sessionKey) {
+      res.status(400).json({
+        error: 'No active live session. Provide ?sessionKey=<id> in query.',
+      });
+      return;
+    }
+
+    const lapQuery = req.query['lap'];
+    let lapNum: number | undefined;
+    if (lapQuery) {
+      lapNum = parseInt(String(lapQuery), 10);
+      if (isNaN(lapNum) || lapNum < 1) {
+        res.status(400).json({ error: `Invalid lap: ${String(lapQuery)}` });
+        return;
+      }
+    }
+    const windowQuery = req.query['window'];
+    const windowSec = windowQuery ? parseInt(String(windowQuery), 10) : 15;
+    const sinceQuery = req.query['since'] || req.query['date'];
+    const dateFrom = typeof sinceQuery === 'string' ? sinceQuery : undefined;
+
+    const comparison = await getTelemetryComparison(sessionKey, d1, d2, lapNum, windowSec, dateFrom);
+    const maxAge = lapNum ? 86400 : 1;
+    res.setHeader('Cache-Control', `public, max-age=${maxAge}`);
+    res.json({ sessionKey, driver1: d1, driver2: d2, lapNumber: lapNum, data: comparison });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
  * GET /api/live/telemetry/:driverNumber
  * Returns high-frequency telemetry samples for a driver.
  * Query params:
@@ -192,6 +251,10 @@ router.get('/telemetry/:driverNumber', async (req: Request, res: Response) => {
     const lapQuery = req.query['lap'];
     if (lapQuery) {
       const lapNum = parseInt(String(lapQuery), 10);
+      if (isNaN(lapNum) || lapNum < 1) {
+        res.status(400).json({ error: `Invalid lap: ${String(lapQuery)}` });
+        return;
+      }
       const lapTelemetry = await getDriverLapTelemetry(sessionKey, dNum, lapNum);
       res.setHeader('Cache-Control', 'public, max-age=86400');
       res.json({ sessionKey, driverNumber: dNum, lapNumber: lapNum, samples: lapTelemetry });
@@ -206,55 +269,6 @@ router.get('/telemetry/:driverNumber', async (req: Request, res: Response) => {
     const samples = await getRecentDriverTelemetry(sessionKey, dNum, windowSec, dateFrom);
     res.setHeader('Cache-Control', 'public, max-age=1, stale-while-revalidate=1');
     res.json({ sessionKey, driverNumber: dNum, windowSeconds: windowSec, samples });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(500).json({ error: message });
-  }
-});
-
-/**
- * GET /api/live/telemetry/compare/:driver1/:driver2
- * Returns side-by-side telemetry comparison for two drivers (for lap comparison overlays).
- * Query params:
- *   - sessionKey: target session ID
- *   - lap: optional lap number to compare
- *   - window: time window in seconds (default 15)
- *   - since / date: optional timestamp watermark
- */
-router.get('/telemetry/compare/:driver1/:driver2', async (req: Request, res: Response) => {
-  try {
-    const { driver1, driver2 } = req.params;
-    const d1 = parseInt(driver1, 10);
-    const d2 = parseInt(driver2, 10);
-
-    if (isNaN(d1) || isNaN(d2)) {
-      res.status(400).json({ error: `Invalid driver numbers: ${driver1}, ${driver2}` });
-      return;
-    }
-
-    const sessionKeyQuery = req.query['sessionKey'];
-    const sessionKey = sessionKeyQuery
-      ? parseInt(String(sessionKeyQuery), 10)
-      : livePollingEngine.getState().sessionKey;
-
-    if (!sessionKey) {
-      res.status(400).json({
-        error: 'No active live session. Provide ?sessionKey=<id> in query.',
-      });
-      return;
-    }
-
-    const lapQuery = req.query['lap'];
-    const lapNum = lapQuery ? parseInt(String(lapQuery), 10) : undefined;
-    const windowQuery = req.query['window'];
-    const windowSec = windowQuery ? parseInt(String(windowQuery), 10) : 15;
-    const sinceQuery = req.query['since'] || req.query['date'];
-    const dateFrom = typeof sinceQuery === 'string' ? sinceQuery : undefined;
-
-    const comparison = await getTelemetryComparison(sessionKey, d1, d2, lapNum, windowSec, dateFrom);
-    const maxAge = lapNum ? 86400 : 1;
-    res.setHeader('Cache-Control', `public, max-age=${maxAge}`);
-    res.json({ sessionKey, driver1: d1, driver2: d2, lapNumber: lapNum, data: comparison });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });

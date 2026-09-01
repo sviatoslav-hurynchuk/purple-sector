@@ -44,7 +44,7 @@ The Hero must breathe. It must NOT be a narrow, 6-line text wall.
 - **Card Restraint:** Do not use too many cards. 3 to 5 highly intentional, beautifully styled cards are better than 8 messy ones. Fill them with a mix of large imagery, dense typography, or CSS effects.
 
 ## 5. ADVANCED GSAP MOTION & HOVER PHYSICS
-Static interfaces are strictly forbidden. You must write real GSAP (`@gsap/react`, `ScrollTrigger`).
+Static interfaces are strictly forbidden. When GSAP is available in `package.json` (`@gsap/react`, `ScrollTrigger`), implement real scroll physics; otherwise use CSS transitions or Framer Motion:
 - **Hover Physics:** Every clickable card and image must react. Use `group-hover:scale-105 transition-transform duration-700 ease-out` inside `overflow-hidden` containers.
 - **Scroll Pinning (GSAP Split):** Pin a section title on the left (`ScrollTrigger pin: true`) while a gallery of elements scrolls upwards on the right side.
 - **Image Scale & Fade Scroll:** Images must start small (`scale: 0.8`). As they scroll into view, they grow to `scale: 1.0`. As they scroll out of view, they smoothly darken and fade out (`opacity: 0.2`).
@@ -60,9 +60,9 @@ Select components from this arsenal based on your randomization:
 
 ## 7. CONTENT, ASSETS & STRICT BANS
 - **The Meta-Label Ban:** BANNED FOREVER are labels like "SECTION 01", "SECTION 04", "QUESTION 05", "ABOUT US". Remove them entirely. They look cheap and unprofessional.
-- **Image Context & Style:** Use `https://picsum.photos/seed/{keyword}/1920/1080` and match the keyword to the vibe. Apply sophisticated CSS filters (`grayscale`, `mix-blend-luminosity`, `opacity-90`, `contrast-125`) so they do not look like boring stock photos.
+- **Image Context & Style:** For development mockups, `https://picsum.photos/seed/{keyword}/1920/1080` may be used (development-only). For production output, use local project assets or approved CDN domains. Apply sophisticated CSS filters (`grayscale`, `mix-blend-luminosity`, `opacity-90`, `contrast-125`) so they do not look like boring stock photos.
 - **Creative Backgrounds:** Inject subtle, professional ambient design. Use deep radial blurs, grainy mesh gradients, or shifting dark overlays. Avoid flat, boring colors.
-- **Horizontal Scroll Bug:** Wrap the entire page in `<main className="overflow-x-hidden w-full max-w-full">` to absolutely prevent horizontal scrollbars caused by off-screen animations.
+- **Horizontal Scroll Bug:** Scope `overflow-hidden` directly to the specific animation wrapper or container causing off-screen motion. Avoid applying `overflow-x-hidden` to the entire root page to preserve focus rings, popovers, and sticky positioning.
 
 ## 8. MANDATORY PRE-FLIGHT <design_plan>
 Before writing ANY React/UI code, you MUST output a `<design_plan>` block containing:

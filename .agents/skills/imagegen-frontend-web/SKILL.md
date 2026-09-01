@@ -242,7 +242,7 @@ Choose exactly 2:
 ### Composition Anchor (per-section)
 The **left-text / right-image** layout is allowed, but it is the most overused AI pattern — do not use it as the default. Reach for it only when it is the genuinely best fit.
 
-Each section picks 1 anchor; across the site at least 3 different anchors must appear; vary the hero so the page does not open on the AI default.
+Each section picks 1 anchor; across the site at least `min(3, sectionCount)` different anchors must appear (when `sectionCount >= 3`, at least 3 must appear); vary the hero so the page does not open on the AI default.
 - Centered statement
 - Top-left lead, support bottom-right
 - Bottom-left text over background image

@@ -269,19 +269,24 @@ export async function resolveSessionKey(
       const jLoc = targetJolpicaRace.Circuit.Location.locality.toLowerCase();
       const jCountry = targetJolpicaRace.Circuit.Location.country.toLowerCase();
 
-      const exactMatch = typeMatchingSessions.find((s) => {
+      const candidates = typeMatchingSessions.filter((s) => {
         const sCircuit = s.circuit_short_name?.toLowerCase() ?? '';
         const sCountry = s.country_name?.toLowerCase() ?? '';
         const sLoc = s.location?.toLowerCase() ?? '';
-        return (
-          (sCountry && jCountry.includes(sCountry)) ||
-          (sCircuit && jCircuit.includes(sCircuit)) ||
-          (sLoc && jLoc.includes(sLoc))
-        );
+
+        // Require circuit or locality match (more specific than country alone)
+        const circuitMatch = sCircuit && jCircuit.includes(sCircuit);
+        const locMatch = sLoc && jLoc.includes(sLoc);
+
+        // Country match alone is too broad for countries with multiple GPs
+        const countryOnlyMatch = sCountry && jCountry.includes(sCountry);
+
+        return circuitMatch || locMatch || (countryOnlyMatch && !circuitMatch && !locMatch);
       });
 
-      if (exactMatch) {
-        matchedSession = exactMatch;
+      // Only override the index match when the correlation is unambiguous
+      if (candidates.length === 1) {
+        matchedSession = candidates[0];
       }
     }
 
@@ -333,32 +338,43 @@ const FALLBACK_NUMBER_TO_DRIVER_ID: Record<number, string> = {
 
 /**
  * Builds a Map of OpenF1 driver_number -> Jolpica driverId slug.
+ * Caches as a plain JSON-serializable record (Map is not serializable).
  */
 export async function buildDriverMap(sessionKey: number): Promise<Map<number, string>> {
   const cacheKey = `f1:openf1:driver_map:${sessionKey}`;
 
-  return cachedFetch<Map<number, string>>(cacheKey, TTL.SESSIONS_PAST, async () => {
-    const map = new Map<number, string>();
+  const record = await cachedFetch<Record<string, string>>(cacheKey, TTL.SESSIONS_PAST, async () => {
+    const result: Record<string, string> = {};
 
-    // Pre-populate with fallback registry
-    for (const [numStr, slug] of Object.entries(FALLBACK_NUMBER_TO_DRIVER_ID)) {
-      map.set(parseInt(numStr, 10), slug);
-    }
-
+    // 1. First, populate from live OpenF1 session drivers (takes precedence)
     const openF1Drivers = await openF1Fetch<OpenF1Driver>('/drivers', { session_key: sessionKey }).catch(() => []);
 
     for (const d of openF1Drivers) {
       if (d.driver_number) {
-        // Derive slug if not present: "Max VERSTAPPEN" -> "max_verstappen"
+        const fallbackSlug = FALLBACK_NUMBER_TO_DRIVER_ID[d.driver_number];
         const derivedSlug = d.last_name ? `${d.first_name || ''}_${d.last_name}`.toLowerCase().replace(/\s+/g, '_') : undefined;
-        if (derivedSlug && !map.has(d.driver_number)) {
-          map.set(d.driver_number, derivedSlug);
-        }
+        // If driver last_name matches fallback slug, use canonical Jolpica slug (e.g. "hamilton" vs "lewis_hamilton")
+        const isMatchingFallback = fallbackSlug && d.last_name && fallbackSlug.includes(d.last_name.toLowerCase());
+        result[String(d.driver_number)] = isMatchingFallback ? fallbackSlug : (derivedSlug || fallbackSlug || `driver_${d.driver_number}`);
       }
     }
 
-    return map;
+    // 2. Fill remaining numbers from the fallback registry (only for numbers not reported by OpenF1)
+    for (const [numStr, slug] of Object.entries(FALLBACK_NUMBER_TO_DRIVER_ID)) {
+      if (!(numStr in result)) {
+        result[numStr] = slug;
+      }
+    }
+
+    return result;
   });
+
+  // Reconstruct Map from the cached plain record
+  const map = new Map<number, string>();
+  for (const [numStr, slug] of Object.entries(record)) {
+    map.set(parseInt(numStr, 10), slug);
+  }
+  return map;
 }
 
 // ── Raw Data Getters ─────────────────────────────────────────────────────────

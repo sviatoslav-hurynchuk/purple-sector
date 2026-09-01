@@ -1,4 +1,4 @@
-﻿---
+---
 name: redis-realtime-patterns
 description: Architecture guide and runbook for Redis caching, Pub/Sub channels, Redis Streams for critical event delivery, and key namespacing in real-time F1 timing applications.
 ---
@@ -19,8 +19,8 @@ Always structure Redis keys using hierarchical delimiters (`:`) to enable granul
 | `f1:race:<season>:<round>` | String (JSON) | 24h (done) / 60s (live) | Race session details & results |
 | `f1:race:laps:<season>:<round>` | String (JSON) | 24h (immutable) | Complete lap-by-lap timing matrix |
 | `f1:race:pitstops:<season>:<round>` | String (JSON) | 24h (immutable) | Pit stop sequence |
-| `f1:session:<id>:snapshot` | String (JSON) | 5s | Current aggregate live session state |
-| `f1:session:<id>:intervals` | String (JSON) | 3s | Latest grid gap & interval matrix |
+| `f1:session:<id>:snapshot` | String (JSON) | 10s | Current aggregate live session state |
+| `f1:session:<id>:intervals` | String (JSON) | 5s | Latest grid gap & interval matrix |
 | `f1:session:<id>:telemetry:<driver>` | String (JSON) | 10s | Last telemetry packet for specific car |
 | `f1:session:<id>:stream:pit_stops` | Stream (XADD) | MaxLen 500 (~24h) | Durable stream of pit stop events |
 | `f1:session:<id>:stream:race_control` | Stream (XADD) | MaxLen 500 (~24h) | Durable stream of flags, SC, penalties |
@@ -37,9 +37,10 @@ Always structure Redis keys using hierarchical delimiters (`:`) to enable granul
 - **Single Driver Listener**: `SUBSCRIBE f1:session:9159:telemetry:1`
 
 ### B. Critical Race Events → Redis Streams (`XADD` / `XREAD`)
-- Critical, low-volume events must NEVER be lost due to client disconnects or socket reconnection:
+- Critical, low-volume events must not be dropped due to temporary client disconnects:
   1. **Pit Stop Entries & Exits** (`f1:session:<id>:stream:pit_stops`)
   2. **Race Control Messages** (Safety Car, VSC, Red Flag, Investigation, Penalties) (`f1:session:<id>:stream:race_control`)
+- **Stream Trimming & Replay Window**: `MAXLEN ~ 500` trims oldest entries. If a reconnecting client's `lastEventId` is older than the oldest retained ID (stream gap), fallback to fetching the complete snapshot via `GET f1:session:<id>:snapshot` or REST API to resynchronize state before resuming `XREAD`.
 - **Producer (Ingestion Worker)**:
   ```typescript
   // Append new event to stream with approximate trimming
