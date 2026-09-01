@@ -427,3 +427,43 @@ export interface RaceSessionData {
     pitStops: PitStopDetail[];
     teamRadio: TeamRadioClip[];
 }
+
+// ── Live Realtime Session State ──────────────────────────────────────────────
+
+/** Live status of a single driver during an active race/practice/qualifying session. */
+export interface LiveDriverState {
+    driverNumber: number;
+    driverId: string;
+    code?: string;
+    name?: string;
+    teamName?: string;
+    teamColour?: string;
+    position: number;
+    gapToLeader: number | string | null;
+    interval: number | string | null;
+    lastLapDuration: number | null;
+    currentCompound: TireCompound;
+    currentStintLaps: number;
+    sector1: number | null;
+    sector2: number | null;
+    sector3: number | null;
+    speedTrap: number | null;
+    isPitOutLap: boolean;
+}
+
+/** Aggregated live session state streamed to dashboard & live timing. */
+export interface LiveSessionState {
+    sessionKey: number | null;
+    meetingKey: number | null;
+    sessionType: string;
+    sessionName: string;
+    circuitShortName?: string;
+    countryName?: string;
+    dateStart?: string;
+    dateEnd?: string;
+    isActive: boolean;
+    lastUpdated: string;
+    drivers: LiveDriverState[];
+    raceControlFeed: RaceEvent[];
+    weather: WeatherSnapshot | null;
+}
