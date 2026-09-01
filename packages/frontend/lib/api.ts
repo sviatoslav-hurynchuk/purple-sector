@@ -16,6 +16,7 @@ import type {
   PitStopEntry,
   PitStopsResponse,
   RaceLapsResponse,
+  RaceSessionData,
 } from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -184,4 +185,18 @@ export async function getSeasonConstructors(season?: number): Promise<Constructo
 export async function getConstructorProfile(constructorId: string): Promise<ConstructorProfile | null> {
   const revalidate = 300; // 5 mins for constructor profiles
   return apiFetchNullable<ConstructorProfile>(`/api/constructors/${constructorId}`, revalidate);
+}
+
+// ── OpenF1 Enriched Race Data (2023+) ─────────────────────────────────────────
+
+export async function getOpenF1RaceData(
+  season: number | string,
+  round: number | string
+): Promise<RaceSessionData | null> {
+  const year = Number(season);
+  // OpenF1 only covers 2023 onwards
+  if (year < 2023) return null;
+  const currentYear = getCurrentYear();
+  const revalidate = year === currentYear ? 3600 : 86400;
+  return apiFetchNullable<RaceSessionData>(`/api/openf1/race/${season}/${round}`, revalidate);
 }

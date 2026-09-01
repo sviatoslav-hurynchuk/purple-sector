@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import type { PitStopEntry, Race, RaceResult, RaceResultEntry } from '@/types/f1';
+import type { PitStopEntry, Race, RaceResult, RaceResultEntry, RaceSessionData } from '@/types/f1';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -9,22 +9,29 @@ import { PitStopStatsCards } from './pit-stop-stats-cards';
 import { PitStopChronicle } from './pit-stop-chronicle';
 import { PitStopFastest } from './pit-stop-fastest';
 import { PitStopDuel } from './pit-stop-duel';
-import { ArrowLeft, Trophy, Clock, Swords } from 'lucide-react';
+import { TyreStrategyChart } from '@/components/f1/race/tyre-strategy-chart';
+import { WeatherTimeline } from '@/components/f1/race/weather-timeline';
+import { ArrowLeft, Trophy, Clock, Swords, Disc, CloudRain } from 'lucide-react';
 import Link from 'next/link';
 
 interface PitStopPageContentProps {
   race: Race | RaceResult;
   pitStops: PitStopEntry[];
   raceResults?: RaceResultEntry[];
+  openF1Data?: RaceSessionData | null;
 }
 
 export function PitStopPageContent({
   race,
   pitStops,
   raceResults = [],
+  openF1Data,
 }: PitStopPageContentProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isRacing, setIsRacing] = useState(false);
+
+  const hasStints = Boolean(openF1Data?.stints && openF1Data.stints.length > 0);
+  const hasWeather = Boolean(openF1Data?.weather && openF1Data.weather.length > 1);
 
   const handleToggle = useCallback((key: string) => {
     if (isRacing) return;
@@ -61,7 +68,7 @@ export function PitStopPageContent({
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-bold uppercase tracking-widest text-primary">
-                Pit Stop Strategy
+                Race Strategy &amp; Pit Stops
               </span>
               <span className="text-xs text-muted-foreground">·</span>
               <span className="text-xs font-mono text-muted-foreground">
@@ -83,9 +90,15 @@ export function PitStopPageContent({
 
       {/* Main Tabs Container */}
       <div className="space-y-4">
-        <Tabs defaultValue="fastest" className="w-full">
+        <Tabs defaultValue={hasStints ? 'stints' : 'fastest'} className="w-full">
           <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
             <TabsList>
+              {hasStints && (
+                <TabsTrigger value="stints" className="inline-flex items-center gap-2">
+                  <Disc className="size-3.5 text-primary" />
+                  <span>Tyre Stints Matrix</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="fastest" className="inline-flex items-center gap-2">
                 <Trophy className="size-3.5" />
                 <span>Fastest Stops</span>
@@ -94,8 +107,23 @@ export function PitStopPageContent({
                 <Clock className="size-3.5" />
                 <span>Chronicle Log</span>
               </TabsTrigger>
+              {hasWeather && (
+                <TabsTrigger value="weather" className="inline-flex items-center gap-2">
+                  <CloudRain className="size-3.5 text-blue-400" />
+                  <span>Weather Timeline</span>
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
+
+          {hasStints && (
+            <TabsContent value="stints" className="pt-4 space-y-4">
+              <TyreStrategyChart
+                stints={openF1Data!.stints}
+                totalLaps={raceResults[0]?.laps ? parseInt(raceResults[0].laps, 10) : undefined}
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="fastest" className="pt-4">
             <PitStopFastest
@@ -116,6 +144,12 @@ export function PitStopPageContent({
               isLocked={isRacing}
             />
           </TabsContent>
+
+          {hasWeather && (
+            <TabsContent value="weather" className="pt-4">
+              <WeatherTimeline weather={openF1Data!.weather} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 

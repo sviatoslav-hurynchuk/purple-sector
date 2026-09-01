@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Calendar, Users, Trophy } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Trophy, Radio } from 'lucide-react';
+import { useLiveSession } from '@/hooks/use-live-session';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/live', label: 'Live Timing', icon: Radio, isLive: true },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/constructors', label: 'Teams & Drivers', icon: Users, aliases: ['/drivers'] },
   { href: '/standings', label: 'Standings', icon: Trophy },
@@ -13,6 +15,8 @@ const NAV_ITEMS = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const { state } = useLiveSession();
+  const isLiveActive = Boolean(state?.isActive);
 
   const isActive = (item: (typeof NAV_ITEMS)[number]) => {
     if (item.href === '/') {
@@ -53,13 +57,19 @@ export function Navbar() {
                   key={item.href}
                   href={item.href}
                   className={[
-                    'px-3.5 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-200',
+                    'px-3.5 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5',
                     active
                       ? 'bg-white/10 text-white font-bold shadow-sm'
                       : 'text-muted-foreground hover:text-foreground hover:bg-white/5',
                   ].join(' ')}
                 >
-                  {item.label}
+                  {item.isLive && isLiveActive && (
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                    </span>
+                  )}
+                  <span>{item.label}</span>
                 </Link>
               );
             })}
@@ -82,7 +92,7 @@ export function Navbar() {
                     : 'bg-zinc-900/80 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/5',
                 ].join(' ')}
               >
-                <Icon className={['h-3.5 w-3.5', active ? 'text-primary-foreground' : 'text-zinc-400'].join(' ')} />
+                <Icon className={['h-3.5 w-3.5', active ? 'text-primary-foreground' : (item.isLive && isLiveActive ? 'text-red-400' : 'text-zinc-400')].join(' ')} />
                 <span>{item.label}</span>
               </Link>
             );
