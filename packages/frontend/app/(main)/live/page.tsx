@@ -89,6 +89,7 @@ function LiveTimingContent() {
             driver={selectedDriver}
             samples={telemetrySamples}
             isLoading={isTelemetryLoading}
+            season={state?.sessionName?.match(/\b(20\d\d)\b/)?.[1]}
           />
         );
 
@@ -191,6 +192,7 @@ function LiveTimingContent() {
               driver={selectedDriver}
               samples={telemetrySamples}
               isLoading={isTelemetryLoading}
+              season={state?.sessionName?.match(/\b(20\d\d)\b/)?.[1]}
             />
           </TabsContent>
 

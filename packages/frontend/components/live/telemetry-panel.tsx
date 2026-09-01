@@ -11,6 +11,7 @@ interface TelemetryPanelProps {
   compareDriver?: LiveDriverState | null;
   compareSamples?: CarTelemetrySample[];
   isLoading?: boolean;
+  season?: number | string;
   className?: string;
 }
 
@@ -20,10 +21,22 @@ export function TelemetryPanel({
   compareDriver,
   compareSamples = [],
   isLoading = false,
+  season,
   className,
 }: TelemetryPanelProps) {
   // Compute key telemetry metrics from the latest sample
   const latestSample = samples.length > 0 ? samples[samples.length - 1] : null;
+  const seasonNum = season ? Number(season) : new Date().getFullYear();
+  const is2026OrLater = seasonNum >= 2026;
+  const isAeroActive =
+    latestSample?.aeroMode === 'STRAIGHT_LINE_X' ||
+    latestSample?.aeroMode === 'DRS_OPEN' ||
+    (latestSample?.drs ?? 0) >= 10 ||
+    latestSample?.drs === 1;
+  const isOvertakeActive =
+    latestSample?.overtakeMode ??
+    (is2026OrLater && isAeroActive && (latestSample?.throttle ?? 0) > 95);
+
   const maxSpeed = useMemo(() => {
     if (samples.length === 0) return 0;
     return Math.max(...samples.map((s) => s.speed || 0));
@@ -196,30 +209,61 @@ export function TelemetryPanel({
           </div>
         </div>
 
-        {/* Brake & DRS */}
+        {/* Aerodynamics & Overtake / DRS */}
         <div className="flex flex-col p-2.5 rounded-xl bg-zinc-950/60 border border-white/5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
-            <Zap className="h-3 w-3 text-cyan-400" /> Brake / DRS
+            <Zap className="h-3 w-3 text-cyan-400" />
+            {is2026OrLater ? 'Active Aero & Overtake' : 'Brake / DRS'}
           </span>
-          <div className="flex items-center justify-between mt-1">
-            <span
-              className={cn(
-                'font-mono font-bold text-sm',
-                (latestSample?.brake ?? 0) > 10 ? 'text-red-400' : 'text-zinc-500'
-              )}
-            >
-              {(latestSample?.brake ?? 0) > 10 ? 'BRAKING' : 'OFF'}
-            </span>
-            <span
-              className={cn(
-                'text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase',
-                latestSample?.drs === 1
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse'
-                  : 'bg-zinc-800 text-zinc-500'
-              )}
-            >
-              DRS {latestSample?.drs === 1 ? 'ON' : 'OFF'}
-            </span>
+          <div className="flex items-center justify-between gap-1.5 mt-1 flex-wrap">
+            {is2026OrLater ? (
+              <>
+                <span
+                  className={cn(
+                    'text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase',
+                    isAeroActive
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse'
+                      : 'bg-zinc-800 text-zinc-400'
+                  )}
+                  title={isAeroActive ? 'Straight-Line Low Drag (X-Mode)' : 'Cornering High Downforce (Z-Mode)'}
+                >
+                  {isAeroActive ? 'X-MODE' : 'Z-MODE'}
+                </span>
+
+                <span
+                  className={cn(
+                    'text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase',
+                    isOvertakeActive
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                      : 'bg-zinc-800 text-zinc-500'
+                  )}
+                  title="Manual Override Mode / Electric Power Boost"
+                >
+                  {isOvertakeActive ? 'OVERTAKE (MOM)' : 'MOM OFF'}
+                </span>
+              </>
+            ) : (
+              <>
+                <span
+                  className={cn(
+                    'font-mono font-bold text-sm',
+                    (latestSample?.brake ?? 0) > 10 ? 'text-red-400' : 'text-zinc-500'
+                  )}
+                >
+                  {(latestSample?.brake ?? 0) > 10 ? 'BRAKING' : 'OFF'}
+                </span>
+                <span
+                  className={cn(
+                    'text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase',
+                    isAeroActive
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse'
+                      : 'bg-zinc-800 text-zinc-500'
+                  )}
+                >
+                  DRS {isAeroActive ? 'OPEN' : 'CLOSED'}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>

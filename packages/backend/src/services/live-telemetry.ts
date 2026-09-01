@@ -19,7 +19,10 @@ function parseIsoDate(value?: string): number | null {
 /**
  * Normalizes OpenF1 car_data record to CarTelemetrySample.
  */
-function mapCarDataSample(raw: OpenF1CarData): CarTelemetrySample {
+function mapCarDataSample(raw: OpenF1CarData, seasonYear?: number): CarTelemetrySample {
+  const isAeroOpen = raw.drs >= 10 || raw.drs === 1;
+  const is2026OrLater = (seasonYear ?? new Date().getFullYear()) >= 2026;
+
   return {
     date: raw.date,
     driverNumber: raw.driver_number,
@@ -29,6 +32,10 @@ function mapCarDataSample(raw: OpenF1CarData): CarTelemetrySample {
     throttle: raw.throttle,
     brake: raw.brake,
     drs: raw.drs,
+    aeroMode: is2026OrLater
+      ? (isAeroOpen ? 'STRAIGHT_LINE_X' : 'CORNERING_Z')
+      : (isAeroOpen ? 'DRS_OPEN' : 'DRS_CLOSED'),
+    overtakeMode: is2026OrLater && isAeroOpen && raw.throttle > 95,
   };
 }
 

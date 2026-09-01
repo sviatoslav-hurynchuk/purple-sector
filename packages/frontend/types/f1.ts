@@ -325,6 +325,10 @@ export type RaceEventType =
     | 'red_flag'
     | 'drs_enabled'
     | 'drs_disabled'
+    | 'straight_line_mode_enabled'
+    | 'straight_line_mode_disabled'
+    | 'overtake_mode_enabled'
+    | 'overtake_mode_disabled'
     | 'fastest_lap'
     | 'chequered_flag'
     | 'warning'
@@ -480,6 +484,10 @@ export interface CarTelemetrySample {
     throttle: number;
     brake: number;
     drs: number;
+    /** Active aerodynamic mode for 2026+ (Straight Line / X-Mode vs Cornering / Z-Mode) or DRS for <=2025 */
+    aeroMode?: 'DRS_OPEN' | 'DRS_CLOSED' | 'STRAIGHT_LINE_X' | 'CORNERING_Z' | 'OFF';
+    /** Overtake mode / Manual Override Mode (MOM) for 2026+ */
+    overtakeMode?: boolean;
 }
 
 /** 2D/3D car coordinates in circuit local reference frame. */

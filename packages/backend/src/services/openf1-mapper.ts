@@ -73,6 +73,23 @@ export function categorizeRaceControlMessage(
   if (flag === 'YELLOW' || flag === 'DOUBLE YELLOW' || text.includes('YELLOW FLAG')) return 'yellow_flag';
   if (flag === 'CHEQUERED' || text.includes('CHEQUERED FLAG')) return 'chequered_flag';
 
+  // 2026+ Active Aerodynamics (Straight-line mode / X-Mode / Z-Mode)
+  if (text.includes('STRAIGHT LINE MODE ENABLED') || text.includes('ACTIVE AERO ENABLED') || text.includes('X-MODE ENABLED')) {
+    return 'straight_line_mode_enabled';
+  }
+  if (text.includes('STRAIGHT LINE MODE DISABLED') || text.includes('ACTIVE AERO DISABLED') || text.includes('X-MODE DISABLED')) {
+    return 'straight_line_mode_disabled';
+  }
+
+  // 2026+ Overtake Mode / Manual Override Mode (MOM)
+  if (text.includes('OVERTAKE MODE ENABLED') || text.includes('MANUAL OVERRIDE ENABLED') || text.includes('MOM ENABLED')) {
+    return 'overtake_mode_enabled';
+  }
+  if (text.includes('OVERTAKE MODE DISABLED') || text.includes('MANUAL OVERRIDE DISABLED') || text.includes('MOM DISABLED')) {
+    return 'overtake_mode_disabled';
+  }
+
+  // <= 2025 DRS (Drag Reduction System)
   if (text.includes('DRS ENABLED')) return 'drs_enabled';
   if (text.includes('DRS DISABLED')) return 'drs_disabled';
 

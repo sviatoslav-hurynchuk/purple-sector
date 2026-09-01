@@ -50,6 +50,34 @@ function getEventBadge(event: RaceEvent) {
         badgeClass: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
         dotClass: 'bg-yellow-400',
       };
+    case 'straight_line_mode_enabled':
+      return {
+        label: 'STRAIGHT LINE MODE (X-MODE) ENABLED',
+        icon: Zap,
+        badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+        dotClass: 'bg-cyan-400',
+      };
+    case 'straight_line_mode_disabled':
+      return {
+        label: 'STRAIGHT LINE MODE (X-MODE) DISABLED',
+        icon: Zap,
+        badgeClass: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+        dotClass: 'bg-zinc-400',
+      };
+    case 'overtake_mode_enabled':
+      return {
+        label: 'OVERTAKE MODE (MOM) ENABLED',
+        icon: Zap,
+        badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+        dotClass: 'bg-amber-400',
+      };
+    case 'overtake_mode_disabled':
+      return {
+        label: 'OVERTAKE MODE (MOM) DISABLED',
+        icon: Zap,
+        badgeClass: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+        dotClass: 'bg-zinc-400',
+      };
     case 'drs_enabled':
       return {
         label: 'DRS ENABLED',
@@ -118,7 +146,15 @@ export function RaceControlFeed({
     } else if (filterType === 'flags') {
       list = list.filter((e) => e.type === 'red_flag' || e.type === 'yellow_flag' || e.type === 'chequered_flag');
     } else if (filterType === 'drs') {
-      list = list.filter((e) => e.type === 'drs_enabled' || e.type === 'drs_disabled');
+      list = list.filter(
+        (e) =>
+          e.type === 'drs_enabled' ||
+          e.type === 'drs_disabled' ||
+          e.type === 'straight_line_mode_enabled' ||
+          e.type === 'straight_line_mode_disabled' ||
+          e.type === 'overtake_mode_enabled' ||
+          e.type === 'overtake_mode_disabled'
+      );
     } else if (filterType === 'penalties') {
       list = list.filter((e) => e.type === 'penalty' || e.type === 'warning');
     }
@@ -194,7 +230,7 @@ export function RaceControlFeed({
                 filterType === 'drs' ? 'bg-white/10 text-emerald-300 font-bold' : 'text-zinc-400 hover:text-zinc-200'
               )}
             >
-              DRS
+              DRS / Aero
             </button>
           </div>
 
