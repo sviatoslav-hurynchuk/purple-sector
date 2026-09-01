@@ -7,6 +7,8 @@ import standingsRouter from './routes/standings';
 import driversRouter from './routes/drivers';
 import constructorsRouter from './routes/constructors';
 import adminRouter from './routes/admin';
+import openF1Router from './routes/openf1';
+import liveRouter from './routes/live';
 import { errorHandler } from './middleware/errorHandler';
 import { connectRedis, cache } from './services/cache';
 import { warmCache } from './services/jolpica';
@@ -36,6 +38,8 @@ app.use('/api/races', racesRouter);
 app.use('/api/standings', standingsRouter);
 app.use('/api/drivers', driversRouter);
 app.use('/api/constructors', constructorsRouter);
+app.use('/api/openf1', openF1Router);
+app.use('/api/live', liveRouter);
 app.use('/api/admin', adminRouter);
 
 // ── Error Handler (must be last) ─────────────────────────────────────────────
