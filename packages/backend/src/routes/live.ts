@@ -1,5 +1,11 @@
-﻿import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { livePollingEngine } from '../services/live-polling';
+import {
+  getRecentDriverTelemetry,
+  getDriverLapTelemetry,
+  getTelemetryComparison,
+  getLocationSnapshot,
+} from '../services/live-telemetry';
 import type { LiveSessionState, RaceEvent, WeatherSnapshot } from '../types/f1';
 
 const router: Router = Router();
@@ -133,6 +139,162 @@ router.post('/stop', adminAuth, (_req: Request, res: Response) => {
     message: 'Live polling engine stopped successfully.',
     state: livePollingEngine.getState(),
   });
+});
+
+// ── Live Telemetry & Timing Tower Endpoints ──────────────────────────────────
+
+/**
+ * GET /api/live/timing/tower
+ * Returns the current live timing tower with positions, gaps, tyre compound and stints.
+ */
+router.get('/timing/tower', (_req: Request, res: Response) => {
+  const state = livePollingEngine.getState();
+  res.setHeader('Cache-Control', 'public, max-age=2, stale-while-revalidate=2');
+  res.json({
+    sessionKey: state.sessionKey,
+    sessionName: state.sessionName,
+    isActive: state.isActive,
+    lastUpdated: state.lastUpdated,
+    drivers: state.drivers,
+  });
+});
+
+/**
+ * GET /api/live/telemetry/:driverNumber
+ * Returns high-frequency telemetry samples for a driver.
+ * Query params:
+ *   - sessionKey: target session ID (defaults to active session)
+ *   - window: time window in seconds (default 15, max 30)
+ *   - lap: optional lap number (fetches full lap telemetry)
+ */
+router.get('/telemetry/:driverNumber', async (req: Request, res: Response) => {
+  try {
+    const { driverNumber } = req.params;
+    const dNum = parseInt(driverNumber, 10);
+
+    if (isNaN(dNum)) {
+      res.status(400).json({ error: `Invalid driverNumber: ${driverNumber}` });
+      return;
+    }
+
+    const sessionKeyQuery = req.query['sessionKey'];
+    const sessionKey = sessionKeyQuery
+      ? parseInt(String(sessionKeyQuery), 10)
+      : livePollingEngine.getState().sessionKey;
+
+    if (!sessionKey) {
+      res.status(400).json({
+        error: 'No active live session. Provide ?sessionKey=<id> in query.',
+      });
+      return;
+    }
+
+    const lapQuery = req.query['lap'];
+    if (lapQuery) {
+      const lapNum = parseInt(String(lapQuery), 10);
+      const lapTelemetry = await getDriverLapTelemetry(sessionKey, dNum, lapNum);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.json({ sessionKey, driverNumber: dNum, lapNumber: lapNum, samples: lapTelemetry });
+      return;
+    }
+
+    const windowQuery = req.query['window'];
+    const windowSec = windowQuery ? parseInt(String(windowQuery), 10) : 15;
+    const sinceQuery = req.query['since'] || req.query['date'];
+    const dateFrom = typeof sinceQuery === 'string' ? sinceQuery : undefined;
+
+    const samples = await getRecentDriverTelemetry(sessionKey, dNum, windowSec, dateFrom);
+    res.setHeader('Cache-Control', 'public, max-age=1, stale-while-revalidate=1');
+    res.json({ sessionKey, driverNumber: dNum, windowSeconds: windowSec, samples });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * GET /api/live/telemetry/compare/:driver1/:driver2
+ * Returns side-by-side telemetry comparison for two drivers (for lap comparison overlays).
+ * Query params:
+ *   - sessionKey: target session ID
+ *   - lap: optional lap number to compare
+ *   - window: time window in seconds (default 15)
+ *   - since / date: optional timestamp watermark
+ */
+router.get('/telemetry/compare/:driver1/:driver2', async (req: Request, res: Response) => {
+  try {
+    const { driver1, driver2 } = req.params;
+    const d1 = parseInt(driver1, 10);
+    const d2 = parseInt(driver2, 10);
+
+    if (isNaN(d1) || isNaN(d2)) {
+      res.status(400).json({ error: `Invalid driver numbers: ${driver1}, ${driver2}` });
+      return;
+    }
+
+    const sessionKeyQuery = req.query['sessionKey'];
+    const sessionKey = sessionKeyQuery
+      ? parseInt(String(sessionKeyQuery), 10)
+      : livePollingEngine.getState().sessionKey;
+
+    if (!sessionKey) {
+      res.status(400).json({
+        error: 'No active live session. Provide ?sessionKey=<id> in query.',
+      });
+      return;
+    }
+
+    const lapQuery = req.query['lap'];
+    const lapNum = lapQuery ? parseInt(String(lapQuery), 10) : undefined;
+    const windowQuery = req.query['window'];
+    const windowSec = windowQuery ? parseInt(String(windowQuery), 10) : 15;
+    const sinceQuery = req.query['since'] || req.query['date'];
+    const dateFrom = typeof sinceQuery === 'string' ? sinceQuery : undefined;
+
+    const comparison = await getTelemetryComparison(sessionKey, d1, d2, lapNum, windowSec, dateFrom);
+    const maxAge = lapNum ? 86400 : 1;
+    res.setHeader('Cache-Control', `public, max-age=${maxAge}`);
+    res.json({ sessionKey, driver1: d1, driver2: d2, lapNumber: lapNum, data: comparison });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * GET /api/live/map/positions
+ * Returns recent car location coordinates for 2D track map rendering.
+ * Query params:
+ *   - sessionKey: target session ID
+ *   - window: time window in seconds (default 5, max 10)
+ *   - since / date: optional timestamp watermark
+ */
+router.get('/map/positions', async (req: Request, res: Response) => {
+  try {
+    const sessionKeyQuery = req.query['sessionKey'];
+    const sessionKey = sessionKeyQuery
+      ? parseInt(String(sessionKeyQuery), 10)
+      : livePollingEngine.getState().sessionKey;
+
+    if (!sessionKey) {
+      res.status(400).json({
+        error: 'No active live session. Provide ?sessionKey=<id> in query.',
+      });
+      return;
+    }
+
+    const windowQuery = req.query['window'];
+    const windowSec = windowQuery ? parseInt(String(windowQuery), 10) : 5;
+    const sinceQuery = req.query['since'] || req.query['date'];
+    const dateFrom = typeof sinceQuery === 'string' ? sinceQuery : undefined;
+
+    const locations = await getLocationSnapshot(sessionKey, windowSec, dateFrom);
+    res.setHeader('Cache-Control', 'public, max-age=1, stale-while-revalidate=1');
+    res.json({ sessionKey, windowSeconds: windowSec, locations });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
 });
 
 export default router;

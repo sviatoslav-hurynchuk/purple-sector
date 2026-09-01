@@ -129,15 +129,19 @@ export async function openF1Fetch<T>(
   timeoutMs = 12000
 ): Promise<T[]> {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const searchParams = new URLSearchParams();
+  const queryParts: string[] = [];
 
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null) {
-      searchParams.append(key, String(value));
+      if (key.endsWith('>=') || key.endsWith('<=') || key.endsWith('>') || key.endsWith('<')) {
+        queryParts.push(`${key}${encodeURIComponent(String(value))}`);
+      } else {
+        queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+      }
     }
   }
 
-  const queryString = searchParams.toString();
+  const queryString = queryParts.join('&');
   const url = `${BASE_URL}${cleanEndpoint}${queryString ? `?${queryString}` : ''}`;
   const res = await enqueueOpenF1Request(url, {}, 3, timeoutMs);
 

@@ -467,3 +467,26 @@ export interface LiveSessionState {
     raceControlFeed: RaceEvent[];
     weather: WeatherSnapshot | null;
 }
+
+// ── Telemetry & Track Coordinates ─────────────────────────────────────────────
+
+/** High-frequency car telemetry sample (~3.7 Hz). */
+export interface CarTelemetrySample {
+    date: string;
+    driverNumber: number;
+    speed: number;
+    rpm: number;
+    gear: number;
+    throttle: number;
+    brake: number;
+    drs: number;
+}
+
+/** 2D/3D car coordinates in circuit local reference frame. */
+export interface CarLocationSample {
+    date: string;
+    driverNumber: number;
+    x: number;
+    y: number;
+    z: number;
+}
