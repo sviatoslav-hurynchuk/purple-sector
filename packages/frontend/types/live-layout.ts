@@ -12,7 +12,7 @@ export interface WidgetConfig {
   id: WidgetId;
   title: string;
   enabled: boolean;
-  span: WidgetSpan;
+  span?: WidgetSpan;
   minimized?: boolean;
 }
 

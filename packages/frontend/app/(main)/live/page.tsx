@@ -56,7 +56,6 @@ function LiveTimingContent() {
           <div className="p-6 rounded-2xl bg-zinc-900/60 border border-white/10 text-center flex flex-col items-center justify-center gap-2">
             <Radio className="h-5 w-5 text-zinc-500 opacity-50" />
             <h4 className="font-bold text-xs text-zinc-300">No Active Session</h4>
-            <p className="text-[11px] text-zinc-500">Live timing active during official FIA sessions.</p>
           </div>
         );
 
@@ -113,9 +112,6 @@ function LiveTimingContent() {
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white uppercase">
               Live Timing Console
             </h1>
-            <p className="text-xs text-zinc-400 font-medium">
-              Real-time telemetry, track position map, timing deltas &amp; race control messages.
-            </p>
           </div>
         </div>
 

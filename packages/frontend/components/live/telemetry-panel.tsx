@@ -107,10 +107,7 @@ export function TelemetryPanel({
         <div className="flex items-center justify-center h-12 w-12 rounded-full bg-white/5 text-zinc-500 mb-3">
           <Activity className="h-6 w-6" />
         </div>
-        <h4 className="text-sm font-bold text-zinc-300">Live Driver Telemetry</h4>
-        <p className="text-xs text-zinc-500 max-w-xs mt-1">
-          Select any driver from the timing tower to inspect live speed traces, throttle, braking, and gear telemetry.
-        </p>
+        <h4 className="text-sm font-bold text-zinc-300">Select Drivers For Live Telemetry</h4>
       </div>
     );
   }
