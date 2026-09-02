@@ -64,14 +64,31 @@ export function categorizeRaceControlMessage(
   const text = (msg.message ?? '').toUpperCase();
   const flag = (msg.flag ?? '').toUpperCase();
 
-  if (category === 'SAFETYCAR' || text.includes('SAFETY CAR')) {
-    if (text.includes('VIRTUAL') || text.includes('VSC')) return 'vsc';
-    return 'safety_car';
+  // 1. Stewards penalties & infringements first (so e.g. "SAFETY CAR INFRINGEMENT" is categorized as warning/penalty, not deployment)
+  if (category === 'PENALTY' || text.includes('PENALTY') || text.includes('TIME PENALTY')) return 'penalty';
+  if (
+    text.includes('INFRINGEMENT') ||
+    text.includes('INVESTIGATED') ||
+    text.includes('INVESTIGATION') ||
+    text.includes('TRACK LIMITS') ||
+    flag === 'BLACK AND WHITE'
+  ) {
+    return 'warning';
   }
 
-  if (flag === 'RED' || text.includes('RED FLAG')) return 'red_flag';
-  if (flag === 'YELLOW' || flag === 'DOUBLE YELLOW' || text.includes('YELLOW FLAG')) return 'yellow_flag';
+  // 2. Flags
   if (flag === 'CHEQUERED' || text.includes('CHEQUERED FLAG')) return 'chequered_flag';
+  if (flag === 'RED' || text.includes('RED FLAG - RACE SUSPENDED') || /\bRED\s*FLAG\b/.test(text)) return 'red_flag';
+  if (flag === 'YELLOW' || flag === 'DOUBLE YELLOW' || text.includes('YELLOW FLAG')) return 'yellow_flag';
+
+  // 3. Safety Car & VSC deployments ONLY (not informational notices like LIGHTS ON, OVERTAKE, USE PIT LANE, etc.)
+  if (text.includes('VSC DEPLOYED') || text.includes('VIRTUAL SAFETY CAR DEPLOYED')) return 'vsc';
+  if (text.includes('SAFETY CAR DEPLOYED') || (category === 'SAFETYCAR' && text.includes('DEPLOYED'))) return 'safety_car';
+
+  // Informational Safety Car notices (e.g. LIGHTS ON, OVERTAKE, USE PIT LANE, IN THIS LAP) are not new deployments
+  if (category === 'SAFETYCAR' || text.includes('SAFETY CAR') || text.includes('VSC')) {
+    return 'other';
+  }
 
   // 2026+ Active Aerodynamics (Straight-line mode / X-Mode / Z-Mode)
   if (text.includes('STRAIGHT LINE MODE ENABLED') || text.includes('ACTIVE AERO ENABLED') || text.includes('X-MODE ENABLED')) {
@@ -93,41 +110,199 @@ export function categorizeRaceControlMessage(
   if (text.includes('DRS ENABLED')) return 'drs_enabled';
   if (text.includes('DRS DISABLED')) return 'drs_disabled';
 
-  if (category === 'PENALTY' || text.includes('PENALTY') || text.includes('TIME PENALTY')) return 'penalty';
-  if (flag === 'BLACK AND WHITE' || text.includes('WARNING') || text.includes('TRACK LIMITS')) return 'warning';
-
   return 'other';
 }
 
 /**
- * Parses lap number from message text if available (e.g. "LAP 14 CAR 16 OFF TRACK").
+ * Parses lap number from message text if available (e.g. "LAP 14 CAR 16 OFF TRACK", "L14", "ON LAP 14").
  */
 export function extractLapFromMessage(text: string): number | null {
-  const match = text.match(/LAP\s+(\d+)/i);
+  if (!text) return null;
+  const match = text.match(/(?:LAP|L)\s*(\d+)/i) ?? text.match(/ON\s+LAP\s*(\d+)/i);
   return match ? parseInt(match[1], 10) : null;
 }
 
 /**
  * Maps raw OpenF1 race control items to domain RaceEvent array.
+ * If rawLaps are provided, maps each event timestamp to its active lap number.
  */
 export function mapRaceControlEvents(
-  rawEvents: OpenF1RaceControl[]
+  rawEvents: OpenF1RaceControl[],
+  rawLaps?: OpenF1Lap[]
 ): RaceEvent[] {
   if (!Array.isArray(rawEvents)) return [];
 
-  return rawEvents.map((item) => {
-    const type = categorizeRaceControlMessage(item);
-    const parsedLap = extractLapFromMessage(item.message);
+  // Build sorted lap start timeline if laps are available
+  const lapTimeline: Array<{ dateMs: number; lap: number }> = [];
+  if (Array.isArray(rawLaps) && rawLaps.length > 0) {
+    const lapMap = new Map<number, number>(); // lap_number -> min date_start timestamp
+    for (const lap of rawLaps) {
+      if (lap.date_start && lap.lap_number > 0) {
+        const t = new Date(lap.date_start).getTime();
+        if (!isNaN(t)) {
+          const existing = lapMap.get(lap.lap_number);
+          if (existing === undefined || t < existing) {
+            lapMap.set(lap.lap_number, t);
+          }
+        }
+      }
+    }
+    for (const [lap, dateMs] of lapMap.entries()) {
+      lapTimeline.push({ lap, dateMs });
+    }
+    lapTimeline.sort((a, b) => a.dateMs - b.dateMs);
+  }
 
-    return {
+  const sortedEvents = [...rawEvents].sort(
+    (a, b) => new Date(a.date ?? 0).getTime() - new Date(b.date ?? 0).getTime()
+  );
+
+  const mapped: RaceEvent[] = [];
+
+  for (let i = 0; i < sortedEvents.length; i++) {
+    const item = sortedEvents[i];
+    const type = categorizeRaceControlMessage(item);
+    let lapNumber: number | undefined = undefined;
+
+    // 1. Direct lap_number on OpenF1 record
+    if (typeof item.lap_number === 'number' && item.lap_number > 0) {
+      lapNumber = item.lap_number;
+    }
+
+    // 2. Parse from message text
+    if (!lapNumber) {
+      const parsed = extractLapFromMessage(item.message);
+      if (parsed !== null && parsed > 0) {
+        lapNumber = parsed;
+      }
+    }
+
+    // 3. Fallback to lap timestamp timeline
+    if (!lapNumber && item.date && lapTimeline.length > 0) {
+      const eventTime = new Date(item.date).getTime();
+      if (!isNaN(eventTime)) {
+        let bestLap = lapTimeline[0].lap;
+        for (const entry of lapTimeline) {
+          if (entry.dateMs <= eventTime) {
+            bestLap = entry.lap;
+          } else {
+            break;
+          }
+        }
+        lapNumber = bestLap;
+      }
+    }
+
+    const text = (item.message || '').toUpperCase();
+    const isEndingNotice =
+      text.includes('SAFETY CAR IN THIS LAP') ||
+      text.includes('SAFETY CAR ENDING') ||
+      text.includes('VSC ENDING');
+
+    // Skip creating duplicate deployment items for ending notices
+    if (isEndingNotice && (type === 'safety_car' || type === 'vsc')) {
+      continue;
+    }
+
+    mapped.push({
       type,
-      ...(parsedLap !== null ? { lap: parsedLap } : {}),
+      ...(lapNumber !== undefined ? { lap: lapNumber } : {}),
       date: item.date,
       message: item.message,
       flag: item.flag ?? undefined,
       driverNumber: item.driver_number ?? undefined,
-    };
-  }).sort((a, b) => new Date(a.date ?? 0).getTime() - new Date(b.date ?? 0).getTime());
+    });
+  }
+
+  // Helper to determine if an event terminates an active track neutralization
+  const isTrackNeutralizationTerminator = (raw: OpenF1RaceControl, targetType: RaceEventType): boolean => {
+    const msg = (raw.message || '').toUpperCase();
+    const flag = (raw.flag || '').toUpperCase();
+    const scope = (raw.scope || '').toUpperCase();
+
+    // Local sector yellow clears do NOT end full-course neutralizations
+    if (scope === 'SECTOR' || msg.includes('TRACK SECTOR')) return false;
+
+    if (targetType === 'vsc') {
+      return (
+        msg.includes('VSC ENDING') ||
+        msg.includes('SAFETY CAR DEPLOYED') ||
+        msg.includes('RED FLAG') ||
+        (msg === 'TRACK CLEAR' && scope === 'TRACK') ||
+        msg.includes('GREEN FLAG') ||
+        flag === 'CHEQUERED'
+      );
+    }
+
+    if (targetType === 'safety_car') {
+      return (
+        msg.includes('SAFETY CAR IN THIS LAP') ||
+        msg.includes('SAFETY CAR ENDING') ||
+        msg.includes('RED FLAG') ||
+        msg.includes('STANDING START') ||
+        msg.includes('ROLLING START') ||
+        (msg === 'TRACK CLEAR' && scope === 'TRACK') ||
+        msg.includes('GREEN FLAG') ||
+        flag === 'CHEQUERED'
+      );
+    }
+
+    if (targetType === 'red_flag') {
+      return (
+        msg.includes('SESSION STARTED') ||
+        msg.includes('SESSION RESUMED') ||
+        msg.includes('STANDING START') ||
+        msg.includes('ROLLING START') ||
+        msg.includes('SAFETY CAR DEPLOYED') ||
+        msg.includes('GREEN FLAG') ||
+        flag === 'CHEQUERED'
+      );
+    }
+
+    return false;
+  };
+
+  // Calculate endLap for paired Safety Car, VSC, and Red Flag periods
+  for (let i = 0; i < mapped.length; i++) {
+    const evt = mapped[i];
+    if (evt.type === 'safety_car' || evt.type === 'vsc' || evt.type === 'red_flag') {
+      const startLap = evt.lap ?? 1;
+      const nextEndOrFlag = sortedEvents.find((raw) => {
+        const rawTime = new Date(raw.date ?? 0).getTime();
+        const evtTime = new Date(evt.date ?? 0).getTime();
+        if (rawTime <= evtTime) return false;
+        return isTrackNeutralizationTerminator(raw, evt.type);
+      });
+
+      if (nextEndOrFlag) {
+        const endLap = nextEndOrFlag.lap_number ?? (extractLapFromMessage(nextEndOrFlag.message) || startLap);
+        evt.endLap = Math.max(startLap, endLap);
+      } else {
+        evt.endLap = startLap + (evt.type === 'vsc' ? 1 : evt.type === 'red_flag' ? 0 : 2);
+      }
+    }
+  }
+
+  // Merge contiguous or overlapping Safety Car and VSC periods
+  const merged: RaceEvent[] = [];
+  for (const evt of mapped) {
+    if (evt.type === 'safety_car' || evt.type === 'vsc') {
+      const prev = merged[merged.length - 1];
+      if (
+        prev &&
+        prev.type === evt.type &&
+        prev.endLap !== undefined &&
+        evt.lap !== undefined &&
+        evt.lap <= prev.endLap + 1
+      ) {
+        prev.endLap = Math.max(prev.endLap, evt.endLap ?? evt.lap);
+        continue;
+      }
+    }
+    merged.push(evt);
+  }
+
+  return merged;
 }
 
 /**

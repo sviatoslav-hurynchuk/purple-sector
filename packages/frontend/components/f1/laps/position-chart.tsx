@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useMemo, useState, useRef } from 'react';
-import type { LapData, DriverLapSummary, PitStopEntry } from '@/types/f1';
+import type { LapData, DriverLapSummary, PitStopEntry, RaceEvent } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
 import { isDnfStatus, isLappedStatus } from '@/lib/f1-status';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, X, ShieldAlert, AlertTriangle, Flag, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +17,7 @@ interface PositionChartProps {
   selectedDriverIds: Set<string>;
   isPaused: boolean;
   isFullscreen?: boolean;
+  raceEvents?: RaceEvent[];
   onLapChange: (lap: number) => void;
   onToggleDriver: (driverId: string) => void;
   onToggleFullscreen?: () => void;
@@ -56,12 +57,26 @@ export function PositionChart({
   selectedDriverIds,
   isPaused,
   isFullscreen = false,
+  raceEvents = [],
   onLapChange,
   onToggleDriver,
   onToggleFullscreen,
 }: PositionChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredDriverId, setHoveredDriverId] = useState<string | null>(null);
+  const fastestLapDriver = useMemo(() => drivers.find((d) => d.fastestLap?.rank === 1), [drivers]);
+
+  // Normalize events to guarantee lap number resolution even on older cached payloads
+  const effectiveEvents = useMemo(() => {
+    return raceEvents.map((e) => {
+      let lap = e.lap;
+      if (!lap && e.message) {
+        const match = e.message.match(/(?:LAP|L)\s*(\d+)/i) ?? e.message.match(/ON\s+LAP\s*(\d+)/i);
+        if (match) lap = parseInt(match[1], 10);
+      }
+      return { ...e, lap };
+    });
+  }, [raceEvents]);
   const [hoveredPoint, setHoveredPoint] = useState<{
     driverId: string;
     code: string;
@@ -227,16 +242,37 @@ export function PositionChart({
           </h3>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3.5 text-xs sm:text-sm text-muted-foreground font-mono">
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="size-3 rounded-full bg-amber-400 border border-zinc-950 inline-block shadow-xs" /> Pit Stop
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-mono">
+          <span className="flex items-center gap-1 font-medium">
+            <span className="size-2.5 rounded-full bg-amber-400 border border-zinc-950 inline-block shadow-xs" /> Pit Stop
           </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="size-3 rounded-full bg-blue-400 border border-zinc-950 inline-block shadow-xs" /> Lapped
+          <span className="flex items-center gap-1 font-medium">
+            <span className="size-2.5 rounded-full bg-blue-400 border border-zinc-950 inline-block shadow-xs" /> Lapped
           </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="text-red-400 font-extrabold text-sm leading-none">✕</span> DNF
+          <span className="flex items-center gap-1 font-medium">
+            <X className="size-3 text-red-400 stroke-[3]" /> DNF
           </span>
+
+          {effectiveEvents.some((e) => e.type === 'safety_car') && (
+            <span className="flex items-center gap-1 font-medium text-amber-300">
+              <ShieldAlert className="size-3.5 text-amber-400" /> SC
+            </span>
+          )}
+          {effectiveEvents.some((e) => e.type === 'vsc') && (
+            <span className="flex items-center gap-1 font-medium text-orange-300">
+              <AlertTriangle className="size-3.5 text-orange-400" /> VSC
+            </span>
+          )}
+          {effectiveEvents.some((e) => e.type === 'red_flag') && (
+            <span className="flex items-center gap-1 font-medium text-red-300">
+              <Flag className="size-3.5 text-red-500 fill-red-500/20" /> Red Flag
+            </span>
+          )}
+          {fastestLapDriver?.fastestLap && (
+            <span className="flex items-center gap-1 font-medium text-purple-300">
+              <Trophy className="size-3.5 text-purple-400" /> Fastest Lap
+            </span>
+          )}
 
           {onToggleFullscreen && (
             <Button
@@ -313,6 +349,67 @@ export function PositionChart({
             );
           })}
 
+          {/* Race Control Shaded Event Zones (Safety Car, VSC, Red Flag) */}
+          {effectiveEvents.map((evt, idx) => {
+            const isSafetyCar = evt.type === 'safety_car';
+            const isVsc = evt.type === 'vsc';
+            const isRedFlag = evt.type === 'red_flag';
+
+            if ((!isSafetyCar && !isVsc && !isRedFlag) || !evt.lap) return null;
+
+            const lap = evt.lap;
+            const startX = getX(Math.max(1, lap));
+            const endLapNum = typeof evt.endLap === 'number' && evt.endLap >= lap ? evt.endLap : lap;
+            const endX = getX(Math.min(totalLaps, endLapNum));
+            const nextLapX = getX(Math.min(totalLaps, lap + 1));
+            const width = endLapNum > lap ? Math.max(18, endX - startX) : Math.max(16, nextLapX - startX);
+
+            const fillColor = isSafetyCar ? '#f59e0b' : isVsc ? '#f97316' : '#ef4444';
+            const label = isSafetyCar ? 'SC' : isVsc ? 'VSC' : 'RED';
+            const badgeWidth = isRedFlag ? 32 : 26;
+
+            return (
+              <g key={`event-zone-${idx}-${evt.type}-${evt.lap}`}>
+                <rect
+                  x={startX}
+                  y={PADDING_TOP}
+                  width={width}
+                  height={SVG_HEIGHT - PADDING_TOP - PADDING_BOTTOM}
+                  fill={fillColor}
+                  opacity={isRedFlag ? 0.22 : 0.14}
+                  stroke={fillColor}
+                  strokeWidth={isRedFlag ? 1.5 : 1}
+                  strokeDasharray={isRedFlag ? 'none' : '3 3'}
+                  strokeOpacity={0.6}
+                />
+                {/* Zone Label Badge on Top */}
+                <g transform={`translate(${startX + width / 2}, ${PADDING_TOP - 16})`}>
+                  <rect
+                    x={-badgeWidth / 2}
+                    y={-7}
+                    width={badgeWidth}
+                    height={13}
+                    rx={3}
+                    fill={isRedFlag ? '#450a0a' : '#09090b'}
+                    stroke={fillColor}
+                    strokeWidth="1.2"
+                  />
+                  <text
+                    x={0}
+                    y={2}
+                    textAnchor="middle"
+                    fontSize="7"
+                    fontFamily="monospace"
+                    fontWeight="black"
+                    fill={isRedFlag ? '#fca5a5' : fillColor}
+                  >
+                    {label}
+                  </text>
+                </g>
+              </g>
+            );
+          })}
+
           {/* Vertical Lap Grid Lines */}
           {lapTicks.map((lap) => {
             const x = getX(lap);
@@ -335,7 +432,7 @@ export function PositionChart({
                   textAnchor="middle"
                   fontSize="11"
                   fontFamily="monospace"
-                  fill={lap === currentLap ? '#f43f5e' : '#d4d4d8'}
+                  fill={lap === currentLap ? '#38bdf8' : '#d4d4d8'}
                   fontWeight={lap === currentLap ? 'bold' : 'normal'}
                   className="cursor-pointer hover:fill-primary transition-colors"
                   onClick={() => onLapChange(lap)}
@@ -346,38 +443,79 @@ export function PositionChart({
             );
           })}
 
-          {/* Active Current Lap Vertical Indicator Band */}
+          {/* Official Fastest Lap Marker */}
+          {fastestLapDriver?.fastestLap && (
+            <g key="fastest-lap-zone">
+              <line
+                x1={getX(fastestLapDriver.fastestLap.lap)}
+                y1={PADDING_TOP}
+                x2={getX(fastestLapDriver.fastestLap.lap)}
+                y2={SVG_HEIGHT - PADDING_BOTTOM}
+                stroke="#c084fc"
+                strokeWidth="1.5"
+                strokeDasharray="3 3"
+                opacity={0.65}
+              />
+              <g transform={`translate(${getX(fastestLapDriver.fastestLap.lap)}, ${PADDING_TOP - 16})`}>
+                <rect
+                  x={-13}
+                  y={-7}
+                  width={26}
+                  height={13}
+                  rx={3}
+                  fill="#2e1065"
+                  stroke="#a855f7"
+                  strokeWidth="1"
+                />
+                <text
+                  x={0}
+                  y={2}
+                  textAnchor="middle"
+                  fontSize="7"
+                  fontFamily="monospace"
+                  fontWeight="black"
+                  fill="#e9d5ff"
+                >
+                  FL
+                </text>
+              </g>
+            </g>
+          )}
+
+          {/* Active Current Lap Playhead Indicator (Cyan / Laser line, distinct from Red Flag) */}
           <g>
             <line
               x1={currentLapX}
-              y1={PADDING_TOP - 10}
+              y1={PADDING_TOP - 8}
               x2={currentLapX}
               y2={SVG_HEIGHT - PADDING_BOTTOM + 6}
-              stroke="var(--primary, #e10600)"
-              strokeWidth="2.5"
+              stroke="#38bdf8"
+              strokeWidth="2"
               strokeDasharray="4 2"
-              opacity={0.95}
+              opacity={0.9}
             />
-            {/* Lap Tag at Top */}
+            {/* Lap Playhead Tag at Top */}
             <rect
-              x={currentLapX - 24}
-              y={PADDING_TOP - 28}
-              width={48}
-              height={20}
-              rx={5}
-              fill="var(--primary, #e10600)"
+              x={currentLapX - 22}
+              y={PADDING_TOP - 26}
+              width={44}
+              height={18}
+              rx={4}
+              fill="#082f49"
+              stroke="#38bdf8"
+              strokeWidth="1.5"
               className="shadow-sm"
             />
             <text
               x={currentLapX}
-              y={PADDING_TOP - 14}
+              y={PADDING_TOP - 13}
               textAnchor="middle"
-              fontSize="10"
+              fontSize="9.5"
               fontFamily="monospace"
-              fontWeight="bold"
-              fill="#ffffff"
+              fontWeight="black"
+              fill="#7dd3fc"
             >
-              L {currentLap}
+              LAP {currentLap}
             </text>
           </g>
 
