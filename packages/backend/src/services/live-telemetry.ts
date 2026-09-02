@@ -20,8 +20,10 @@ function parseIsoDate(value?: string): number | null {
  * Normalizes OpenF1 car_data record to CarTelemetrySample.
  */
 function mapCarDataSample(raw: OpenF1CarData, seasonYear?: number): CarTelemetrySample {
-  const isAeroOpen = raw.drs >= 10 || raw.drs === 1;
-  const is2026OrLater = (seasonYear ?? new Date().getFullYear()) >= 2026;
+  // In OpenF1 / FastF1: 0/1 are off/closed, 8 is detected/eligible, 10/12/14 are on/open.
+  const isAeroOpen = raw.drs === 10 || raw.drs === 12 || raw.drs === 14;
+  const sampleYear = seasonYear ?? (raw.date ? new Date(raw.date).getUTCFullYear() : new Date().getFullYear());
+  const is2026OrLater = sampleYear >= 2026;
 
   return {
     date: raw.date,
@@ -35,7 +37,11 @@ function mapCarDataSample(raw: OpenF1CarData, seasonYear?: number): CarTelemetry
     aeroMode: is2026OrLater
       ? (isAeroOpen ? 'STRAIGHT_LINE_X' : 'CORNERING_Z')
       : (isAeroOpen ? 'DRS_OPEN' : 'DRS_CLOSED'),
-    overtakeMode: is2026OrLater && isAeroOpen && raw.throttle > 95,
+    overtakeMode: typeof raw.overtake === 'boolean'
+      ? raw.overtake
+      : typeof raw.overtake === 'number'
+      ? raw.overtake > 0
+      : undefined,
   };
 }
 
@@ -60,7 +66,8 @@ export async function getRecentDriverTelemetry(
   sessionKey: number,
   driverNumber: number,
   windowSeconds = 15,
-  explicitDateFrom?: string
+  explicitDateFrom?: string,
+  seasonYear?: number
 ): Promise<CarTelemetrySample[]> {
   const boundedWindow = Math.min(Math.max(1, windowSeconds), MAX_TELEMETRY_WINDOW_SEC);
   const fromMs = parseIsoDate(explicitDateFrom);
@@ -81,8 +88,11 @@ export async function getRecentDriverTelemetry(
   }
 
   const rawData = await openF1Fetch<OpenF1CarData>('/car_data', params);
+  const resolvedYear = seasonYear ?? (fromMs !== null ? new Date(fromMs).getUTCFullYear() : undefined);
 
-  return rawData.map(mapCarDataSample).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return rawData
+    .map((raw) => mapCarDataSample(raw, resolvedYear))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 /**
@@ -93,7 +103,8 @@ export async function getRecentDriverTelemetry(
 export async function getDriverLapTelemetry(
   sessionKey: number,
   driverNumber: number,
-  lapNumber: number
+  lapNumber: number,
+  seasonYear?: number
 ): Promise<CarTelemetrySample[]> {
   const cacheKey = `f1:openf1:lap_telemetry:${sessionKey}:${driverNumber}:${lapNumber}`;
 
@@ -124,7 +135,10 @@ export async function getDriverLapTelemetry(
     'date<=': dateEnd,
   });
 
-  const mapped = rawData.map(mapCarDataSample).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const resolvedYear = seasonYear ?? (dateStart ? new Date(dateStart).getUTCFullYear() : undefined);
+  const mapped = rawData
+    .map((raw) => mapCarDataSample(raw, resolvedYear))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   if (mapped.length > 0) {
     // Cache for 24h (immutable historical lap telemetry)
@@ -143,19 +157,20 @@ export async function getTelemetryComparison(
   driver2: number,
   lapNumber?: number,
   windowSeconds = 15,
-  explicitDateFrom?: string
+  explicitDateFrom?: string,
+  seasonYear?: number
 ): Promise<{ driver1: CarTelemetrySample[]; driver2: CarTelemetrySample[] }> {
   if (lapNumber && lapNumber > 0) {
     const [t1, t2] = await Promise.all([
-      getDriverLapTelemetry(sessionKey, driver1, lapNumber),
-      getDriverLapTelemetry(sessionKey, driver2, lapNumber),
+      getDriverLapTelemetry(sessionKey, driver1, lapNumber, seasonYear),
+      getDriverLapTelemetry(sessionKey, driver2, lapNumber, seasonYear),
     ]);
     return { driver1: t1, driver2: t2 };
   }
 
   const [t1, t2] = await Promise.all([
-    getRecentDriverTelemetry(sessionKey, driver1, windowSeconds, explicitDateFrom),
-    getRecentDriverTelemetry(sessionKey, driver2, windowSeconds, explicitDateFrom),
+    getRecentDriverTelemetry(sessionKey, driver1, windowSeconds, explicitDateFrom, seasonYear),
+    getRecentDriverTelemetry(sessionKey, driver2, windowSeconds, explicitDateFrom, seasonYear),
   ]);
 
   return { driver1: t1, driver2: t2 };

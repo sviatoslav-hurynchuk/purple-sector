@@ -146,6 +146,7 @@ export interface OpenF1CarData {
   drs: number;
   meeting_key: number;
   session_key: number;
+  overtake?: boolean | number;
 }
 
 export interface OpenF1Location {

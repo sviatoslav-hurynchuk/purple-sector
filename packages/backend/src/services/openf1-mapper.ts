@@ -285,12 +285,12 @@ export function mapRaceControlEvents(
 
   // Merge contiguous or overlapping Safety Car and VSC periods
   const merged: RaceEvent[] = [];
+  const lastByType = new Map<RaceEventType, RaceEvent>();
   for (const evt of mapped) {
     if (evt.type === 'safety_car' || evt.type === 'vsc') {
-      const prev = merged[merged.length - 1];
+      const prev = lastByType.get(evt.type);
       if (
         prev &&
-        prev.type === evt.type &&
         prev.endLap !== undefined &&
         evt.lap !== undefined &&
         evt.lap <= prev.endLap + 1
@@ -298,6 +298,7 @@ export function mapRaceControlEvents(
         prev.endLap = Math.max(prev.endLap, evt.endLap ?? evt.lap);
         continue;
       }
+      lastByType.set(evt.type, evt);
     }
     merged.push(evt);
   }

@@ -298,12 +298,15 @@ export async function resolveSessionKey(
         });
       }
 
-      // 3. Country match
+      // 3. Country match (only when unambiguous; many seasons have multiple rounds in Italy, USA, etc.)
       if (!matchedSession) {
-        matchedSession = typeMatchingSessions.find((s) => {
+        const countryCandidates = typeMatchingSessions.filter((s) => {
           const sCountry = (s.country_name ?? '').toLowerCase();
           return sCountry && jCountry.includes(sCountry);
         });
+        if (countryCandidates.length === 1) {
+          matchedSession = countryCandidates[0];
+        }
       }
     }
 
