@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { useLiveSession } from '@/hooks/use-live-session';
+import { useSharedLiveSession } from '@/components/live/live-session-provider';
 import { LiveSessionBanner } from '@/components/live/live-session-banner';
 import { WeatherWidget } from '@/components/live/weather-widget';
 import { RaceControlFeed } from '@/components/live/race-control-feed';
 
 export function DashboardLiveSection() {
-  const { state } = useLiveSession();
+  const { state } = useSharedLiveSession();
 
   if (!state || !state.isActive) {
     return null;

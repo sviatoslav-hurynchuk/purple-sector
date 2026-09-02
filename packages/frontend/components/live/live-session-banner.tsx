@@ -42,8 +42,9 @@ export function LiveSessionBanner({
   }
 
   const trackStatus = resolveTrackFlag(state);
-  const leader = state.drivers.find((d) => d.position === 1);
-  const p2 = state.drivers.find((d) => d.position === 2);
+  const drivers = state.drivers ?? [];
+  const leader = drivers.find((d) => d.position === 1);
+  const p2 = drivers.find((d) => d.position === 2);
 
   return (
     <div

@@ -31,11 +31,8 @@ export function TelemetryPanel({
   const isAeroActive =
     latestSample?.aeroMode === 'STRAIGHT_LINE_X' ||
     latestSample?.aeroMode === 'DRS_OPEN' ||
-    (latestSample?.drs ?? 0) >= 10 ||
-    latestSample?.drs === 1;
-  const isOvertakeActive =
-    latestSample?.overtakeMode ??
-    (is2026OrLater && isAeroActive && (latestSample?.throttle ?? 0) > 95);
+    [10, 12, 14].includes(latestSample?.drs ?? 0);
+  const isOvertakeActive = Boolean(latestSample?.overtakeMode);
 
   const maxSpeed = useMemo(() => {
     if (samples.length === 0) return 0;

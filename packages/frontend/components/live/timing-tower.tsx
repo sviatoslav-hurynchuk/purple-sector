@@ -32,7 +32,10 @@ export function TimingTower({
     try {
       const saved = localStorage.getItem('ps_timing_columns');
       if (saved) {
-        setColumns(JSON.parse(saved));
+        const parsed = JSON.parse(saved) as Partial<VisibleColumns>;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          setColumns({ ...DEFAULT_VISIBLE_COLUMNS, ...parsed });
+        }
       }
     } catch {
       // ignore

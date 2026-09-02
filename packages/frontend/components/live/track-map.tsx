@@ -79,9 +79,22 @@ export function TrackMap({
     // Invert Y for standard 2D cartesian coordinates to SVG coordinate system
     const scaleYFn = (y: number) => svgHeight - (pad + ((y - minY) / spanY) * (svgHeight - pad * 2));
 
-    // Build track outline path from raw location samples
+    // Build track outline path from a single reference driver's chronologically sorted samples
     let pathD = '';
-    const validSamples = rawSamples.filter((s) => s.x !== 0 || s.y !== 0);
+    const byDriver = new Map<number, CarLocationSample[]>();
+    for (const s of rawSamples) {
+      if (s.x === 0 && s.y === 0) continue;
+      const list = byDriver.get(s.driverNumber);
+      if (list) list.push(s);
+      else byDriver.set(s.driverNumber, [s]);
+    }
+
+    // Use the driver with the most samples as the reference trace
+    const validSamples = [...byDriver.values()]
+      .sort((a, b) => b.length - a.length)[0]
+      ?.slice()
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) ?? [];
+
     if (validSamples.length > 20) {
       pathD = validSamples
         .map((s, idx) => {

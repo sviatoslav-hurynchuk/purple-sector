@@ -70,10 +70,15 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
           `/api/live/telemetry/compare/${driverNumber}/${compareDriverNumber}?${queryParams.toString()}`
         );
 
-        if (isMountedRef.current && res?.data) {
-          setSamples(res.data.driver1 || []);
-          setCompareSamples(res.data.driver2 || []);
-          setError(null);
+        if (isMountedRef.current) {
+          if (res?.data) {
+            setSamples(res.data.driver1 || []);
+            setCompareSamples(res.data.driver2 || []);
+            setError(null);
+          } else {
+            setSamples([]);
+            setCompareSamples([]);
+          }
         }
       } else {
         // Single driver route
@@ -87,10 +92,15 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
           `/api/live/telemetry/${driverNumber}?${queryParams.toString()}`
         );
 
-        if (isMountedRef.current && res?.samples) {
-          setSamples(res.samples);
-          setCompareSamples([]);
-          setError(null);
+        if (isMountedRef.current) {
+          if (res?.samples) {
+            setSamples(res.samples);
+            setCompareSamples([]);
+            setError(null);
+          } else {
+            setSamples([]);
+            setCompareSamples([]);
+          }
         }
       }
     } catch (err) {
@@ -114,6 +124,8 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
     }
 
     setIsLoading(true);
+    setSamples([]);
+    setCompareSamples([]);
     fetchTelemetry();
 
     // Only poll continuously if not viewing a specific static completed lap

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useLiveSession } from '@/hooks/use-live-session';
+import { useSharedLiveSession } from '@/components/live/live-session-provider';
 import { useLiveTelemetry } from '@/hooks/use-live-telemetry';
 import { useTrackPositions } from '@/hooks/use-track-positions';
 import { LiveLayoutProvider, useLiveLayout } from '@/components/live/layout/live-layout-context';
@@ -17,8 +17,10 @@ import { LiveStatusIndicator } from '@/components/live/live-status-indicator';
 import { Radio, RefreshCw, Layers, Activity, MapPin } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
+import type { LiveDriverState } from '@/types/f1';
+
 function LiveTimingContent() {
-  const { state, isConnected, isStreaming, reconnect } = useLiveSession();
+  const { state, isConnected, isStreaming, reconnect } = useSharedLiveSession();
   const { layout } = useLiveLayout();
   const [selectedDriverNumber, setSelectedDriverNumber] = useState<number | null>(null);
 
@@ -29,7 +31,9 @@ function LiveTimingContent() {
     }
   }, [state?.drivers, selectedDriverNumber]);
 
-  const selectedDriver = state?.drivers.find((d) => d.driverNumber === selectedDriverNumber) || null;
+  const selectedDriver = state?.drivers
+    ? state.drivers.find((d: LiveDriverState) => d.driverNumber === selectedDriverNumber) ?? null
+    : null;
 
   // Live telemetry hook for selected driver
   const { samples: telemetrySamples, isLoading: isTelemetryLoading } = useLiveTelemetry({

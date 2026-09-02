@@ -15,7 +15,7 @@ interface UseLiveSessionOptions {
   fallbackPollInterval?: number;
 }
 
-interface UseLiveSessionReturn {
+export interface UseLiveSessionReturn {
   state: LiveSessionState | null;
   isConnected: boolean;
   isStreaming: boolean;

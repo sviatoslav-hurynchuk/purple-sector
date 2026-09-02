@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Calendar, Users, Trophy, Radio } from 'lucide-react';
-import { useLiveSession } from '@/hooks/use-live-session';
+import { useSharedLiveSession } from '@/components/live/live-session-provider';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -15,7 +15,7 @@ const NAV_ITEMS = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const { state } = useLiveSession();
+  const { state } = useSharedLiveSession();
   const isLiveActive = Boolean(state?.isActive);
 
   const isActive = (item: (typeof NAV_ITEMS)[number]) => {
