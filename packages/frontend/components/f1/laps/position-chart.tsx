@@ -100,6 +100,11 @@ export function PositionChart({
     dnfStatus?: string;
     isLapped: boolean;
     lappedStatus?: string;
+    pitStop?: {
+      stop: number;
+      duration: string;
+      time?: string;
+    };
     x: number;
     y: number;
   } | null>(null);
@@ -216,9 +221,9 @@ export function PositionChart({
 
   // Pit stop lookup map: "driverId:lap" -> PitStopEntry
   const pitMap = useMemo(() => {
-    const map = new Set<string>();
+    const map = new Map<string, PitStopEntry>();
     for (const p of pitStops) {
-      map.add(`${p.driverId}:${p.lap}`);
+      map.set(`${p.driverId}:${p.lap}`, p);
     }
     return map;
   }, [pitStops]);
@@ -341,6 +346,26 @@ export function PositionChart({
 
   const currentLapX = getX(currentLap);
   const hasSelectedDrivers = selectedDriverIds.size > 0;
+
+  // Auto-scroll container to keep the replay playhead in view while playing
+  useEffect(() => {
+    if (isPaused) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (container.scrollWidth <= container.clientWidth) return;
+
+    const scaleFactor = container.scrollWidth / SVG_WIDTH;
+    const targetPixelX = currentLapX * scaleFactor;
+    const visibleLeft = container.scrollLeft;
+    const visibleRight = container.scrollLeft + container.clientWidth;
+
+    // Smoothly keep playhead in the viewport
+    if (targetPixelX > visibleRight - 100 || targetPixelX < visibleLeft + 60) {
+      const newScrollLeft = Math.max(0, targetPixelX - container.clientWidth / 2);
+      container.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+    }
+  }, [currentLap, isPaused, currentLapX, SVG_WIDTH]);
 
   return (
     <div
@@ -857,10 +882,7 @@ export function PositionChart({
                       opacity={hasSelectedDrivers && !isSelected ? 0.35 : 1}
                       onMouseEnter={(e) => {
                         e.stopPropagation();
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const containerRect = containerRef.current?.getBoundingClientRect();
-                        const clientX = rect.left - (containerRect?.left ?? 0) + rect.width / 2;
-                        const clientY = rect.top - (containerRect?.top ?? 0);
+                        const pitEntry = pitMap.get(`${line.driverId}:${currPt.lap}`);
 
                         setHoveredPoint({
                           driverId: line.driverId,
@@ -874,6 +896,13 @@ export function PositionChart({
                           dnfStatus: line.dnfStatus,
                           isLapped: line.isLapped,
                           lappedStatus: line.lappedStatus,
+                          pitStop: pitEntry
+                            ? {
+                                stop: parseInt(pitEntry.stop, 10) || 1,
+                                duration: pitEntry.duration,
+                                time: pitEntry.time,
+                              }
+                            : undefined,
                           x: currPt.x,
                           y: currPt.y,
                         });
@@ -915,6 +944,20 @@ export function PositionChart({
                     <>Time: <span className="text-zinc-300">{hoveredPoint.time}</span></>
                   )}
                 </div>
+                {hoveredPoint.pitStop && (
+                  <div className="flex items-center gap-1.5 text-amber-300 font-semibold bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 mt-1 text-[10px]">
+                    <span className="size-2 rounded-full bg-amber-400 inline-block shadow-xs" />
+                    <span>Pit Stop #{hoveredPoint.pitStop.stop}:</span>
+                    <span className="font-mono text-foreground font-bold">
+                      {hoveredPoint.pitStop.duration}s
+                    </span>
+                    {hoveredPoint.pitStop.time && (
+                      <span className="text-zinc-400 font-normal">
+                        ({hoveredPoint.pitStop.time})
+                      </span>
+                    )}
+                  </div>
+                )}
                 {hoveredPoint.isDnf && (
                   <div className="text-red-400 font-bold">
                     DNF · {hoveredPoint.dnfStatus}
