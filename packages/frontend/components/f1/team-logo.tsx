@@ -111,6 +111,7 @@ const ALIASES: Record<string, string> = {
   tororosso: 'toro_rosso',
   forceindia: 'force_india',
   lotus_f1: 'lotus',
+  renault_f1: 'renault',
   hispania: 'hrt',
   footwork: 'arrows',
   brawn_gp: 'brawn',

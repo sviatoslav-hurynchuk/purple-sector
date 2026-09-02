@@ -74,6 +74,7 @@ export function PositionChart({
   onToggleFullscreen,
 }: PositionChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const innerWrapperRef = useRef<HTMLDivElement>(null);
   const [hoveredDriverId, setHoveredDriverId] = useState<string | null>(null);
   const fastestLapDriver = useMemo(() => drivers.find((d) => d.fastestLap?.rank === 1), [drivers]);
 
@@ -494,6 +495,7 @@ export function PositionChart({
         }}
       >
         <div
+          ref={innerWrapperRef}
           style={{
             width: zoomScale > 1 ? `${Math.round(zoomScale * 100)}%` : '100%',
             minWidth: zoomScale > 1 ? `${Math.round(640 * zoomScale)}px` : '640px',
@@ -883,6 +885,10 @@ export function PositionChart({
                       onMouseEnter={(e) => {
                         e.stopPropagation();
                         const pitEntry = pitMap.get(`${line.driverId}:${currPt.lap}`);
+                        const targetRect = e.currentTarget.getBoundingClientRect();
+                        const innerRect = innerWrapperRef.current?.getBoundingClientRect();
+                        const clientX = targetRect.left - (innerRect?.left ?? 0) + targetRect.width / 2;
+                        const clientY = targetRect.top - (innerRect?.top ?? 0);
 
                         setHoveredPoint({
                           driverId: line.driverId,
@@ -903,8 +909,8 @@ export function PositionChart({
                                 time: pitEntry.time,
                               }
                             : undefined,
-                          x: currPt.x,
-                          y: currPt.y,
+                          x: clientX,
+                          y: clientY,
                         });
                       }}
                       onMouseLeave={() => setHoveredPoint(null)}
@@ -921,8 +927,8 @@ export function PositionChart({
             <div
               className="absolute z-20 pointer-events-none rounded-lg border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-xl text-xs font-mono backdrop-blur-sm -translate-x-1/2 -translate-y-full -mt-2.5 pointer-events-none"
               style={{
-                left: `${(hoveredPoint.x / SVG_WIDTH) * 100}%`,
-                top: `${(hoveredPoint.y / SVG_HEIGHT) * 100}%`,
+                left: `${hoveredPoint.x}px`,
+                top: `${hoveredPoint.y}px`,
               }}
             >
               <div className="flex items-center gap-2 font-bold text-foreground">

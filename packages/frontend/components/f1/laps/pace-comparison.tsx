@@ -439,7 +439,7 @@ export function PaceComparison({
 
             // Find matching OpenF1 driver stints if available
             const driverOpenF1Stints = openF1Stints?.filter(
-              (s) => String(s.driverNumber) === String(d.gridPosition) || s.driverId === d.driverId
+              (s) => s.driverId === d.driverId
             ) ?? [];
 
             const effectiveTotal = Math.max(1, d.totalLaps || totalLaps);
@@ -451,35 +451,49 @@ export function PaceComparison({
               compound?: string;
             }[] = [];
 
-            let currentStart = 1;
-            for (let i = 0; i < driverStops.length; i++) {
-              const stopLap = Math.min(parseInt(driverStops[i].lap, 10) || effectiveTotal, effectiveTotal);
-              const lapCount = Math.max(1, stopLap - currentStart + 1);
-              const stintNum = i + 1;
-              const matchedOpenF1 = driverOpenF1Stints.find((s) => s.stintNumber === stintNum);
+            const sortedOpenF1 = [...driverOpenF1Stints].sort((a, b) => a.stintNumber - b.stintNumber);
 
-              stints.push({
-                stintNum,
-                startLap: currentStart,
-                endLap: stopLap,
-                percent: (lapCount / effectiveTotal) * 100,
-                compound: matchedOpenF1?.compound,
-              });
-              currentStart = stopLap + 1;
-            }
+            if (sortedOpenF1.length > 0) {
+              // Prefer authoritative OpenF1 tyre stints
+              for (const s of sortedOpenF1) {
+                const sStart = Math.max(1, s.startLap || 1);
+                const sEnd = Math.min(effectiveTotal, s.endLap || effectiveTotal);
+                const lapCount = Math.max(1, sEnd - sStart + 1);
 
-            if (currentStart <= effectiveTotal) {
-              const lapCount = Math.max(1, effectiveTotal - currentStart + 1);
-              const stintNum = driverStops.length + 1;
-              const matchedOpenF1 = driverOpenF1Stints.find((s) => s.stintNumber === stintNum);
+                stints.push({
+                  stintNum: s.stintNumber,
+                  startLap: sStart,
+                  endLap: sEnd,
+                  percent: (lapCount / effectiveTotal) * 100,
+                  compound: s.compound,
+                });
+              }
+            } else {
+              // Fallback to reconstructing stints from Jolpica pit stops
+              let currentStart = 1;
+              for (let i = 0; i < driverStops.length; i++) {
+                const stopLap = Math.min(parseInt(driverStops[i].lap, 10) || effectiveTotal, effectiveTotal);
+                const lapCount = Math.max(1, stopLap - currentStart + 1);
+                const stintNum = i + 1;
 
-              stints.push({
-                stintNum,
-                startLap: currentStart,
-                endLap: effectiveTotal,
-                percent: (lapCount / effectiveTotal) * 100,
-                compound: matchedOpenF1?.compound,
-              });
+                stints.push({
+                  stintNum,
+                  startLap: currentStart,
+                  endLap: stopLap,
+                  percent: (lapCount / effectiveTotal) * 100,
+                });
+                currentStart = stopLap + 1;
+              }
+
+              if (currentStart <= effectiveTotal) {
+                const lapCount = Math.max(1, effectiveTotal - currentStart + 1);
+                stints.push({
+                  stintNum: driverStops.length + 1,
+                  startLap: currentStart,
+                  endLap: effectiveTotal,
+                  percent: (lapCount / effectiveTotal) * 100,
+                });
+              }
             }
 
             return (
