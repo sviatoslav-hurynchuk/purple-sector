@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Race, RaceResult, RaceLapsResponse, PitStopEntry, RaceResultEntry } from '@/types/f1';
+import type { Race, RaceResult, RaceLapsResponse, PitStopEntry, RaceResultEntry, RaceSessionData } from '@/types/f1';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,12 +17,14 @@ interface LapChartPageContentProps {
   race: Race | RaceResult;
   lapsData: RaceLapsResponse;
   pitStops: PitStopEntry[];
+  openF1Data?: RaceSessionData | null;
 }
 
 export function LapChartPageContent({
   race,
   lapsData,
   pitStops,
+  openF1Data,
 }: LapChartPageContentProps) {
   const totalLaps = Math.max(1, lapsData.totalLaps);
   const [currentLap, setCurrentLap] = useState(1);
@@ -162,23 +164,31 @@ export function LapChartPageContent({
       </div>
 
       {/* Fastest Lap & Race Control Overview Cards */}
-      <RaceEventsOverlay drivers={lapsData.drivers} />
+      <RaceEventsOverlay
+        drivers={lapsData.drivers}
+        raceEvents={openF1Data?.raceControlEvents}
+        currentLap={currentLap}
+        totalLaps={totalLaps}
+      />
 
       {/* Main Grid: Leaderboard (4 cols) | Position Chart & Controls (8 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Leaderboard */}
-        <div className="lg:col-span-4 w-full">
-          <RaceLeaderboard
-            currentLap={currentLap}
-            totalLaps={totalLaps}
-            lapsData={lapsData.laps}
-            drivers={lapsData.drivers}
-            pitStops={pitStops}
-            selectedDriverIds={selectedDriverIds}
-            isPaused={!isPlaying}
-            season={race.season}
-            onToggleDriver={handleToggleDriver}
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* Left Column: Leaderboard (Strictly bounded by right column height with internal scroll) */}
+        <div className="lg:col-span-4 w-full relative min-h-[520px] lg:min-h-0">
+          <div className="lg:absolute lg:inset-0 flex flex-col">
+            <RaceLeaderboard
+              currentLap={currentLap}
+              totalLaps={totalLaps}
+              lapsData={lapsData.laps}
+              drivers={lapsData.drivers}
+              pitStops={pitStops}
+              selectedDriverIds={selectedDriverIds}
+              isPaused={!isPlaying}
+              season={race.season}
+              className="h-full flex-1"
+              onToggleDriver={handleToggleDriver}
+            />
+          </div>
         </div>
 
         {/* Right Column: Chart + Playback Controls */}
@@ -190,6 +200,7 @@ export function LapChartPageContent({
             drivers={lapsData.drivers}
             pitStops={pitStops}
             selectedDriverIds={selectedDriverIds}
+            raceEvents={openF1Data?.raceControlEvents}
             isPaused={!isPlaying}
             isFullscreen={false}
             onLapChange={handleLapChange}
@@ -219,6 +230,7 @@ export function LapChartPageContent({
             lapsData={lapsData.laps}
             drivers={lapsData.drivers}
             pitStops={pitStops}
+            openF1Stints={openF1Data?.stints}
             onRemoveDriver={handleRemoveDriver}
             onClearAll={handleClearDrivers}
           />
@@ -282,6 +294,7 @@ export function LapChartPageContent({
                 drivers={lapsData.drivers}
                 pitStops={pitStops}
                 selectedDriverIds={selectedDriverIds}
+                raceEvents={openF1Data?.raceControlEvents}
                 isPaused={!isPlaying}
                 isFullscreen={true}
                 onLapChange={handleLapChange}

@@ -18,6 +18,7 @@ interface RaceLeaderboardProps {
   isPaused: boolean;
   season?: string | number;
   isFullscreen?: boolean;
+  className?: string;
   onToggleDriver: (driverId: string) => void;
 }
 
@@ -58,6 +59,7 @@ export function RaceLeaderboard({
   isPaused,
   season = '2026',
   isFullscreen = false,
+  className,
   onToggleDriver,
 }: RaceLeaderboardProps) {
   // DOM element and animation tracking for smooth F1 broadcast FLIP reordering
@@ -291,8 +293,9 @@ export function RaceLeaderboard({
   return (
     <div
       className={cn(
-        'rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden flex flex-col shadow-md',
-        isFullscreen ? 'h-full' : 'h-[640px] lg:h-[660px]'
+        'rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden flex flex-col shadow-md h-full min-h-0',
+        isFullscreen ? 'h-full' : 'h-full min-h-0 max-h-full',
+        className
       )}
     >
       {/* Leaderboard Header */}
@@ -321,7 +324,7 @@ export function RaceLeaderboard({
       </div>
 
       {/* Driver list */}
-      <div className="flex-1 overflow-y-auto divide-y divide-zinc-900/60 p-2 space-y-1 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-zinc-900/60 p-2 space-y-1 custom-scrollbar">
         {leaderboardRows.map((row) => {
           const isSelected = selectedDriverIds.has(row.driverId);
           const posDelta = row.gridPosition > 0 ? row.gridPosition - row.position : 0;

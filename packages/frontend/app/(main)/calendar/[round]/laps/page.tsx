@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getRaceDetail, getRaceLaps, getRacePitStops, getRaceSchedule } from '@/lib/api';
+import { getRaceDetail, getRaceLaps, getRacePitStops, getRaceSchedule, getOpenF1RaceData } from '@/lib/api';
 import { LapChartPageContent } from '@/components/f1/laps/lap-chart-page-content';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 import type { Race, RaceResult } from '@/types/f1';
@@ -41,10 +41,11 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
     notFound();
   }
 
-  const [raceDetail, lapsData, pitStops] = await Promise.all([
+  const [raceDetail, lapsData, pitStops, openF1Data] = await Promise.all([
     getRaceDetail(year, parsedRound),
     getRaceLaps(year, parsedRound),
     getRacePitStops(year, parsedRound).catch(() => null),
+    getOpenF1RaceData(year, parsedRound).catch(() => null),
   ]);
 
   let race: Race | RaceResult | null = raceDetail;
@@ -109,6 +110,7 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
         race={race}
         lapsData={lapsData}
         pitStops={pitStops ?? []}
+        openF1Data={openF1Data}
       />
     </Suspense>
   );

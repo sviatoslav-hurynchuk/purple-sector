@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import type { LapData, DriverLapSummary, PitStopEntry } from '@/types/f1';
+import type { LapData, DriverLapSummary, PitStopEntry, TireStint } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
 import { formatRaceOutcome } from '@/lib/f1-status';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ interface PaceComparisonProps {
   lapsData: LapData[];
   drivers: DriverLapSummary[];
   pitStops: PitStopEntry[];
+  openF1Stints?: TireStint[];
   onRemoveDriver: (driverId: string) => void;
   onClearAll: () => void;
 }
@@ -46,6 +47,7 @@ export function PaceComparison({
   lapsData,
   drivers,
   pitStops,
+  openF1Stints = [],
   onRemoveDriver,
   onClearAll,
 }: PaceComparisonProps) {
@@ -186,7 +188,7 @@ export function PaceComparison({
           </div>
           <div>
             <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-              <span>Pace Comparison & Teammate Duel</span>
+              <span>Pace Comparison</span>
               <Badge variant="outline" className="font-mono text-xs border-primary/40 text-primary">
                 {selectedDrivers.length} Drivers
               </Badge>
@@ -399,21 +401,32 @@ export function PaceComparison({
         </div>
       </div>
 
-      {/* Real Stint Evolution Derived from Pit Stops */}
+      {/* Real Stint Evolution Derived from Pit Stops & OpenF1 */}
       <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <div className="flex items-center gap-2">
             <Disc className="size-4 text-muted-foreground" />
             <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Stint Evolution & Pit Window
+              Stint Evolution & Tyre Strategy
             </span>
             <Badge variant="outline" className="text-[9px] font-mono border-zinc-700 text-muted-foreground">
-              {pitStops.length > 0 ? 'Telemetry' : 'Single Stint'}
+              {openF1Stints && openF1Stints.length > 0 ? 'Pirelli Telemetry' : pitStops.length > 0 ? 'Pit Strategy' : 'Single Stint'}
             </Badge>
           </div>
-          <span className="text-[11px] text-zinc-500 font-mono">
-            Pirelli compound degradation coming in OpenF1 update
-          </span>
+          <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-400">
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-red-500 inline-block" /> Soft
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-yellow-400 inline-block" /> Medium
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-white inline-block" /> Hard
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-emerald-400 inline-block" /> Inter
+            </span>
+          </div>
         </div>
 
         {/* Stint Bars for Selected Drivers */}
@@ -424,29 +437,48 @@ export function PaceComparison({
               .filter((p) => p.driverId === d.driverId)
               .sort((a, b) => (parseInt(a.stop, 10) || 0) - (parseInt(b.stop, 10) || 0));
 
+            // Find matching OpenF1 driver stints if available
+            const driverOpenF1Stints = openF1Stints?.filter(
+              (s) => String(s.driverNumber) === String(d.gridPosition) || s.driverId === d.driverId
+            ) ?? [];
+
             const effectiveTotal = Math.max(1, d.totalLaps || totalLaps);
-            const stints: { stintNum: number; startLap: number; endLap: number; percent: number }[] = [];
+            const stints: {
+              stintNum: number;
+              startLap: number;
+              endLap: number;
+              percent: number;
+              compound?: string;
+            }[] = [];
 
             let currentStart = 1;
             for (let i = 0; i < driverStops.length; i++) {
               const stopLap = Math.min(parseInt(driverStops[i].lap, 10) || effectiveTotal, effectiveTotal);
               const lapCount = Math.max(1, stopLap - currentStart + 1);
+              const stintNum = i + 1;
+              const matchedOpenF1 = driverOpenF1Stints.find((s) => s.stintNumber === stintNum);
+
               stints.push({
-                stintNum: i + 1,
+                stintNum,
                 startLap: currentStart,
                 endLap: stopLap,
                 percent: (lapCount / effectiveTotal) * 100,
+                compound: matchedOpenF1?.compound,
               });
               currentStart = stopLap + 1;
             }
 
             if (currentStart <= effectiveTotal) {
               const lapCount = Math.max(1, effectiveTotal - currentStart + 1);
+              const stintNum = driverStops.length + 1;
+              const matchedOpenF1 = driverOpenF1Stints.find((s) => s.stintNumber === stintNum);
+
               stints.push({
-                stintNum: driverStops.length + 1,
+                stintNum,
                 startLap: currentStart,
                 endLap: effectiveTotal,
                 percent: (lapCount / effectiveTotal) * 100,
+                compound: matchedOpenF1?.compound,
               });
             }
 
@@ -459,20 +491,68 @@ export function PaceComparison({
 
                 {/* Stint Segments */}
                 <div className="flex-1 h-6 rounded-md bg-zinc-950 flex overflow-hidden border border-zinc-800 font-mono text-[10px]">
-                  {stints.map((stint, idx) => (
-                    <div
-                      key={`stint-${d.driverId}-${stint.stintNum}`}
-                      style={{ width: `${stint.percent}%` }}
-                      className={cn(
-                        'flex items-center justify-center font-bold truncate px-1 text-zinc-300',
-                        idx % 2 === 0 ? 'bg-zinc-800/60' : 'bg-zinc-700/40',
-                        idx < stints.length - 1 ? 'border-r border-zinc-700/80' : ''
-                      )}
-                      title={`Stint ${stint.stintNum}: Lap ${stint.startLap} - Lap ${stint.endLap} (${stint.endLap - stint.startLap + 1} laps)`}
-                    >
-                      Stint {stint.stintNum} (L{stint.startLap}–{stint.endLap})
-                    </div>
-                  ))}
+                  {stints.map((stint, idx) => {
+                    const compound = stint.compound?.toUpperCase();
+                    const isSoft = compound === 'SOFT';
+                    const isMedium = compound === 'MEDIUM';
+                    const isHard = compound === 'HARD';
+                    const isInter = compound === 'INTERMEDIATE';
+                    const isWet = compound === 'WET';
+
+                    const bgClass = isSoft
+                      ? 'bg-red-600/30 text-red-200 border-red-500/30'
+                      : isMedium
+                      ? 'bg-yellow-500/30 text-yellow-200 border-yellow-500/30'
+                      : isHard
+                      ? 'bg-zinc-200/20 text-zinc-100 border-zinc-300/30'
+                      : isInter
+                      ? 'bg-emerald-500/30 text-emerald-200 border-emerald-500/30'
+                      : isWet
+                      ? 'bg-blue-600/30 text-blue-200 border-blue-500/30'
+                      : idx % 2 === 0
+                      ? 'bg-zinc-800/60 text-zinc-300'
+                      : 'bg-zinc-700/40 text-zinc-300';
+
+                    return (
+                      <div
+                        key={`stint-${d.driverId}-${stint.stintNum}`}
+                        style={{ width: `${stint.percent}%` }}
+                        className={cn(
+                          'flex items-center justify-center font-bold truncate px-1 border-r border-zinc-800/80 last:border-r-0 transition-colors',
+                          bgClass
+                        )}
+                        title={`Stint ${stint.stintNum}${compound ? ` · ${compound}` : ''}: Lap ${stint.startLap} - Lap ${stint.endLap} (${stint.endLap - stint.startLap + 1} laps)`}
+                      >
+                        {compound ? (
+                          <span className="flex items-center gap-1 truncate">
+                            <span
+                              className={cn(
+                                'size-1.5 rounded-full inline-block shrink-0',
+                                isSoft
+                                  ? 'bg-red-500'
+                                  : isMedium
+                                  ? 'bg-yellow-400'
+                                  : isHard
+                                  ? 'bg-white'
+                                  : isInter
+                                  ? 'bg-emerald-400'
+                                  : isWet
+                                  ? 'bg-blue-400'
+                                  : 'bg-zinc-400'
+                              )}
+                            />
+                            <span>
+                              {compound.slice(0, 1)} (L{stint.startLap}–{stint.endLap})
+                            </span>
+                          </span>
+                        ) : (
+                          <span>
+                            Stint {stint.stintNum} (L{stint.startLap}–{stint.endLap})
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
