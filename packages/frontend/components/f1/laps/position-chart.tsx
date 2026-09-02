@@ -104,7 +104,21 @@ export function PositionChart({
   const chartWidth = SVG_WIDTH - PADDING_LEFT - PADDING_RIGHT;
   const chartHeight = SVG_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 
-  const maxPosition = 20;
+  // Dynamically derive the maximum grid/track position from drivers and lap data (e.g. 20, 22, 24, 26)
+  const maxPosition = useMemo(() => {
+    let max = Math.max(20, drivers.length);
+    for (const d of drivers) {
+      if (d.gridPosition && d.gridPosition > max) max = d.gridPosition;
+      if (d.finishPosition && d.finishPosition > max) max = d.finishPosition;
+    }
+    for (const lap of lapsData) {
+      for (const t of lap.Timings) {
+        const p = parseInt(t.position, 10);
+        if (p > max && p <= 34) max = p;
+      }
+    }
+    return max;
+  }, [drivers, lapsData]);
 
   // Coordinate conversion helpers
   const getX = useMemo(() => {
@@ -119,7 +133,7 @@ export function PositionChart({
       const clamped = Math.min(Math.max(1, position), maxPosition);
       return PADDING_TOP + ((clamped - 1) / (maxPosition - 1)) * chartHeight;
     };
-  }, [chartHeight]);
+  }, [chartHeight, maxPosition]);
 
   // Pit stop lookup map: "driverId:lap" -> PitStopEntry
   const pitMap = useMemo(() => {
@@ -137,7 +151,7 @@ export function PositionChart({
     // Pre-organize timings by driverId, starting with Lap 0 (Grid)
     const driverPointsMap = new Map<string, Point[]>();
     for (const d of drivers) {
-      const gridPos = d.gridPosition > 0 ? d.gridPosition : (d.finishPosition || 20);
+      const gridPos = d.gridPosition > 0 ? d.gridPosition : (d.finishPosition || maxPosition);
       driverPointsMap.set(d.driverId, [
         {
           lap: 0,
@@ -154,7 +168,7 @@ export function PositionChart({
       for (const t of lap.Timings) {
         const pos = parseInt(t.position, 10);
         const list = driverPointsMap.get(t.driverId);
-        if (list && pos > 0 && pos <= 22) {
+        if (list && pos > 0 && pos <= maxPosition) {
           list.push({
             lap: lapNum,
             position: pos,
@@ -226,13 +240,25 @@ export function PositionChart({
     return ticks;
   }, [totalLaps]);
 
-  // Y-axis position ticks (P1..P20 in fullscreen, key ticks in normal view)
+  // Y-axis position ticks dynamically generated based on maxPosition
   const positionTicks = useMemo(() => {
     if (isFullscreen) {
-      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+      const ticks: number[] = [];
+      for (let p = 1; p <= maxPosition; p++) {
+        ticks.push(p);
+      }
+      return ticks;
     }
-    return [1, 2, 3, 5, 8, 10, 12, 15, 18, 20];
-  }, [isFullscreen]);
+    const ticks: number[] = [1, 2, 3];
+    const step = maxPosition > 22 ? 3 : 2;
+    for (let p = 5; p < maxPosition; p += step) {
+      ticks.push(p);
+    }
+    if (ticks[ticks.length - 1] !== maxPosition) {
+      ticks.push(maxPosition);
+    }
+    return ticks;
+  }, [isFullscreen, maxPosition]);
 
   const currentLapX = getX(currentLap);
   const hasSelectedDrivers = selectedDriverIds.size > 0;
@@ -314,15 +340,15 @@ export function PositionChart({
         className={cn(
           'w-full overflow-x-auto overflow-y-hidden custom-scrollbar relative select-none',
           isFullscreen
-            ? 'flex-1 min-h-0 flex items-center justify-center p-1'
-            : 'flex items-center justify-center py-1'
+            ? 'flex-1 min-h-0 flex items-center p-1'
+            : 'block py-1'
         )}
       >
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
           preserveAspectRatio="xMidYMid meet"
           className={cn(
-            'w-full block transition-all duration-150',
+            'w-full block mx-auto transition-all duration-150',
             isFullscreen
               ? 'h-full max-h-full max-w-full min-w-[640px]'
               : 'h-auto max-h-[min(520px,calc(100vh-280px))] min-w-[640px]'
