@@ -92,6 +92,8 @@ const DARK_LOGO_TEAMS = new Set([
   'benetton',
   'virgin',
   'tyrrell',
+  'renault',
+  'renault_f1',
 ]);
 
 /** Common aliases for constructor IDs from Jolpica / Ergast API. */
