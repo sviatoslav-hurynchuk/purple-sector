@@ -1,10 +1,21 @@
 'use client';
 
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import type { LapData, DriverLapSummary, PitStopEntry, RaceEvent } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
 import { isDnfStatus, isLappedStatus } from '@/lib/f1-status';
-import { Maximize2, Minimize2, X, ShieldAlert, AlertTriangle, Flag, Trophy } from 'lucide-react';
+import {
+  Maximize2,
+  Minimize2,
+  X,
+  ShieldAlert,
+  AlertTriangle,
+  Flag,
+  Trophy,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -92,6 +103,74 @@ export function PositionChart({
     x: number;
     y: number;
   } | null>(null);
+
+  // Zoom scale state for touch pinch-to-zoom and precision inspection (1.0x to 3.0x)
+  const [zoomScale, setZoomScale] = useState(1);
+  const zoomScaleRef = useRef(1);
+  zoomScaleRef.current = zoomScale;
+
+  // Touch pinch-to-zoom & double-tap zoom for mobile devices
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let initialDist = 0;
+    let initialScale = 1;
+    let isPinching = false;
+    let lastTap = 0;
+
+    const getDistance = (touches: TouchList) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        isPinching = true;
+        initialDist = getDistance(e.touches);
+        initialScale = zoomScaleRef.current;
+        if (e.cancelable) e.preventDefault();
+      } else if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTap < 300) {
+          if (e.cancelable) e.preventDefault();
+          setZoomScale((prev) => (prev > 1.2 ? 1 : 1.8));
+        }
+        lastTap = now;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isPinching && e.touches.length === 2) {
+        if (e.cancelable) e.preventDefault();
+        const currentDist = getDistance(e.touches);
+        if (initialDist > 0) {
+          const factor = currentDist / initialDist;
+          const nextScale = Math.min(3, Math.max(1, initialScale * factor));
+          setZoomScale(Number(nextScale.toFixed(2)));
+        }
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        isPinching = false;
+      }
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, []);
 
   // SVG dimensions - dynamically expands height in fullscreen
   const SVG_WIDTH = Math.max(960, totalLaps * 18);
@@ -310,6 +389,48 @@ export function PositionChart({
             </span>
           )}
 
+          {/* Zoom controls */}
+          <div className="flex items-center gap-0.5 bg-zinc-900/80 border border-zinc-800 rounded-md p-0.5 shadow-xs">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setZoomScale((s) => Math.max(1, Number((s - 0.25).toFixed(2))))}
+              disabled={zoomScale <= 1}
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              title="Zoom Out"
+            >
+              <ZoomOut className="size-3" />
+            </Button>
+            <span className="text-[10px] font-mono font-bold px-1 text-zinc-300 min-w-[34px] text-center select-none">
+              {Math.round(zoomScale * 100)}%
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setZoomScale((s) => Math.min(3, Number((s + 0.25).toFixed(2))))}
+              disabled={zoomScale >= 3}
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              title="Zoom In (Pinch on Mobile)"
+            >
+              <ZoomIn className="size-3" />
+            </Button>
+            {zoomScale > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setZoomScale(1)}
+                className="h-6 px-1.5 text-[10px] font-mono text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1"
+                title="Reset Zoom"
+              >
+                <RotateCcw className="size-3" />
+                <span>1x</span>
+              </Button>
+            )}
+          </div>
+
           {onToggleFullscreen && (
             <Button
               variant="outline"
@@ -334,29 +455,53 @@ export function PositionChart({
         </div>
       </div>
 
-      {/* SVG Scroll Container - horizontal scroll on narrow viewports, clean vertical bounds */}
+      {/* SVG Scroll Container - horizontal and vertical scroll with touch pinch-to-zoom */}
       <div
         ref={containerRef}
         className={cn(
-          'w-full overflow-x-auto overflow-y-hidden custom-scrollbar relative select-none',
+          'w-full overflow-auto custom-scrollbar relative select-none',
           isFullscreen
-            ? 'flex-1 min-h-0 flex items-center p-1'
-            : 'block py-1'
+            ? 'flex-1 min-h-0'
+            : 'max-h-[min(540px,calc(100vh-260px))]'
         )}
+        style={{
+          touchAction: zoomScale > 1 ? 'pan-x pan-y' : 'pan-x',
+        }}
       >
-        <svg
-          viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-          preserveAspectRatio="xMidYMid meet"
-          className={cn(
-            'w-full block mx-auto transition-all duration-150',
-            isFullscreen
-              ? 'h-full max-h-full max-w-full min-w-[640px]'
-              : 'h-auto max-h-[min(520px,calc(100vh-280px))] min-w-[640px]'
-          )}
+        <div
           style={{
-            maxHeight: isFullscreen ? '100%' : 'min(520px, calc(100vh - 280px))',
+            width: zoomScale > 1 ? `${Math.round(zoomScale * 100)}%` : '100%',
+            minWidth: zoomScale > 1 ? `${Math.round(640 * zoomScale)}px` : '640px',
+            height:
+              zoomScale > 1
+                ? `${Math.round((isFullscreen ? 620 : 540) * zoomScale)}px`
+                : undefined,
           }}
+          className={cn(
+            'relative transition-[width,height] duration-150 mx-auto',
+            isFullscreen && zoomScale <= 1 ? 'h-full flex items-center' : 'block'
+          )}
         >
+          <svg
+            viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
+            preserveAspectRatio="xMidYMid meet"
+            className={cn(
+              'w-full block mx-auto',
+              isFullscreen && zoomScale <= 1
+                ? 'h-full max-h-full max-w-full'
+                : zoomScale > 1
+                ? 'h-full'
+                : 'h-auto max-h-[min(520px,calc(100vh-280px))]'
+            )}
+            style={{
+              maxHeight:
+                isFullscreen && zoomScale <= 1
+                  ? '100%'
+                  : zoomScale > 1
+                  ? undefined
+                  : 'min(520px, calc(100vh - 280px))',
+            }}
+          >
           {/* Background Grid Lines (Horizontal Positions) */}
           {positionTicks.map((pos) => {
             const y = getY(pos);
@@ -729,8 +874,8 @@ export function PositionChart({
                           dnfStatus: line.dnfStatus,
                           isLapped: line.isLapped,
                           lappedStatus: line.lappedStatus,
-                          x: clientX,
-                          y: clientY,
+                          x: currPt.x,
+                          y: currPt.y,
                         });
                       }}
                       onMouseLeave={() => setHoveredPoint(null)}
@@ -741,48 +886,61 @@ export function PositionChart({
             );
           })}
         </svg>
+
+          {/* Floating Hover Tooltip positioned accurately in zoom coordinate space */}
+          {hoveredPoint && (
+            <div
+              className="absolute z-20 pointer-events-none rounded-lg border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-xl text-xs font-mono backdrop-blur-sm -translate-x-1/2 -translate-y-full -mt-2.5 pointer-events-none"
+              style={{
+                left: `${(hoveredPoint.x / SVG_WIDTH) * 100}%`,
+                top: `${(hoveredPoint.y / SVG_HEIGHT) * 100}%`,
+              }}
+            >
+              <div className="flex items-center gap-2 font-bold text-foreground">
+                <span
+                  className="size-2 rounded-full inline-block"
+                  style={{ backgroundColor: hoveredPoint.color }}
+                />
+                <span>{hoveredPoint.name} ({hoveredPoint.code})</span>
+              </div>
+              <div className="text-muted-foreground mt-1 space-y-0.5 text-[11px]">
+                <div>
+                  {hoveredPoint.lap === 0 ? 'Starting Grid' : `Lap ${hoveredPoint.lap}`} ·{' '}
+                  <span className="font-bold text-foreground">P{hoveredPoint.position}</span>
+                </div>
+                <div>
+                  {hoveredPoint.lap === 0 ? (
+                    <span className="text-zinc-400">Grid Slot {hoveredPoint.position}</span>
+                  ) : (
+                    <>Time: <span className="text-zinc-300">{hoveredPoint.time}</span></>
+                  )}
+                </div>
+                {hoveredPoint.isDnf && (
+                  <div className="text-red-400 font-bold">
+                    DNF · {hoveredPoint.dnfStatus}
+                  </div>
+                )}
+                {hoveredPoint.isLapped && (
+                  <div className="text-blue-400 font-medium">
+                    {hoveredPoint.lappedStatus}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Floating Hover Tooltip */}
-      {hoveredPoint && (
-        <div
-          className="absolute z-20 pointer-events-none rounded-lg border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-xl text-xs font-mono backdrop-blur-sm"
-          style={{
-            left: `${Math.max(10, Math.min(hoveredPoint.x - 70, (containerRef.current?.clientWidth ?? 800) - 160))}px`,
-            top: `${Math.max(10, hoveredPoint.y - 75)}px`,
-          }}
+      {/* Floating Reset Zoom Badge for Touch Devices */}
+      {zoomScale > 1 && (
+        <button
+          type="button"
+          onClick={() => setZoomScale(1)}
+          className="absolute bottom-3 right-3 z-30 flex items-center gap-1.5 bg-zinc-900/95 hover:bg-zinc-800 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-full shadow-2xl text-xs font-mono backdrop-blur-md transition-transform active:scale-95 animate-in fade-in zoom-in-95 duration-150"
         >
-          <div className="flex items-center gap-2 font-bold text-foreground">
-            <span
-              className="size-2 rounded-full inline-block"
-              style={{ backgroundColor: hoveredPoint.color }}
-            />
-            <span>{hoveredPoint.name} ({hoveredPoint.code})</span>
-          </div>
-          <div className="text-muted-foreground mt-1 space-y-0.5 text-[11px]">
-            <div>
-              {hoveredPoint.lap === 0 ? 'Starting Grid' : `Lap ${hoveredPoint.lap}`} ·{' '}
-              <span className="font-bold text-foreground">P{hoveredPoint.position}</span>
-            </div>
-            <div>
-              {hoveredPoint.lap === 0 ? (
-                <span className="text-zinc-400">Grid Slot {hoveredPoint.position}</span>
-              ) : (
-                <>Time: <span className="text-zinc-300">{hoveredPoint.time}</span></>
-              )}
-            </div>
-            {hoveredPoint.isDnf && (
-              <div className="text-red-400 font-bold">
-                DNF · {hoveredPoint.dnfStatus}
-              </div>
-            )}
-            {hoveredPoint.isLapped && (
-              <div className="text-blue-400 font-medium">
-                {hoveredPoint.lappedStatus}
-              </div>
-            )}
-          </div>
-        </div>
+          <RotateCcw className="size-3.5" />
+          <span>Reset {Math.round(zoomScale * 100)}%</span>
+        </button>
       )}
     </div>
   );
