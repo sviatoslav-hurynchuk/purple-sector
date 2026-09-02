@@ -68,7 +68,7 @@ export function RaceEventsOverlay({
 
   // Is fastest lap already set at this replay lap?
   const isFastestLapSetYet = Boolean(
-    fastestLapDriver?.fastestLap && (!currentLap || currentLap >= fastestLapDriver.fastestLap.lap)
+    fastestLapDriver?.fastestLap && currentLap !== 0 && (!currentLap || currentLap >= fastestLapDriver.fastestLap.lap)
   );
 
   return (
@@ -200,10 +200,12 @@ export function RaceEventsOverlay({
                     ? 'border-amber-500/40 text-amber-300 bg-amber-500/20 animate-pulse'
                     : activeVSC
                     ? 'border-orange-500/40 text-orange-300 bg-orange-500/20 animate-pulse'
+                    : currentLap === 0
+                    ? 'border-zinc-700 text-zinc-300 bg-zinc-800/60'
                     : 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
                 )}
               >
-                {currentLap ? `Replay L${currentLap}/${totalLaps}` : 'FIA Session Feed'}
+                {currentLap === 0 ? 'Starting Grid' : currentLap ? `Replay L${currentLap}/${totalLaps}` : 'FIA Session Feed'}
               </Badge>
             </div>
 
@@ -224,6 +226,11 @@ export function RaceEventsOverlay({
                   <AlertTriangle className="size-5 text-orange-400 shrink-0" />
                   <span>VSC · LAP {activeVSC.lap}</span>
                 </span>
+              ) : currentLap === 0 ? (
+                <span className="text-zinc-300 flex items-center gap-2">
+                  <CheckCircle2 className="size-5 text-zinc-400 shrink-0" />
+                  <span>STARTING GRID · PRE-RACE</span>
+                </span>
               ) : (
                 <span className="text-emerald-400 flex items-center gap-2">
                   <CheckCircle2 className="size-5 text-emerald-400 shrink-0" />
@@ -234,7 +241,11 @@ export function RaceEventsOverlay({
 
             {/* Subtitle / summary breakdown */}
             <div className="flex items-center gap-2.5 mt-2 text-xs text-muted-foreground flex-wrap font-mono">
-              {hasActiveIncident ? (
+              {currentLap === 0 ? (
+                <span className="text-zinc-400 font-semibold">
+                  Grid formation complete · Ready for lights out
+                </span>
+              ) : hasActiveIncident ? (
                 <span className="text-zinc-300 font-semibold truncate max-w-[280px]">
                   {activeRedFlag?.message || activeSC?.message || activeVSC?.message}
                 </span>

@@ -95,11 +95,11 @@ export function PositionChart({
 
   // SVG dimensions - dynamically expands height in fullscreen
   const SVG_WIDTH = Math.max(960, totalLaps * 18);
-  const SVG_HEIGHT = isFullscreen ? 640 : 540;
-  const PADDING_TOP = 44;
-  const PADDING_BOTTOM = 44;
-  const PADDING_LEFT = 44;
-  const PADDING_RIGHT = 75;
+  const SVG_HEIGHT = isFullscreen ? 620 : 540;
+  const PADDING_TOP = 56;
+  const PADDING_BOTTOM = 54;
+  const PADDING_LEFT = 48;
+  const PADDING_RIGHT = 80;
 
   const chartWidth = SVG_WIDTH - PADDING_LEFT - PADDING_RIGHT;
   const chartHeight = SVG_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
@@ -109,8 +109,8 @@ export function PositionChart({
   // Coordinate conversion helpers
   const getX = useMemo(() => {
     return (lap: number) => {
-      if (totalLaps <= 1) return PADDING_LEFT + chartWidth / 2;
-      return PADDING_LEFT + ((lap - 1) / (totalLaps - 1)) * chartWidth;
+      if (totalLaps <= 0) return PADDING_LEFT + chartWidth / 2;
+      return PADDING_LEFT + (lap / totalLaps) * chartWidth;
     };
   }, [totalLaps, chartWidth]);
 
@@ -134,10 +134,19 @@ export function PositionChart({
   const driverLines = useMemo<DriverLine[]>(() => {
     const lines: DriverLine[] = [];
 
-    // Pre-organize timings by driverId
+    // Pre-organize timings by driverId, starting with Lap 0 (Grid)
     const driverPointsMap = new Map<string, Point[]>();
     for (const d of drivers) {
-      driverPointsMap.set(d.driverId, []);
+      const gridPos = d.gridPosition > 0 ? d.gridPosition : (d.finishPosition || 20);
+      driverPointsMap.set(d.driverId, [
+        {
+          lap: 0,
+          position: gridPos,
+          time: 'Grid',
+          x: getX(0),
+          y: getY(gridPos),
+        },
+      ]);
     }
 
     for (const lap of lapsData) {
@@ -204,14 +213,15 @@ export function PositionChart({
     return lines;
   }, [drivers, lapsData, pitMap, getX, getY, totalLaps]);
 
-  // X-axis lap ticks (every 5 or 10 laps)
+  // X-axis lap ticks (Lap 0 Grid, then regular intervals)
   const lapTicks = useMemo(() => {
-    const ticks: number[] = [];
+    const ticks: number[] = [0];
     const step = totalLaps > 50 ? 5 : totalLaps > 25 ? 2 : 1;
-    for (let l = 1; l <= totalLaps; l++) {
-      if (l === 1 || l === totalLaps || l % step === 0) {
-        ticks.push(l);
-      }
+    for (let l = step; l <= totalLaps; l += step) {
+      ticks.push(l);
+    }
+    if (ticks[ticks.length - 1] !== totalLaps) {
+      ticks.push(totalLaps);
     }
     return ticks;
   }, [totalLaps]);
@@ -235,7 +245,7 @@ export function PositionChart({
       )}
     >
       {/* Chart Title & Hint */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900 pb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900 pb-2 shrink-0">
         <div>
           <h3 className="text-xs sm:text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
             <span>Lap Chart</span>
@@ -298,21 +308,28 @@ export function PositionChart({
         </div>
       </div>
 
-      {/* SVG Scroll Container - horizontal only, no vertical scrollbar */}
+      {/* SVG Scroll Container - horizontal scroll on narrow viewports, clean vertical bounds */}
       <div
         ref={containerRef}
         className={cn(
           'w-full overflow-x-auto overflow-y-hidden custom-scrollbar relative select-none',
-          isFullscreen ? 'flex-1 flex flex-col justify-center min-h-0' : ''
+          isFullscreen
+            ? 'flex-1 min-h-0 flex items-center justify-center p-1'
+            : 'flex items-center justify-center py-1'
         )}
       >
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
+          preserveAspectRatio="xMidYMid meet"
           className={cn(
-            'w-full h-auto min-w-[760px] block',
-            isFullscreen ? 'max-h-[calc(100vh-230px)]' : 'max-h-[580px]'
+            'w-full block transition-all duration-150',
+            isFullscreen
+              ? 'h-full max-h-full max-w-full min-w-[640px]'
+              : 'h-auto max-h-[min(520px,calc(100vh-280px))] min-w-[640px]'
           )}
-          style={{ overflow: 'visible' }}
+          style={{
+            maxHeight: isFullscreen ? '100%' : 'min(520px, calc(100vh - 280px))',
+          }}
         >
           {/* Background Grid Lines (Horizontal Positions) */}
           {positionTicks.map((pos) => {
@@ -437,7 +454,7 @@ export function PositionChart({
                   className="cursor-pointer hover:fill-primary transition-colors"
                   onClick={() => onLapChange(lap)}
                 >
-                  {lap}
+                  {lap === 0 ? 'GRID' : lap}
                 </text>
               </g>
             );
@@ -496,9 +513,9 @@ export function PositionChart({
             />
             {/* Lap Playhead Tag at Top */}
             <rect
-              x={currentLapX - 22}
+              x={currentLap === 0 ? currentLapX - 18 : currentLapX - 22}
               y={PADDING_TOP - 26}
-              width={44}
+              width={currentLap === 0 ? 36 : 44}
               height={18}
               rx={4}
               fill="#082f49"
@@ -515,7 +532,7 @@ export function PositionChart({
               fontWeight="black"
               fill="#7dd3fc"
             >
-              LAP {currentLap}
+              {currentLap === 0 ? 'GRID' : `LAP ${currentLap}`}
             </text>
           </g>
 
@@ -717,8 +734,17 @@ export function PositionChart({
             <span>{hoveredPoint.name} ({hoveredPoint.code})</span>
           </div>
           <div className="text-muted-foreground mt-1 space-y-0.5 text-[11px]">
-            <div>Lap {hoveredPoint.lap} · <span className="font-bold text-foreground">P{hoveredPoint.position}</span></div>
-            <div>Time: <span className="text-zinc-300">{hoveredPoint.time}</span></div>
+            <div>
+              {hoveredPoint.lap === 0 ? 'Starting Grid' : `Lap ${hoveredPoint.lap}`} ·{' '}
+              <span className="font-bold text-foreground">P{hoveredPoint.position}</span>
+            </div>
+            <div>
+              {hoveredPoint.lap === 0 ? (
+                <span className="text-zinc-400">Grid Slot {hoveredPoint.position}</span>
+              ) : (
+                <>Time: <span className="text-zinc-300">{hoveredPoint.time}</span></>
+              )}
+            </div>
             {hoveredPoint.isDnf && (
               <div className="text-red-400 font-bold">
                 DNF · {hoveredPoint.dnfStatus}

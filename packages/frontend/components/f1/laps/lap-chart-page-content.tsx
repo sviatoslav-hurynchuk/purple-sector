@@ -27,7 +27,7 @@ export function LapChartPageContent({
   openF1Data,
 }: LapChartPageContentProps) {
   const totalLaps = Math.max(1, lapsData.totalLaps);
-  const [currentLap, setCurrentLap] = useState(1);
+  const [currentLap, setCurrentLap] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [selectedDriverIds, setSelectedDriverIds] = useState<Set<string>>(new Set());
@@ -81,13 +81,13 @@ export function LapChartPageContent({
 
   const handlePlayToggle = useCallback(() => {
     if (currentLap >= totalLaps && !isPlaying) {
-      setCurrentLap(1);
+      setCurrentLap(0);
     }
     setIsPlaying((prev) => !prev);
   }, [currentLap, totalLaps, isPlaying]);
 
   const handleLapChange = useCallback((lap: number) => {
-    setCurrentLap(Math.min(Math.max(1, lap), totalLaps));
+    setCurrentLap(Math.min(Math.max(0, lap), totalLaps));
   }, [totalLaps]);
 
   const handleToggleDriver = useCallback((driverId: string) => {
@@ -239,9 +239,9 @@ export function LapChartPageContent({
 
       {/* Fullscreen Replay Theater Mode */}
       {isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/98 p-4 sm:p-6 flex flex-col justify-between overflow-hidden backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-zinc-950/98 p-3 sm:p-4 lg:p-5 flex flex-col justify-between overflow-hidden backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200">
           {/* Fullscreen Top Bar */}
-          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 shrink-0">
+          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5 sm:pb-3 shrink-0">
             <div className="flex items-center gap-3">
               <h2 className="text-base sm:text-xl font-black uppercase tracking-tight text-foreground flex items-center gap-2.5">
                 <span>{race.raceName}</span>
@@ -251,7 +251,7 @@ export function LapChartPageContent({
                 />
               </h2>
               <Badge variant="outline" className="font-mono text-xs sm:text-sm border-zinc-700 bg-zinc-900/80 px-2.5 py-0.5">
-                Round {race.round} · Lap {currentLap}/{totalLaps}
+                {currentLap === 0 ? 'Round ' + race.round + ' · Starting Grid' : `Round ${race.round} · Lap ${currentLap}/${totalLaps}`}
               </Badge>
             </div>
 
@@ -268,7 +268,7 @@ export function LapChartPageContent({
           </div>
 
           {/* Fullscreen Main View: Driver Position Strips (Left) + Chart (Right) */}
-          <div className="flex-1 min-h-0 py-3 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch overflow-hidden">
+          <div className="flex-1 min-h-0 py-2 sm:py-2.5 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-stretch overflow-hidden">
             {/* Left: Real-time Driver Position Strips Leaderboard */}
             <div className="lg:col-span-4 xl:col-span-3 flex flex-col h-full overflow-hidden">
               <RaceLeaderboard
