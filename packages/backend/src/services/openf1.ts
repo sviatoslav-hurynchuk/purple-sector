@@ -361,12 +361,43 @@ const FALLBACK_NUMBER_TO_DRIVER_ID: Record<number, string> = {
   41: 'arvid_lindblad',
 };
 
+const DRIVER_SLUGS_BY_CODE: Record<string, string> = {
+  NOR: 'norris',
+  VER: 'max_verstappen',
+  HAM: 'hamilton',
+  RUS: 'russell',
+  LEC: 'leclerc',
+  SAI: 'sainz',
+  PIA: 'piastri',
+  ANT: 'antonelli',
+  ALO: 'alonso',
+  STR: 'stroll',
+  GAS: 'gasly',
+  OCO: 'ocon',
+  ALB: 'albon',
+  TSU: 'tsunoda',
+  LAW: 'lawson',
+  BOT: 'bottas',
+  ZHO: 'zhou',
+  HUL: 'hulkenberg',
+  MAG: 'magnussen',
+  BEA: 'bearman',
+  HAD: 'hadjar',
+  BOR: 'bortoleto',
+  COL: 'colapinto',
+  PER: 'perez',
+  RIC: 'ricciardo',
+  SAR: 'sargeant',
+  LIN: 'arvid_lindblad',
+  DEV: 'de_vries',
+};
+
 /**
  * Builds a Map of OpenF1 driver_number -> Jolpica driverId slug.
  * Caches as a plain JSON-serializable record (Map is not serializable).
  */
 export async function buildDriverMap(sessionKey: number): Promise<Map<number, string>> {
-  const cacheKey = `f1:openf1:driver_map:${sessionKey}`;
+  const cacheKey = `f1:openf1:driver_map:v3:${sessionKey}`;
 
   const record = await cachedFetch<Record<string, string>>(cacheKey, TTL.SESSIONS_PAST, async () => {
     const result: Record<string, string> = {};
@@ -376,11 +407,28 @@ export async function buildDriverMap(sessionKey: number): Promise<Map<number, st
 
     for (const d of openF1Drivers) {
       if (d.driver_number) {
+        const codeUpper = d.name_acronym ? d.name_acronym.toUpperCase() : undefined;
+        const slugByCode = codeUpper ? DRIVER_SLUGS_BY_CODE[codeUpper] : undefined;
+        const lastNameLower = d.last_name ? d.last_name.toLowerCase() : undefined;
         const fallbackSlug = FALLBACK_NUMBER_TO_DRIVER_ID[d.driver_number];
         const derivedSlug = d.last_name ? `${d.first_name || ''}_${d.last_name}`.toLowerCase().replace(/\s+/g, '_') : undefined;
-        // If driver last_name matches fallback slug, use canonical Jolpica slug (e.g. "hamilton" vs "lewis_hamilton")
-        const isMatchingFallback = fallbackSlug && d.last_name && fallbackSlug.includes(d.last_name.toLowerCase());
-        result[String(d.driver_number)] = isMatchingFallback ? fallbackSlug : (derivedSlug || fallbackSlug || `driver_${d.driver_number}`);
+
+        // Priority resolution:
+        // 1. Acronym (100% robust across car number changes, e.g. Norris #4 -> #1)
+        // 2. Exact match in DRIVER_SLUGS_BY_CODE by surname
+        // 3. Fallback number match if surname matches fallback slug
+        // 4. Canonical surname
+        // 5. Fallback number
+        const resolvedSlug =
+          slugByCode ||
+          (lastNameLower && DRIVER_SLUGS_BY_CODE[lastNameLower.toUpperCase()]) ||
+          (fallbackSlug && lastNameLower && fallbackSlug.includes(lastNameLower) ? fallbackSlug : undefined) ||
+          lastNameLower ||
+          fallbackSlug ||
+          derivedSlug ||
+          `driver_${d.driver_number}`;
+
+        result[String(d.driver_number)] = resolvedSlug;
       }
     }
 
@@ -489,7 +537,7 @@ export async function getRaceSessionData(
     return null;
   }
 
-  const cacheKey = `f1:openf1:session_data:v6:${s}:${r}`;
+  const cacheKey = `f1:openf1:session_data:v7:${s}:${r}`;
 
   return cachedFetch<RaceSessionData | null>(cacheKey, TTL.ENRICHED_RACE, async () => {
     // 1. Resolve OpenF1 session_key
