@@ -1,4 +1,4 @@
-import type { PitStopsResponse } from '@/types/f1';
+import type { PitStopsResponse, RaceSessionData } from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -30,5 +30,19 @@ export async function getPitStops(
 ): Promise<PitStopsResponse | null> {
     return clientFetchNullable<PitStopsResponse>(
         `/api/races/${season}/${round}/pitstops`
+    );
+}
+
+/**
+ * Fetches OpenF1 enriched race data (stints, weather, race control, team radio).
+ */
+export async function getOpenF1RaceData(
+    season: number | string,
+    round: number | string
+): Promise<RaceSessionData | null> {
+    const year = Number(season);
+    if (year < 2023) return null;
+    return clientFetchNullable<RaceSessionData>(
+        `/api/openf1/race/${season}/${round}`
     );
 }

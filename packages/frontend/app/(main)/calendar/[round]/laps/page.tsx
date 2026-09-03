@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getRaceDetail, getRaceLaps, getRacePitStops, getRaceSchedule } from '@/lib/api';
+import { getRaceDetail, getRaceLaps, getRacePitStops, getRaceSchedule, getOpenF1RaceData } from '@/lib/api';
 import { LapChartPageContent } from '@/components/f1/laps/lap-chart-page-content';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 import type { Race, RaceResult } from '@/types/f1';
@@ -41,10 +42,11 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
     notFound();
   }
 
-  const [raceDetail, lapsData, pitStops] = await Promise.all([
+  const [raceDetail, lapsData, pitStops, openF1Data] = await Promise.all([
     getRaceDetail(year, parsedRound),
     getRaceLaps(year, parsedRound),
     getRacePitStops(year, parsedRound).catch(() => null),
+    getOpenF1RaceData(year, parsedRound).catch(() => null),
   ]);
 
   let race: Race | RaceResult | null = raceDetail;
@@ -63,13 +65,13 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
     return (
       <div className="space-y-8">
         <div>
-          <a
+          <Link
             href={`/calendar/${race.round}?season=${race.season}`}
             className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors mb-3 group"
           >
             <span className="transition-transform group-hover:-translate-x-1">←</span>
             <span>Back to {race.raceName}</span>
-          </a>
+          </Link>
           <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-foreground">
             {race.raceName}
           </h1>
@@ -91,12 +93,12 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
             </p>
           </div>
           <div className="pt-2">
-            <a
+            <Link
               href={`/calendar/${race.round}?season=${race.season}`}
               className="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md"
             >
               Back to Race Details
-            </a>
+            </Link>
           </div>
         </div>
       </div>
@@ -109,6 +111,7 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
         race={race}
         lapsData={lapsData}
         pitStops={pitStops ?? []}
+        openF1Data={openF1Data}
       />
     </Suspense>
   );

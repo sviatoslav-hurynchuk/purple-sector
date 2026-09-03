@@ -242,10 +242,10 @@ export async function resolveSessionKey(
     return null;
   }
 
-  const cacheKey = `f1:openf1:session_map:${year}:${rNum}:${sessionType.toLowerCase()}`;
+  const cacheKey = `f1:openf1:session_map:v2:${year}:${rNum}:${sessionType.toLowerCase()}`;
 
   return cachedFetch<ResolvedSessionMeta | null>(cacheKey, TTL.SESSIONS_PAST, async () => {
-    // 1. Fetch Jolpica schedule to find target race name and circuit details
+    // 1. Fetch Jolpica schedule to find target race name, date and circuit details
     const schedule = await getRaceSchedule(year).catch(() => []);
     const targetJolpicaRace = schedule.find((r) => parseInt(r.round, 10) === rNum);
 
@@ -253,41 +253,66 @@ export async function resolveSessionKey(
     const sessions = await openF1Fetch<OpenF1Session>('/sessions', { year });
     if (!sessions || sessions.length === 0) return null;
 
-    // Filter sessions by type ('Race', 'Sprint', 'Qualifying')
+    // Filter sessions by strict name ('Race', 'Sprint', 'Qualifying')
     const typeMatchingSessions = sessions
-      .filter((s) => s.session_type?.toLowerCase() === sessionType.toLowerCase() || s.session_name?.toLowerCase() === sessionType.toLowerCase())
+      .filter((s) => {
+        const name = (s.session_name ?? '').toLowerCase();
+        const type = (s.session_type ?? '').toLowerCase();
+        const target = sessionType.toLowerCase();
+
+        if (target === 'race') {
+          return name === 'race';
+        }
+        if (target === 'sprint') {
+          return name === 'sprint';
+        }
+        if (target === 'qualifying') {
+          return name.includes('qualifying');
+        }
+        return name === target || type === target;
+      })
       .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
 
     if (typeMatchingSessions.length === 0) return null;
 
-    // Direct index match (round 1 = index 0)
-    let matchedSession = typeMatchingSessions[rNum - 1];
+    let matchedSession: OpenF1Session | undefined;
 
-    // Correlate with Jolpica circuit/country if available for extra confidence
+    // Correlate with Jolpica schedule (date / circuit / country)
     if (targetJolpicaRace) {
+      const jDate = targetJolpicaRace.date; // e.g. "2026-07-05"
       const jCircuit = targetJolpicaRace.Circuit.circuitName.toLowerCase();
       const jLoc = targetJolpicaRace.Circuit.Location.locality.toLowerCase();
       const jCountry = targetJolpicaRace.Circuit.Location.country.toLowerCase();
 
-      const candidates = typeMatchingSessions.filter((s) => {
-        const sCircuit = s.circuit_short_name?.toLowerCase() ?? '';
-        const sCountry = s.country_name?.toLowerCase() ?? '';
-        const sLoc = s.location?.toLowerCase() ?? '';
-
-        // Require circuit or locality match (more specific than country alone)
-        const circuitMatch = sCircuit && jCircuit.includes(sCircuit);
-        const locMatch = sLoc && jLoc.includes(sLoc);
-
-        // Country match alone is too broad for countries with multiple GPs
-        const countryOnlyMatch = sCountry && jCountry.includes(sCountry);
-
-        return circuitMatch || locMatch || (countryOnlyMatch && !circuitMatch && !locMatch);
-      });
-
-      // Only override the index match when the correlation is unambiguous
-      if (candidates.length === 1) {
-        matchedSession = candidates[0];
+      // 1. Exact date match (highest confidence)
+      if (jDate) {
+        matchedSession = typeMatchingSessions.find((s) => s.date_start?.startsWith(jDate));
       }
+
+      // 2. Circuit or locality match
+      if (!matchedSession) {
+        matchedSession = typeMatchingSessions.find((s) => {
+          const sCircuit = (s.circuit_short_name ?? '').toLowerCase();
+          const sLoc = (s.location ?? '').toLowerCase();
+          return (sCircuit && jCircuit.includes(sCircuit)) || (sLoc && jLoc.includes(sLoc));
+        });
+      }
+
+      // 3. Country match (only when unambiguous; many seasons have multiple rounds in Italy, USA, etc.)
+      if (!matchedSession) {
+        const countryCandidates = typeMatchingSessions.filter((s) => {
+          const sCountry = (s.country_name ?? '').toLowerCase();
+          return sCountry && jCountry.includes(sCountry);
+        });
+        if (countryCandidates.length === 1) {
+          matchedSession = countryCandidates[0];
+        }
+      }
+    }
+
+    // Fallback: round index match (round 1 = index 0)
+    if (!matchedSession) {
+      matchedSession = typeMatchingSessions[rNum - 1];
     }
 
     if (!matchedSession) return null;
@@ -464,7 +489,7 @@ export async function getRaceSessionData(
     return null;
   }
 
-  const cacheKey = `f1:openf1:session_data:${s}:${r}`;
+  const cacheKey = `f1:openf1:session_data:v6:${s}:${r}`;
 
   return cachedFetch<RaceSessionData | null>(cacheKey, TTL.ENRICHED_RACE, async () => {
     // 1. Resolve OpenF1 session_key
@@ -494,7 +519,7 @@ export async function getRaceSessionData(
 
     // 3. Map all data via pure transformation mappers
     const stints: TireStint[] = mapStints(rawStints, driverMap);
-    const raceControlEvents: RaceEvent[] = mapRaceControlEvents(rawRaceControl);
+    const raceControlEvents: RaceEvent[] = mapRaceControlEvents(rawRaceControl, rawLaps);
     const weather: WeatherSnapshot[] = mapWeather(rawWeather);
     const laps: LapSectorTiming[] = mapLapSectorTimings(rawLaps, driverMap);
     const pitStops: PitStopDetail[] = mapPitStops(rawPits, driverMap);

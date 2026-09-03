@@ -43,13 +43,13 @@ export function PlaybackControls({
         onPlayToggle();
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
-        onLapChange(Math.max(1, currentLap - 1));
+        onLapChange(Math.max(0, currentLap - 1));
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
         onLapChange(Math.min(totalLaps, currentLap + 1));
       } else if (e.code === 'Home') {
         e.preventDefault();
-        onLapChange(1);
+        onLapChange(0);
       } else if (e.code === 'End') {
         e.preventDefault();
         onLapChange(totalLaps);
@@ -60,18 +60,25 @@ export function PlaybackControls({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentLap, totalLaps, onPlayToggle, onLapChange, disabled]);
 
-  const progressPercent = totalLaps > 1 ? ((currentLap - 1) / (totalLaps - 1)) * 100 : 0;
+  const progressPercent = totalLaps > 0 ? (currentLap / totalLaps) * 100 : 0;
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:p-5 shadow-lg backdrop-blur-sm space-y-4">
       {/* Top row: Lap indicator & Timeline scrubber */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
-          <span className="font-semibold text-foreground">
-            LAP <span className="text-base font-bold text-primary tabular-nums">{currentLap}</span> / {totalLaps}
-          </span>
+          {currentLap === 0 ? (
+            <span className="font-semibold text-foreground flex items-center gap-1.5">
+              <span className="text-base font-bold text-amber-400 tabular-nums">STARTING GRID</span>
+              <span className="text-zinc-500 font-normal">/ {totalLaps} Laps</span>
+            </span>
+          ) : (
+            <span className="font-semibold text-foreground">
+              LAP <span className="text-base font-bold text-primary tabular-nums">{currentLap}</span> / {totalLaps}
+            </span>
+          )}
           <span className="text-zinc-400 font-medium">
-            {Math.round(progressPercent)}% of Grand Prix
+            {currentLap === 0 ? 'Pre-Race' : `${Math.round(progressPercent)}% of Grand Prix`}
           </span>
         </div>
 
@@ -79,7 +86,7 @@ export function PlaybackControls({
         <div className="relative flex items-center group/slider py-1">
           <input
             type="range"
-            min={1}
+            min={0}
             max={Math.max(1, totalLaps)}
             value={currentLap}
             disabled={disabled}
@@ -98,9 +105,9 @@ export function PlaybackControls({
           <Button
             variant="outline"
             size="icon"
-            onClick={() => onLapChange(1)}
-            disabled={currentLap === 1 || disabled}
-            title="Jump to Start (Home)"
+            onClick={() => onLapChange(0)}
+            disabled={currentLap === 0 || disabled}
+            title="Jump to Starting Grid (Home)"
             className="size-8 sm:size-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
           >
             <RotateCcw className="size-3.5 sm:size-4" />
@@ -110,8 +117,8 @@ export function PlaybackControls({
           <Button
             variant="outline"
             size="icon"
-            onClick={() => onLapChange(Math.max(1, currentLap - 1))}
-            disabled={currentLap === 1 || disabled}
+            onClick={() => onLapChange(Math.max(0, currentLap - 1))}
+            disabled={currentLap === 0 || disabled}
             title="Previous Lap (←)"
             className="size-8 sm:size-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
           >

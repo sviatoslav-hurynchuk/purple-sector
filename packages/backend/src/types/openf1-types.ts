@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Raw OpenF1 API (v1) Response Interfaces.
  * Mirrors the payloads returned by https://api.openf1.org/v1/
  */
@@ -83,6 +83,7 @@ export interface OpenF1Stint {
 export interface OpenF1RaceControl {
   date: string;
   driver_number: number | null;
+  lap_number?: number | null;
   category: string;
   flag: string | null;
   scope: string | null;
@@ -145,6 +146,7 @@ export interface OpenF1CarData {
   drs: number;
   meeting_key: number;
   session_key: number;
+  overtake?: boolean | number;
 }
 
 export interface OpenF1Location {

@@ -92,6 +92,8 @@ const DARK_LOGO_TEAMS = new Set([
   'benetton',
   'virgin',
   'tyrrell',
+  'renault',
+  'renault_f1',
 ]);
 
 /** Common aliases for constructor IDs from Jolpica / Ergast API. */
@@ -109,6 +111,7 @@ const ALIASES: Record<string, string> = {
   tororosso: 'toro_rosso',
   forceindia: 'force_india',
   lotus_f1: 'lotus',
+  renault_f1: 'renault',
   hispania: 'hrt',
   footwork: 'arrows',
   brawn_gp: 'brawn',

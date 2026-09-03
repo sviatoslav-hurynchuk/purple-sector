@@ -1,10 +1,21 @@
 'use client';
 
-import React, { useMemo, useState, useRef } from 'react';
-import type { LapData, DriverLapSummary, PitStopEntry } from '@/types/f1';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import type { LapData, DriverLapSummary, PitStopEntry, RaceEvent } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
 import { isDnfStatus, isLappedStatus } from '@/lib/f1-status';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import {
+  Maximize2,
+  Minimize2,
+  X,
+  ShieldAlert,
+  AlertTriangle,
+  Flag,
+  Trophy,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +28,7 @@ interface PositionChartProps {
   selectedDriverIds: Set<string>;
   isPaused: boolean;
   isFullscreen?: boolean;
+  raceEvents?: RaceEvent[];
   onLapChange: (lap: number) => void;
   onToggleDriver: (driverId: string) => void;
   onToggleFullscreen?: () => void;
@@ -56,12 +68,27 @@ export function PositionChart({
   selectedDriverIds,
   isPaused,
   isFullscreen = false,
+  raceEvents = [],
   onLapChange,
   onToggleDriver,
   onToggleFullscreen,
 }: PositionChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const innerWrapperRef = useRef<HTMLDivElement>(null);
   const [hoveredDriverId, setHoveredDriverId] = useState<string | null>(null);
+  const fastestLapDriver = useMemo(() => drivers.find((d) => d.fastestLap?.rank === 1), [drivers]);
+
+  // Normalize events to guarantee lap number resolution even on older cached payloads
+  const effectiveEvents = useMemo(() => {
+    return raceEvents.map((e) => {
+      let lap = e.lap;
+      if (!lap && e.message) {
+        const match = e.message.match(/(?:LAP|L)\s*(\d+)/i) ?? e.message.match(/ON\s+LAP\s*(\d+)/i);
+        if (match) lap = parseInt(match[1], 10);
+      }
+      return { ...e, lap };
+    });
+  }, [raceEvents]);
   const [hoveredPoint, setHoveredPoint] = useState<{
     driverId: string;
     code: string;
@@ -74,28 +101,115 @@ export function PositionChart({
     dnfStatus?: string;
     isLapped: boolean;
     lappedStatus?: string;
+    pitStop?: {
+      stop: number;
+      duration: string;
+      time?: string;
+    };
     x: number;
     y: number;
   } | null>(null);
 
+  // Zoom scale state for touch pinch-to-zoom and precision inspection (1.0x to 3.0x)
+  const [zoomScale, setZoomScale] = useState(1);
+  const zoomScaleRef = useRef(1);
+  zoomScaleRef.current = zoomScale;
+
+  // Touch pinch-to-zoom & double-tap zoom for mobile devices
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let initialDist = 0;
+    let initialScale = 1;
+    let isPinching = false;
+    let lastTap = 0;
+
+    const getDistance = (touches: TouchList) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        isPinching = true;
+        initialDist = getDistance(e.touches);
+        initialScale = zoomScaleRef.current;
+        if (e.cancelable) e.preventDefault();
+      } else if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTap < 300) {
+          if (e.cancelable) e.preventDefault();
+          setZoomScale((prev) => (prev > 1.2 ? 1 : 1.8));
+        }
+        lastTap = now;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isPinching && e.touches.length === 2) {
+        if (e.cancelable) e.preventDefault();
+        const currentDist = getDistance(e.touches);
+        if (initialDist > 0) {
+          const factor = currentDist / initialDist;
+          const nextScale = Math.min(3, Math.max(1, initialScale * factor));
+          setZoomScale(Number(nextScale.toFixed(2)));
+        }
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        isPinching = false;
+      }
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, []);
+
   // SVG dimensions - dynamically expands height in fullscreen
   const SVG_WIDTH = Math.max(960, totalLaps * 18);
-  const SVG_HEIGHT = isFullscreen ? 640 : 540;
-  const PADDING_TOP = 44;
-  const PADDING_BOTTOM = 44;
-  const PADDING_LEFT = 44;
-  const PADDING_RIGHT = 75;
+  const SVG_HEIGHT = isFullscreen ? 620 : 540;
+  const PADDING_TOP = 56;
+  const PADDING_BOTTOM = 54;
+  const PADDING_LEFT = 48;
+  const PADDING_RIGHT = 80;
 
   const chartWidth = SVG_WIDTH - PADDING_LEFT - PADDING_RIGHT;
   const chartHeight = SVG_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 
-  const maxPosition = 20;
+  // Dynamically derive the maximum grid/track position from drivers and lap data (e.g. 20, 22, 24, 26)
+  const maxPosition = useMemo(() => {
+    let max = Math.max(20, drivers.length);
+    for (const d of drivers) {
+      if (d.gridPosition && d.gridPosition > max) max = d.gridPosition;
+      if (d.finishPosition && d.finishPosition > max) max = d.finishPosition;
+    }
+    for (const lap of lapsData) {
+      for (const t of lap.Timings) {
+        const p = parseInt(t.position, 10);
+        if (p > max && p <= 34) max = p;
+      }
+    }
+    return max;
+  }, [drivers, lapsData]);
 
   // Coordinate conversion helpers
   const getX = useMemo(() => {
     return (lap: number) => {
-      if (totalLaps <= 1) return PADDING_LEFT + chartWidth / 2;
-      return PADDING_LEFT + ((lap - 1) / (totalLaps - 1)) * chartWidth;
+      if (totalLaps <= 0) return PADDING_LEFT + chartWidth / 2;
+      return PADDING_LEFT + (lap / totalLaps) * chartWidth;
     };
   }, [totalLaps, chartWidth]);
 
@@ -104,13 +218,13 @@ export function PositionChart({
       const clamped = Math.min(Math.max(1, position), maxPosition);
       return PADDING_TOP + ((clamped - 1) / (maxPosition - 1)) * chartHeight;
     };
-  }, [chartHeight]);
+  }, [chartHeight, maxPosition]);
 
   // Pit stop lookup map: "driverId:lap" -> PitStopEntry
   const pitMap = useMemo(() => {
-    const map = new Set<string>();
+    const map = new Map<string, PitStopEntry>();
     for (const p of pitStops) {
-      map.add(`${p.driverId}:${p.lap}`);
+      map.set(`${p.driverId}:${p.lap}`, p);
     }
     return map;
   }, [pitStops]);
@@ -119,10 +233,19 @@ export function PositionChart({
   const driverLines = useMemo<DriverLine[]>(() => {
     const lines: DriverLine[] = [];
 
-    // Pre-organize timings by driverId
+    // Pre-organize timings by driverId, starting with Lap 0 (Grid)
     const driverPointsMap = new Map<string, Point[]>();
     for (const d of drivers) {
-      driverPointsMap.set(d.driverId, []);
+      const gridPos = d.gridPosition > 0 ? d.gridPosition : (d.finishPosition || maxPosition);
+      driverPointsMap.set(d.driverId, [
+        {
+          lap: 0,
+          position: gridPos,
+          time: 'Grid',
+          x: getX(0),
+          y: getY(gridPos),
+        },
+      ]);
     }
 
     for (const lap of lapsData) {
@@ -130,7 +253,7 @@ export function PositionChart({
       for (const t of lap.Timings) {
         const pos = parseInt(t.position, 10);
         const list = driverPointsMap.get(t.driverId);
-        if (list && pos > 0 && pos <= 22) {
+        if (list && pos > 0 && pos <= maxPosition) {
           list.push({
             lap: lapNum,
             position: pos,
@@ -189,28 +312,61 @@ export function PositionChart({
     return lines;
   }, [drivers, lapsData, pitMap, getX, getY, totalLaps]);
 
-  // X-axis lap ticks (every 5 or 10 laps)
+  // X-axis lap ticks (Lap 0 Grid, then regular intervals)
   const lapTicks = useMemo(() => {
-    const ticks: number[] = [];
+    const ticks: number[] = [0];
     const step = totalLaps > 50 ? 5 : totalLaps > 25 ? 2 : 1;
-    for (let l = 1; l <= totalLaps; l++) {
-      if (l === 1 || l === totalLaps || l % step === 0) {
-        ticks.push(l);
-      }
+    for (let l = step; l <= totalLaps; l += step) {
+      ticks.push(l);
+    }
+    if (ticks[ticks.length - 1] !== totalLaps) {
+      ticks.push(totalLaps);
     }
     return ticks;
   }, [totalLaps]);
 
-  // Y-axis position ticks (P1..P20 in fullscreen, key ticks in normal view)
+  // Y-axis position ticks dynamically generated based on maxPosition
   const positionTicks = useMemo(() => {
     if (isFullscreen) {
-      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+      const ticks: number[] = [];
+      for (let p = 1; p <= maxPosition; p++) {
+        ticks.push(p);
+      }
+      return ticks;
     }
-    return [1, 2, 3, 5, 8, 10, 12, 15, 18, 20];
-  }, [isFullscreen]);
+    const ticks: number[] = [1, 2, 3];
+    const step = maxPosition > 22 ? 3 : 2;
+    for (let p = 5; p < maxPosition; p += step) {
+      ticks.push(p);
+    }
+    if (ticks[ticks.length - 1] !== maxPosition) {
+      ticks.push(maxPosition);
+    }
+    return ticks;
+  }, [isFullscreen, maxPosition]);
 
   const currentLapX = getX(currentLap);
   const hasSelectedDrivers = selectedDriverIds.size > 0;
+
+  // Auto-scroll container to keep the replay playhead in view while playing
+  useEffect(() => {
+    if (isPaused) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (container.scrollWidth <= container.clientWidth) return;
+
+    const scaleFactor = container.scrollWidth / SVG_WIDTH;
+    const targetPixelX = currentLapX * scaleFactor;
+    const visibleLeft = container.scrollLeft;
+    const visibleRight = container.scrollLeft + container.clientWidth;
+
+    // Smoothly keep playhead in the viewport
+    if (targetPixelX > visibleRight - 100 || targetPixelX < visibleLeft + 60) {
+      const newScrollLeft = Math.max(0, targetPixelX - container.clientWidth / 2);
+      container.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+    }
+  }, [currentLap, isPaused, currentLapX, SVG_WIDTH]);
 
   return (
     <div
@@ -220,23 +376,86 @@ export function PositionChart({
       )}
     >
       {/* Chart Title & Hint */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900 pb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900 pb-2 shrink-0">
         <div>
           <h3 className="text-xs sm:text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
             <span>Lap Chart</span>
           </h3>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3.5 text-xs sm:text-sm text-muted-foreground font-mono">
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="size-3 rounded-full bg-amber-400 border border-zinc-950 inline-block shadow-xs" /> Pit Stop
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-mono">
+          <span className="flex items-center gap-1 font-medium">
+            <span className="size-2.5 rounded-full bg-amber-400 border border-zinc-950 inline-block shadow-xs" /> Pit Stop
           </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="size-3 rounded-full bg-blue-400 border border-zinc-950 inline-block shadow-xs" /> Lapped
+          <span className="flex items-center gap-1 font-medium">
+            <span className="size-2.5 rounded-full bg-blue-400 border border-zinc-950 inline-block shadow-xs" /> Lapped
           </span>
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="text-red-400 font-extrabold text-sm leading-none">✕</span> DNF
+          <span className="flex items-center gap-1 font-medium">
+            <X className="size-3 text-red-400 stroke-[3]" /> DNF
           </span>
+
+          {effectiveEvents.some((e) => e.type === 'safety_car') && (
+            <span className="flex items-center gap-1 font-medium text-amber-300">
+              <ShieldAlert className="size-3.5 text-amber-400" /> SC
+            </span>
+          )}
+          {effectiveEvents.some((e) => e.type === 'vsc') && (
+            <span className="flex items-center gap-1 font-medium text-orange-300">
+              <AlertTriangle className="size-3.5 text-orange-400" /> VSC
+            </span>
+          )}
+          {effectiveEvents.some((e) => e.type === 'red_flag') && (
+            <span className="flex items-center gap-1 font-medium text-red-300">
+              <Flag className="size-3.5 text-red-500 fill-red-500/20" /> Red Flag
+            </span>
+          )}
+          {fastestLapDriver?.fastestLap && (
+            <span className="flex items-center gap-1 font-medium text-purple-300">
+              <Trophy className="size-3.5 text-purple-400" /> Fastest Lap
+            </span>
+          )}
+
+          {/* Zoom controls */}
+          <div className="flex items-center gap-0.5 bg-zinc-900/80 border border-zinc-800 rounded-md p-0.5 shadow-xs">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setZoomScale((s) => Math.max(1, Number((s - 0.25).toFixed(2))))}
+              disabled={zoomScale <= 1}
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              title="Zoom Out"
+            >
+              <ZoomOut className="size-3" />
+            </Button>
+            <span className="text-[10px] font-mono font-bold px-1 text-zinc-300 min-w-[34px] text-center select-none">
+              {Math.round(zoomScale * 100)}%
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setZoomScale((s) => Math.min(3, Number((s + 0.25).toFixed(2))))}
+              disabled={zoomScale >= 3}
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              title="Zoom In (Pinch on Mobile)"
+            >
+              <ZoomIn className="size-3" />
+            </Button>
+            {zoomScale > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setZoomScale(1)}
+                className="h-6 px-1.5 text-[10px] font-mono text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1"
+                title="Reset Zoom"
+              >
+                <RotateCcw className="size-3" />
+                <span>1x</span>
+              </Button>
+            )}
+          </div>
 
           {onToggleFullscreen && (
             <Button
@@ -262,22 +481,54 @@ export function PositionChart({
         </div>
       </div>
 
-      {/* SVG Scroll Container - horizontal only, no vertical scrollbar */}
+      {/* SVG Scroll Container - horizontal and vertical scroll with touch pinch-to-zoom */}
       <div
         ref={containerRef}
         className={cn(
-          'w-full overflow-x-auto overflow-y-hidden custom-scrollbar relative select-none',
-          isFullscreen ? 'flex-1 flex flex-col justify-center min-h-0' : ''
+          'w-full overflow-auto custom-scrollbar relative select-none',
+          isFullscreen
+            ? 'flex-1 min-h-0'
+            : 'max-h-[min(540px,calc(100vh-260px))]'
         )}
+        style={{
+          touchAction: zoomScale > 1 ? 'pan-x pan-y' : 'pan-x',
+        }}
       >
-        <svg
-          viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
+        <div
+          ref={innerWrapperRef}
+          style={{
+            width: zoomScale > 1 ? `${Math.round(zoomScale * 100)}%` : '100%',
+            minWidth: zoomScale > 1 ? `${Math.round(640 * zoomScale)}px` : '640px',
+            height:
+              zoomScale > 1
+                ? `${Math.round((isFullscreen ? 620 : 540) * zoomScale)}px`
+                : undefined,
+          }}
           className={cn(
-            'w-full h-auto min-w-[760px] block',
-            isFullscreen ? 'max-h-[calc(100vh-230px)]' : 'max-h-[580px]'
+            'relative transition-[width,height] duration-150 mx-auto',
+            isFullscreen && zoomScale <= 1 ? 'h-full flex items-center' : 'block'
           )}
-          style={{ overflow: 'visible' }}
         >
+          <svg
+            viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
+            preserveAspectRatio="xMidYMid meet"
+            className={cn(
+              'w-full block mx-auto',
+              isFullscreen && zoomScale <= 1
+                ? 'h-full max-h-full max-w-full'
+                : zoomScale > 1
+                ? 'h-full'
+                : 'h-auto max-h-[min(520px,calc(100vh-280px))]'
+            )}
+            style={{
+              maxHeight:
+                isFullscreen && zoomScale <= 1
+                  ? '100%'
+                  : zoomScale > 1
+                  ? undefined
+                  : 'min(520px, calc(100vh - 280px))',
+            }}
+          >
           {/* Background Grid Lines (Horizontal Positions) */}
           {positionTicks.map((pos) => {
             const y = getY(pos);
@@ -313,6 +564,67 @@ export function PositionChart({
             );
           })}
 
+          {/* Race Control Shaded Event Zones (Safety Car, VSC, Red Flag) */}
+          {effectiveEvents.map((evt, idx) => {
+            const isSafetyCar = evt.type === 'safety_car';
+            const isVsc = evt.type === 'vsc';
+            const isRedFlag = evt.type === 'red_flag';
+
+            if ((!isSafetyCar && !isVsc && !isRedFlag) || !evt.lap) return null;
+
+            const lap = evt.lap;
+            const startX = getX(Math.max(1, lap));
+            const endLapNum = typeof evt.endLap === 'number' && evt.endLap >= lap ? evt.endLap : lap;
+            const endX = getX(Math.min(totalLaps, endLapNum));
+            const nextLapX = getX(Math.min(totalLaps, lap + 1));
+            const width = endLapNum > lap ? Math.max(18, endX - startX) : Math.max(16, nextLapX - startX);
+
+            const fillColor = isSafetyCar ? '#f59e0b' : isVsc ? '#f97316' : '#ef4444';
+            const label = isSafetyCar ? 'SC' : isVsc ? 'VSC' : 'RED';
+            const badgeWidth = isRedFlag ? 32 : 26;
+
+            return (
+              <g key={`event-zone-${idx}-${evt.type}-${evt.lap}`}>
+                <rect
+                  x={startX}
+                  y={PADDING_TOP}
+                  width={width}
+                  height={SVG_HEIGHT - PADDING_TOP - PADDING_BOTTOM}
+                  fill={fillColor}
+                  opacity={isRedFlag ? 0.22 : 0.14}
+                  stroke={fillColor}
+                  strokeWidth={isRedFlag ? 1.5 : 1}
+                  strokeDasharray={isRedFlag ? 'none' : '3 3'}
+                  strokeOpacity={0.6}
+                />
+                {/* Zone Label Badge on Top */}
+                <g transform={`translate(${startX + width / 2}, ${PADDING_TOP - 16})`}>
+                  <rect
+                    x={-badgeWidth / 2}
+                    y={-7}
+                    width={badgeWidth}
+                    height={13}
+                    rx={3}
+                    fill={isRedFlag ? '#450a0a' : '#09090b'}
+                    stroke={fillColor}
+                    strokeWidth="1.2"
+                  />
+                  <text
+                    x={0}
+                    y={2}
+                    textAnchor="middle"
+                    fontSize="7"
+                    fontFamily="monospace"
+                    fontWeight="black"
+                    fill={isRedFlag ? '#fca5a5' : fillColor}
+                  >
+                    {label}
+                  </text>
+                </g>
+              </g>
+            );
+          })}
+
           {/* Vertical Lap Grid Lines */}
           {lapTicks.map((lap) => {
             const x = getX(lap);
@@ -335,49 +647,90 @@ export function PositionChart({
                   textAnchor="middle"
                   fontSize="11"
                   fontFamily="monospace"
-                  fill={lap === currentLap ? '#f43f5e' : '#d4d4d8'}
+                  fill={lap === currentLap ? '#38bdf8' : '#d4d4d8'}
                   fontWeight={lap === currentLap ? 'bold' : 'normal'}
                   className="cursor-pointer hover:fill-primary transition-colors"
                   onClick={() => onLapChange(lap)}
                 >
-                  {lap}
+                  {lap === 0 ? 'GRID' : lap}
                 </text>
               </g>
             );
           })}
 
-          {/* Active Current Lap Vertical Indicator Band */}
+          {/* Official Fastest Lap Marker */}
+          {fastestLapDriver?.fastestLap && (
+            <g key="fastest-lap-zone">
+              <line
+                x1={getX(fastestLapDriver.fastestLap.lap)}
+                y1={PADDING_TOP}
+                x2={getX(fastestLapDriver.fastestLap.lap)}
+                y2={SVG_HEIGHT - PADDING_BOTTOM}
+                stroke="#c084fc"
+                strokeWidth="1.5"
+                strokeDasharray="3 3"
+                opacity={0.65}
+              />
+              <g transform={`translate(${getX(fastestLapDriver.fastestLap.lap)}, ${PADDING_TOP - 16})`}>
+                <rect
+                  x={-13}
+                  y={-7}
+                  width={26}
+                  height={13}
+                  rx={3}
+                  fill="#2e1065"
+                  stroke="#a855f7"
+                  strokeWidth="1"
+                />
+                <text
+                  x={0}
+                  y={2}
+                  textAnchor="middle"
+                  fontSize="7"
+                  fontFamily="monospace"
+                  fontWeight="black"
+                  fill="#e9d5ff"
+                >
+                  FL
+                </text>
+              </g>
+            </g>
+          )}
+
+          {/* Active Current Lap Playhead Indicator (Cyan / Laser line, distinct from Red Flag) */}
           <g>
             <line
               x1={currentLapX}
-              y1={PADDING_TOP - 10}
+              y1={PADDING_TOP - 8}
               x2={currentLapX}
               y2={SVG_HEIGHT - PADDING_BOTTOM + 6}
-              stroke="var(--primary, #e10600)"
-              strokeWidth="2.5"
+              stroke="#38bdf8"
+              strokeWidth="2"
               strokeDasharray="4 2"
-              opacity={0.95}
+              opacity={0.9}
             />
-            {/* Lap Tag at Top */}
+            {/* Lap Playhead Tag at Top */}
             <rect
-              x={currentLapX - 24}
-              y={PADDING_TOP - 28}
-              width={48}
-              height={20}
-              rx={5}
-              fill="var(--primary, #e10600)"
+              x={currentLap === 0 ? currentLapX - 18 : currentLapX - 22}
+              y={PADDING_TOP - 26}
+              width={currentLap === 0 ? 36 : 44}
+              height={18}
+              rx={4}
+              fill="#082f49"
+              stroke="#38bdf8"
+              strokeWidth="1.5"
               className="shadow-sm"
             />
             <text
               x={currentLapX}
-              y={PADDING_TOP - 14}
+              y={PADDING_TOP - 13}
               textAnchor="middle"
-              fontSize="10"
+              fontSize="9.5"
               fontFamily="monospace"
-              fontWeight="bold"
-              fill="#ffffff"
+              fontWeight="black"
+              fill="#7dd3fc"
             >
-              L {currentLap}
+              {currentLap === 0 ? 'GRID' : `LAP ${currentLap}`}
             </text>
           </g>
 
@@ -531,10 +884,11 @@ export function PositionChart({
                       opacity={hasSelectedDrivers && !isSelected ? 0.35 : 1}
                       onMouseEnter={(e) => {
                         e.stopPropagation();
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const containerRect = containerRef.current?.getBoundingClientRect();
-                        const clientX = rect.left - (containerRect?.left ?? 0) + rect.width / 2;
-                        const clientY = rect.top - (containerRect?.top ?? 0);
+                        const pitEntry = pitMap.get(`${line.driverId}:${currPt.lap}`);
+                        const targetRect = e.currentTarget.getBoundingClientRect();
+                        const innerRect = innerWrapperRef.current?.getBoundingClientRect();
+                        const clientX = targetRect.left - (innerRect?.left ?? 0) + targetRect.width / 2;
+                        const clientY = targetRect.top - (innerRect?.top ?? 0);
 
                         setHoveredPoint({
                           driverId: line.driverId,
@@ -548,6 +902,13 @@ export function PositionChart({
                           dnfStatus: line.dnfStatus,
                           isLapped: line.isLapped,
                           lappedStatus: line.lappedStatus,
+                          pitStop: pitEntry
+                            ? {
+                                stop: parseInt(pitEntry.stop, 10) || 1,
+                                duration: pitEntry.duration,
+                                time: pitEntry.time,
+                              }
+                            : undefined,
                           x: clientX,
                           y: clientY,
                         });
@@ -560,39 +921,75 @@ export function PositionChart({
             );
           })}
         </svg>
+
+          {/* Floating Hover Tooltip positioned accurately in zoom coordinate space */}
+          {hoveredPoint && (
+            <div
+              className="absolute z-20 pointer-events-none rounded-lg border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-xl text-xs font-mono backdrop-blur-sm -translate-x-1/2 -translate-y-full -mt-2.5 pointer-events-none"
+              style={{
+                left: `${hoveredPoint.x}px`,
+                top: `${hoveredPoint.y}px`,
+              }}
+            >
+              <div className="flex items-center gap-2 font-bold text-foreground">
+                <span
+                  className="size-2 rounded-full inline-block"
+                  style={{ backgroundColor: hoveredPoint.color }}
+                />
+                <span>{hoveredPoint.name} ({hoveredPoint.code})</span>
+              </div>
+              <div className="text-muted-foreground mt-1 space-y-0.5 text-[11px]">
+                <div>
+                  {hoveredPoint.lap === 0 ? 'Starting Grid' : `Lap ${hoveredPoint.lap}`} ·{' '}
+                  <span className="font-bold text-foreground">P{hoveredPoint.position}</span>
+                </div>
+                <div>
+                  {hoveredPoint.lap === 0 ? (
+                    <span className="text-zinc-400">Grid Slot {hoveredPoint.position}</span>
+                  ) : (
+                    <>Time: <span className="text-zinc-300">{hoveredPoint.time}</span></>
+                  )}
+                </div>
+                {hoveredPoint.pitStop && (
+                  <div className="flex items-center gap-1.5 text-amber-300 font-semibold bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 mt-1 text-[10px]">
+                    <span className="size-2 rounded-full bg-amber-400 inline-block shadow-xs" />
+                    <span>Pit Stop #{hoveredPoint.pitStop.stop}:</span>
+                    <span className="font-mono text-foreground font-bold">
+                      {hoveredPoint.pitStop.duration}s
+                    </span>
+                    {hoveredPoint.pitStop.time && (
+                      <span className="text-zinc-400 font-normal">
+                        ({hoveredPoint.pitStop.time})
+                      </span>
+                    )}
+                  </div>
+                )}
+                {hoveredPoint.isDnf && (
+                  <div className="text-red-400 font-bold">
+                    DNF · {hoveredPoint.dnfStatus}
+                  </div>
+                )}
+                {hoveredPoint.isLapped && (
+                  <div className="text-blue-400 font-medium">
+                    {hoveredPoint.lappedStatus}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Floating Hover Tooltip */}
-      {hoveredPoint && (
-        <div
-          className="absolute z-20 pointer-events-none rounded-lg border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-xl text-xs font-mono backdrop-blur-sm"
-          style={{
-            left: `${Math.max(10, Math.min(hoveredPoint.x - 70, (containerRef.current?.clientWidth ?? 800) - 160))}px`,
-            top: `${Math.max(10, hoveredPoint.y - 75)}px`,
-          }}
+      {/* Floating Reset Zoom Badge for Touch Devices */}
+      {zoomScale > 1 && (
+        <button
+          type="button"
+          onClick={() => setZoomScale(1)}
+          className="absolute bottom-3 right-3 z-30 flex items-center gap-1.5 bg-zinc-900/95 hover:bg-zinc-800 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-full shadow-2xl text-xs font-mono backdrop-blur-md transition-transform active:scale-95 animate-in fade-in zoom-in-95 duration-150"
         >
-          <div className="flex items-center gap-2 font-bold text-foreground">
-            <span
-              className="size-2 rounded-full inline-block"
-              style={{ backgroundColor: hoveredPoint.color }}
-            />
-            <span>{hoveredPoint.name} ({hoveredPoint.code})</span>
-          </div>
-          <div className="text-muted-foreground mt-1 space-y-0.5 text-[11px]">
-            <div>Lap {hoveredPoint.lap} · <span className="font-bold text-foreground">P{hoveredPoint.position}</span></div>
-            <div>Time: <span className="text-zinc-300">{hoveredPoint.time}</span></div>
-            {hoveredPoint.isDnf && (
-              <div className="text-red-400 font-bold">
-                DNF · {hoveredPoint.dnfStatus}
-              </div>
-            )}
-            {hoveredPoint.isLapped && (
-              <div className="text-blue-400 font-medium">
-                {hoveredPoint.lappedStatus}
-              </div>
-            )}
-          </div>
-        </div>
+          <RotateCcw className="size-3.5" />
+          <span>Reset {Math.round(zoomScale * 100)}%</span>
+        </button>
       )}
     </div>
   );

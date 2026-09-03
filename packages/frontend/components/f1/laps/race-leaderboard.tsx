@@ -18,6 +18,7 @@ interface RaceLeaderboardProps {
   isPaused: boolean;
   season?: string | number;
   isFullscreen?: boolean;
+  className?: string;
   onToggleDriver: (driverId: string) => void;
 }
 
@@ -58,6 +59,7 @@ export function RaceLeaderboard({
   isPaused,
   season = '2026',
   isFullscreen = false,
+  className,
   onToggleDriver,
 }: RaceLeaderboardProps) {
   // DOM element and animation tracking for smooth F1 broadcast FLIP reordering
@@ -103,6 +105,38 @@ export function RaceLeaderboard({
 
   // Build sorted leaderboard rows with previous-lap overtake detection
   const leaderboardRows = useMemo<LeaderboardRow[]>(() => {
+    // Special handling for Lap 0: Starting Grid
+    if (currentLap === 0) {
+      const sortedGridDrivers = [...drivers].sort((a, b) => {
+        const posA = a.gridPosition > 0 ? a.gridPosition : 99;
+        const posB = b.gridPosition > 0 ? b.gridPosition : 99;
+        return posA - posB;
+      });
+
+      return sortedGridDrivers.map((driver, idx) => {
+        const pos = driver.gridPosition > 0 ? driver.gridPosition : idx + 1;
+        return {
+          driverId: driver.driverId,
+          driverName: `${driver.givenName} ${driver.familyName}`,
+          givenName: driver.givenName,
+          familyName: driver.familyName || driver.code,
+          code: driver.code,
+          constructorId: driver.constructorId,
+          constructorName: driver.constructorName,
+          position: pos,
+          gridPosition: driver.gridPosition,
+          lapTime: '—',
+          isPitStopThisLap: false,
+          isDnf: false,
+          isLapped: false,
+          totalLapsCompleted: 0,
+          prevLapPosition: pos,
+          lapDelta: 0,
+          overtakeType: 'none',
+        };
+      });
+    }
+
     const timingsMap = new Map(currentLapTimings.map((t) => [t.driverId, t]));
     const activeRows: LeaderboardRow[] = [];
     const dnfRows: LeaderboardRow[] = [];
@@ -291,8 +325,9 @@ export function RaceLeaderboard({
   return (
     <div
       className={cn(
-        'rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden flex flex-col shadow-md',
-        isFullscreen ? 'h-full' : 'h-[640px] lg:h-[660px]'
+        'rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden flex flex-col shadow-md h-full min-h-0',
+        isFullscreen ? 'h-full' : 'h-full min-h-0 max-h-full',
+        className
       )}
     >
       {/* Leaderboard Header */}
@@ -300,7 +335,7 @@ export function RaceLeaderboard({
         <h2 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-3">
           <span>Race Leaderboard</span>
           <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 border-zinc-700 bg-zinc-800/50">
-            Lap {currentLap}/{totalLaps}
+            {currentLap === 0 ? 'Starting Grid' : `Lap ${currentLap}/${totalLaps}`}
           </Badge>
           <p className="text-sm text-muted-foreground">
             {isPaused ? (
@@ -321,10 +356,10 @@ export function RaceLeaderboard({
       </div>
 
       {/* Driver list */}
-      <div className="flex-1 overflow-y-auto divide-y divide-zinc-900/60 p-2 space-y-1 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-zinc-900/60 p-2 space-y-1 custom-scrollbar">
         {leaderboardRows.map((row) => {
           const isSelected = selectedDriverIds.has(row.driverId);
-          const posDelta = row.gridPosition > 0 ? row.gridPosition - row.position : 0;
+          const posDelta = currentLap === 0 ? 0 : (row.gridPosition > 0 ? row.gridPosition - row.position : 0);
 
           return (
             <button
