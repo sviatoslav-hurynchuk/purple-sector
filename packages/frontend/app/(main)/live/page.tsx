@@ -24,12 +24,23 @@ function LiveTimingContent() {
   const { layout } = useLiveLayout();
   const [selectedDriverNumber, setSelectedDriverNumber] = useState<number | null>(null);
 
-  // Auto-select P1 driver on initial load
+  // Auto-select P1 driver on initial load or re-select when roster/session changes
   useEffect(() => {
-    if (state?.drivers && state.drivers.length > 0 && selectedDriverNumber === null) {
+    if (!state?.drivers || state.drivers.length === 0) {
+      if (selectedDriverNumber !== null) {
+        setSelectedDriverNumber(null);
+      }
+      return;
+    }
+
+    const driverExists = state.drivers.some(
+      (d: LiveDriverState) => d.driverNumber === selectedDriverNumber
+    );
+
+    if (!driverExists) {
       setSelectedDriverNumber(state.drivers[0].driverNumber);
     }
-  }, [state?.drivers, selectedDriverNumber]);
+  }, [state?.sessionKey, state?.drivers, selectedDriverNumber]);
 
   const selectedDriver = state?.drivers
     ? state.drivers.find((d: LiveDriverState) => d.driverNumber === selectedDriverNumber) ?? null

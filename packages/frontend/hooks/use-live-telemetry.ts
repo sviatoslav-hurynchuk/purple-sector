@@ -53,9 +53,11 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
   const [error, setError] = useState<string | null>(null);
 
   const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
 
-  const fetchTelemetry = useCallback(async () => {
+  const fetchTelemetry = useCallback(async (explicitRequestId?: number) => {
     if (!driverNumber || !sessionKey || !enabled) return;
+    const currentRequestId = explicitRequestId ?? ++requestIdRef.current;
 
     try {
       if (compareDriverNumber) {
@@ -70,7 +72,7 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
           `/api/live/telemetry/compare/${driverNumber}/${compareDriverNumber}?${queryParams.toString()}`
         );
 
-        if (isMountedRef.current) {
+        if (isMountedRef.current && requestIdRef.current === currentRequestId) {
           if (res?.data) {
             setSamples(res.data.driver1 || []);
             setCompareSamples(res.data.driver2 || []);
@@ -78,6 +80,7 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
           } else {
             setSamples([]);
             setCompareSamples([]);
+            setError(null);
           }
         }
       } else {
@@ -92,7 +95,7 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
           `/api/live/telemetry/${driverNumber}?${queryParams.toString()}`
         );
 
-        if (isMountedRef.current) {
+        if (isMountedRef.current && requestIdRef.current === currentRequestId) {
           if (res?.samples) {
             setSamples(res.samples);
             setCompareSamples([]);
@@ -100,15 +103,16 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
           } else {
             setSamples([]);
             setCompareSamples([]);
+            setError(null);
           }
         }
       }
     } catch (err) {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestIdRef.current === currentRequestId) {
         setError(err instanceof Error ? err.message : 'Failed to fetch telemetry');
       }
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestIdRef.current === currentRequestId) {
         setIsLoading(false);
       }
     }
@@ -116,28 +120,37 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
 
   useEffect(() => {
     isMountedRef.current = true;
+    const currentRequestId = ++requestIdRef.current;
 
     if (!driverNumber || !sessionKey || !enabled) {
       setSamples([]);
       setCompareSamples([]);
+      setError(null);
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     setSamples([]);
     setCompareSamples([]);
-    fetchTelemetry();
+    setError(null);
+    fetchTelemetry(currentRequestId);
 
     // Only poll continuously if not viewing a specific static completed lap
     if (!lapNumber) {
-      const interval = setInterval(fetchTelemetry, pollIntervalMs);
+      const interval = setInterval(() => {
+        fetchTelemetry(currentRequestId);
+      }, pollIntervalMs);
+
       return () => {
         clearInterval(interval);
+        requestIdRef.current++;
         isMountedRef.current = false;
       };
     }
 
     return () => {
+      requestIdRef.current++;
       isMountedRef.current = false;
     };
   }, [sessionKey, driverNumber, compareDriverNumber, lapNumber, enabled, pollIntervalMs, fetchTelemetry]);
