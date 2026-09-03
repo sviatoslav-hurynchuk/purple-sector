@@ -5,6 +5,7 @@ import { cache } from './cache';
 
 const MAX_TELEMETRY_WINDOW_SEC = 30;
 const MAX_LOCATION_WINDOW_SEC = 10;
+const LAP_TELEMETRY_CACHE_VERSION = 'v2';
 
 /**
  * Validates and parses an ISO date string. Returns epoch ms or null if invalid.
@@ -106,7 +107,7 @@ export async function getDriverLapTelemetry(
   lapNumber: number,
   seasonYear?: number
 ): Promise<CarTelemetrySample[]> {
-  const cacheKey = `f1:openf1:lap_telemetry:${sessionKey}:${driverNumber}:${lapNumber}`;
+  const cacheKey = `f1:openf1:lap_telemetry:${LAP_TELEMETRY_CACHE_VERSION}:${sessionKey}:${driverNumber}:${lapNumber}`;
 
   const cached = await cache.get<CarTelemetrySample[]>(cacheKey);
   if (cached) return cached;
