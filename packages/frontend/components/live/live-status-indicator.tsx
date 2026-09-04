@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 interface LiveStatusIndicatorProps {
   isActive?: boolean;
   isStreaming?: boolean;
+  status?: 'LIVE' | 'COMPLETED' | 'UPCOMING' | 'OFFLINE';
   label?: string;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -14,6 +15,7 @@ interface LiveStatusIndicatorProps {
 export function LiveStatusIndicator({
   isActive = false,
   isStreaming = false,
+  status,
   label,
   className,
   size = 'md',
@@ -30,7 +32,9 @@ export function LiveStatusIndicator({
     lg: 'text-sm',
   }[size];
 
-  if (isActive) {
+  const effectiveStatus = status ?? (isActive ? 'LIVE' : 'OFFLINE');
+
+  if (effectiveStatus === 'LIVE' || isActive) {
     return (
       <span
         className={cn(
@@ -50,6 +54,38 @@ export function LiveStatusIndicator({
           <span className={cn('relative inline-flex rounded-full bg-red-500', dotSize)} />
         </span>
         <span>{label ?? (isStreaming ? 'LIVE' : 'ACTIVE')}</span>
+      </span>
+    );
+  }
+
+  if (effectiveStatus === 'COMPLETED') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full',
+          'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+          textSize,
+          className
+        )}
+      >
+        <span className={cn('inline-flex rounded-full bg-emerald-400', dotSize)} />
+        <span>{label ?? 'COMPLETED'}</span>
+      </span>
+    );
+  }
+
+  if (effectiveStatus === 'UPCOMING') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full',
+          'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+          textSize,
+          className
+        )}
+      >
+        <span className={cn('inline-flex rounded-full bg-amber-400', dotSize)} />
+        <span>{label ?? 'UPCOMING'}</span>
       </span>
     );
   }

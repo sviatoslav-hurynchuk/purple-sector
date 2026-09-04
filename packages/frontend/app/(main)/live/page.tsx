@@ -127,11 +127,20 @@ function LiveTimingContent() {
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white uppercase">
               Live Timing Console
             </h1>
+            {state?.sessionName && state.sessionName !== 'No Active Session' && (
+              <p className="text-xs text-zinc-400 font-mono flex items-center gap-1.5 mt-0.5">
+                <span className="font-semibold text-zinc-300">{state.sessionName}</span>
+                {state.circuitShortName && <span>· {state.circuitShortName}</span>}
+                {state.status === 'COMPLETED' && (
+                  <span className="text-emerald-400/90 font-medium">(Completed Session Snapshot)</span>
+                )}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <LiveStatusIndicator isActive={state?.isActive} isStreaming={isStreaming} size="md" />
+          <LiveStatusIndicator isActive={state?.isActive} isStreaming={isStreaming} status={state?.status} size="md" />
 
           <button
             onClick={reconnect}

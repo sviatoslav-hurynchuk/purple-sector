@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { livePollingEngine } from '../services/live-polling';
+import { sessionWatcher } from '../services/session-watcher';
 import {
   getRecentDriverTelemetry,
   getDriverLapTelemetry,
@@ -43,17 +44,19 @@ function adminAuth(req: Request, res: Response, next: NextFunction): void {
 /**
  * GET /api/live/state
  * Returns the current live session snapshot (JSON).
+ * Automatically wakes up live engine if in-session, or provides completed snapshot.
  */
-router.get('/state', (_req: Request, res: Response) => {
+router.get('/state', async (_req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.json(livePollingEngine.getState());
+  const state = await sessionWatcher.ensureSessionState();
+  res.json(state);
 });
 
 /**
  * GET /api/live/stream
  * Server-Sent Events (SSE) stream for real-time live timing & dashboard updates.
  */
-router.get('/stream', (req: Request, res: Response) => {
+router.get('/stream', async (req: Request, res: Response) => {
   // SSE Headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -61,8 +64,8 @@ router.get('/stream', (req: Request, res: Response) => {
   res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering on Nginx/Render proxies
   res.flushHeaders?.();
 
-  // Send initial full state immediately upon connection
-  const initialState = livePollingEngine.getState();
+  // Send initial state immediately upon connection (with lazy wakeup if in-session)
+  const initialState = await sessionWatcher.ensureSessionState();
   res.write(`event: state\ndata: ${JSON.stringify(initialState)}\n\n`);
 
   // Event handlers

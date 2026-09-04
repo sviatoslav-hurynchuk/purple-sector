@@ -64,6 +64,7 @@ export class LivePollingEngine extends EventEmitter {
     sessionType: 'Race',
     sessionName: 'No Active Session',
     isActive: false,
+    status: 'OFFLINE',
     lastUpdated: new Date().toISOString(),
     drivers: [],
     raceControlFeed: [],
@@ -75,6 +76,24 @@ export class LivePollingEngine extends EventEmitter {
    */
   public getState(): LiveSessionState {
     return this.state;
+  }
+
+  /**
+   * Returns current active session key, or null if none.
+   */
+  public getSessionKey(): number | null {
+    return this.sessionKey;
+  }
+
+  /**
+   * Sets completed state when idle (e.g. from session watcher snapshot).
+   */
+  public setCompletedState(completedState: LiveSessionState): void {
+    if (this.isRunning) return;
+    this.state = completedState;
+    this.sessionKey = completedState.sessionKey;
+    this.meetingKey = completedState.meetingKey;
+    this.emit('state', this.state);
   }
 
   /**
@@ -194,6 +213,7 @@ export class LivePollingEngine extends EventEmitter {
       dateStart: this.sessionMeta?.date_start,
       dateEnd: this.sessionMeta?.date_end,
       isActive: true,
+      status: 'LIVE',
       lastUpdated: new Date().toISOString(),
       drivers: initialDrivers,
       raceControlFeed: mappedRaceControl,
@@ -230,6 +250,7 @@ export class LivePollingEngine extends EventEmitter {
     }
     this.isRunning = false;
     this.state.isActive = false;
+    this.state.status = 'COMPLETED';
     this.state.lastUpdated = new Date().toISOString();
     console.log(`[LivePolling] Stopped live polling for session_key=${this.sessionKey}`);
     this.emit('stop');

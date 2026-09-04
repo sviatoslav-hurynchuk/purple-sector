@@ -12,6 +12,7 @@ import liveRouter from './routes/live';
 import { errorHandler } from './middleware/errorHandler';
 import { connectRedis, cache } from './services/cache';
 import { warmCache } from './services/jolpica';
+import { startSessionWatcher } from './services/session-watcher';
 
 dotenv.config();
 
@@ -51,6 +52,9 @@ async function start(): Promise<void> {
 
   // Asynchronously warm cache without blocking HTTP server listen
   warmCache().catch((err) => console.warn('[CacheWarming] Error:', err));
+
+  // Start background OpenF1 session lifecycle watcher
+  startSessionWatcher();
 
   app.listen(PORT, () => {
     console.log(`-> F1 Backend running on http://localhost:${PORT}`);
