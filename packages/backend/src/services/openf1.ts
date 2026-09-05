@@ -353,6 +353,7 @@ const FALLBACK_NUMBER_TO_DRIVER_ID: Record<number, string> = {
   24: 'zhou',
   27: 'hulkenberg',
   20: 'magnussen',
+  21: 'de_vries',
   38: 'bearman',
   87: 'bearman',
   12: 'antonelli',
@@ -392,12 +393,46 @@ const DRIVER_SLUGS_BY_CODE: Record<string, string> = {
   DEV: 'de_vries',
 };
 
+const DRIVER_SLUGS_BY_LASTNAME: Record<string, string> = {
+  'de vries': 'de_vries',
+  devries: 'de_vries',
+  verstappen: 'max_verstappen',
+  norris: 'norris',
+  hamilton: 'hamilton',
+  russell: 'russell',
+  leclerc: 'leclerc',
+  sainz: 'sainz',
+  piastri: 'piastri',
+  antonelli: 'antonelli',
+  alonso: 'alonso',
+  stroll: 'stroll',
+  gasly: 'gasly',
+  ocon: 'ocon',
+  albon: 'albon',
+  tsunoda: 'tsunoda',
+  lawson: 'lawson',
+  bottas: 'bottas',
+  zhou: 'zhou',
+  hulkenberg: 'hulkenberg',
+  hülkenberg: 'hulkenberg',
+  magnussen: 'magnussen',
+  bearman: 'bearman',
+  hadjar: 'hadjar',
+  bortoleto: 'bortoleto',
+  colapinto: 'colapinto',
+  perez: 'perez',
+  pérez: 'perez',
+  ricciardo: 'ricciardo',
+  sargeant: 'sargeant',
+  lindblad: 'arvid_lindblad',
+};
+
 /**
  * Builds a Map of OpenF1 driver_number -> Jolpica driverId slug.
  * Caches as a plain JSON-serializable record (Map is not serializable).
  */
 export async function buildDriverMap(sessionKey: number): Promise<Map<number, string>> {
-  const cacheKey = `f1:openf1:driver_map:v3:${sessionKey}`;
+  const cacheKey = `f1:openf1:driver_map:v4:${sessionKey}`;
 
   const record = await cachedFetch<Record<string, string>>(cacheKey, TTL.SESSIONS_PAST, async () => {
     const result: Record<string, string> = {};
@@ -407,23 +442,31 @@ export async function buildDriverMap(sessionKey: number): Promise<Map<number, st
 
     for (const d of openF1Drivers) {
       if (d.driver_number) {
-        const codeUpper = d.name_acronym ? d.name_acronym.toUpperCase() : undefined;
+        const codeUpper = d.name_acronym ? d.name_acronym.trim().toUpperCase() : undefined;
         const slugByCode = codeUpper ? DRIVER_SLUGS_BY_CODE[codeUpper] : undefined;
-        const lastNameLower = d.last_name ? d.last_name.toLowerCase() : undefined;
+        const lastNameLower = d.last_name ? d.last_name.trim().toLowerCase() : undefined;
+        const slugByLastName = lastNameLower
+          ? DRIVER_SLUGS_BY_LASTNAME[lastNameLower] ?? DRIVER_SLUGS_BY_LASTNAME[lastNameLower.replace(/\s+/g, '')]
+          : undefined;
         const fallbackSlug = FALLBACK_NUMBER_TO_DRIVER_ID[d.driver_number];
-        const derivedSlug = d.last_name ? `${d.first_name || ''}_${d.last_name}`.toLowerCase().replace(/\s+/g, '_') : undefined;
+        const derivedSlug = d.last_name
+          ? `${d.first_name || ''}_${d.last_name}`.trim().toLowerCase().replace(/\s+/g, '_')
+          : undefined;
 
         // Priority resolution:
         // 1. Acronym (100% robust across car number changes, e.g. Norris #4 -> #1)
-        // 2. Exact match in DRIVER_SLUGS_BY_CODE by surname
-        // 3. Fallback number match if surname matches fallback slug
-        // 4. Canonical surname
-        // 5. Fallback number
+        // 2. Normalized surname mapping (e.g. "de Vries" -> "de_vries", "Verstappen" -> "max_verstappen")
+        // 3. Exact match in DRIVER_SLUGS_BY_CODE by uppercase surname
+        // 4. Fallback number match if surname matches fallback slug
+        // 5. Normalized surname with underscores (e.g. "de vries" -> "de_vries")
+        // 6. Fallback number
+        // 7. Derived full name slug
         const resolvedSlug =
           slugByCode ||
+          slugByLastName ||
           (lastNameLower && DRIVER_SLUGS_BY_CODE[lastNameLower.toUpperCase()]) ||
-          (fallbackSlug && lastNameLower && fallbackSlug.includes(lastNameLower) ? fallbackSlug : undefined) ||
-          lastNameLower ||
+          (fallbackSlug && lastNameLower && fallbackSlug.includes(lastNameLower.replace(/\s+/g, '_')) ? fallbackSlug : undefined) ||
+          (lastNameLower ? lastNameLower.replace(/\s+/g, '_') : undefined) ||
           fallbackSlug ||
           derivedSlug ||
           `driver_${d.driver_number}`;
