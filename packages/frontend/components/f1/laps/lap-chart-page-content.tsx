@@ -232,6 +232,7 @@ export function LapChartPageContent({
             pitStops={pitStops}
             openF1Stints={openF1Data?.stints}
             onRemoveDriver={handleRemoveDriver}
+            onAddDriver={handleToggleDriver}
             onClearAll={handleClearDrivers}
           />
         </div>

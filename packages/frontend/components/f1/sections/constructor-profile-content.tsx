@@ -13,12 +13,15 @@ import {
   Calendar,
   ExternalLink,
   Award,
+  Swords,
+  ChevronRight,
 } from 'lucide-react';
-import { getConstructorProfile } from '@/lib/api';
+import { getConstructorProfile, getConstructorHeadToHead } from '@/lib/api';
 import { getTeamTheme } from '@/lib/team-colors';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { ConstructorDriverRoster } from '@/components/f1/constructor-driver-roster';
+import { TeamBattleCard } from '@/components/f1/head-to-head/team-battle-card';
 
 interface ConstructorProfileContentProps {
   constructorId: string;
@@ -34,6 +37,14 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
   const { constructor: team, meta, stats, currentDrivers, historicalDrivers, seasonsCount } = profile;
   const theme = getTeamTheme(team.constructorId);
   const isLight = theme.textColor === 'dark';
+
+  const currentYear = new Date().getFullYear();
+  let h2hBattles = await getConstructorHeadToHead(currentYear, constructorId).catch(() => null);
+  let h2hSeason = currentYear;
+  if (!h2hBattles || h2hBattles.length === 0 || h2hBattles[0]?.rounds.length === 0) {
+    h2hBattles = await getConstructorHeadToHead(2024, constructorId).catch(() => null);
+    h2hSeason = 2024;
+  }
 
   return (
     <div className="space-y-8">
@@ -280,6 +291,31 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Teammate Head-to-Head Duel */}
+      {h2hBattles && h2hBattles.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+              <Swords className="h-5 w-5 text-purple-400" />
+              Teammate Head-to-Head Duel ({h2hSeason})
+            </h2>
+            <Link
+              href={`/head-to-head?season=${h2hSeason}`}
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+            >
+              <span>View Full Season Battles</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <TeamBattleCard
+            battles={h2hBattles}
+            season={h2hSeason}
+            discipline="all"
+          />
         </div>
       )}
 

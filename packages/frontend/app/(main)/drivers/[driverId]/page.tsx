@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getDriverProfile } from '@/lib/api';
+import { getDriverProfile, getConstructorHeadToHead } from '@/lib/api';
 import { DriverProfileContent } from '@/components/f1/sections/driver-profile-content';
 
 interface DriverPageProps {
@@ -32,5 +32,33 @@ export default async function DriverProfilePage({ params }: DriverPageProps) {
     notFound();
   }
 
-  return <DriverProfileContent profile={profile} />;
+  const currentConstructorId = profile.seasonHistory[0]?.constructors[0]?.constructorId;
+  const currentYear = new Date().getFullYear();
+  let h2hBattles = currentConstructorId
+    ? await getConstructorHeadToHead(currentYear, currentConstructorId).catch(() => null)
+    : null;
+  let h2hSeason = currentYear;
+
+  if (!h2hBattles || h2hBattles.length === 0 || h2hBattles[0]?.rounds.length === 0) {
+    h2hBattles = currentConstructorId
+      ? await getConstructorHeadToHead(2024, currentConstructorId).catch(() => null)
+      : null;
+    h2hSeason = 2024;
+  }
+
+  const normalizedId = driverId.toLowerCase();
+  const driverBattle =
+    h2hBattles?.find(
+      (b) =>
+        b.driver1.driverId.toLowerCase() === normalizedId ||
+        b.driver2.driverId.toLowerCase() === normalizedId
+    ) || null;
+
+  return (
+    <DriverProfileContent
+      profile={profile}
+      headToHeadBattle={driverBattle}
+      h2hSeason={h2hSeason}
+    />
+  );
 }
