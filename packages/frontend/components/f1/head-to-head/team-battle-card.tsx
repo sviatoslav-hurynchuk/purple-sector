@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import type { TeammatePairBattle } from '@/types/f1';
 import { TeamLogo } from '@/components/f1/team-logo';
 import { DriverImage } from '@/components/f1/driver-image';
+import { CountryFlag } from '@/components/f1/country-flag';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { getTeamTheme } from '@/lib/team-colors';
 import { BattleModal } from './battle-modal';
-import { Trophy, Zap, Clock, ChevronRight } from 'lucide-react';
+import { ChevronRight, Zap, Trophy, TrendingUp } from 'lucide-react';
 
 interface TeamBattleCardProps {
   /** Either a single battle or a list of battles for this constructor (primary + alternates) */
@@ -23,7 +24,6 @@ export function TeamBattleCard({
   discipline = 'all',
   className = '',
 }: TeamBattleCardProps) {
-  // If multiple pairings exist for this team, allow switching
   const [selectedBattleId, setSelectedBattleId] = useState<string>(
     battles.find((b) => b.isPrimary)?.id || battles[0]?.id || ''
   );
@@ -35,23 +35,23 @@ export function TeamBattleCard({
 
   const { constructorId, constructorName, driver1, driver2, stats, rounds } =
     activeBattle;
-  const teamTheme = getTeamTheme(constructorId);
-  const primaryColor = teamTheme.primary;
+  const theme = getTeamTheme(constructorId);
+  const isLight = theme.textColor === 'dark';
 
   const seasonStr = String(season);
   const d1Photo = getDriverPhotoUrl(
     driver1.driverId,
-    constructorId,
-    seasonStr,
     driver1.givenName,
-    driver1.familyName
+    driver1.familyName,
+    seasonStr,
+    constructorId
   );
   const d2Photo = getDriverPhotoUrl(
     driver2.driverId,
-    constructorId,
-    seasonStr,
     driver2.givenName,
-    driver2.familyName
+    driver2.familyName,
+    seasonStr,
+    constructorId
   );
 
   const deltaFormatted =
@@ -60,281 +60,323 @@ export function TeamBattleCard({
       : '0.000s';
   const d1Faster = stats.qualifying.medianDeltaMs < 0;
 
-  // Proportional percentages
-  const qTotal = Math.max(1, stats.qualifying.d1Wins + stats.qualifying.d2Wins);
-  const qD1Pct = Math.round((stats.qualifying.d1Wins / qTotal) * 100);
-
-  const rTotal = Math.max(1, stats.race.d1Wins + stats.race.d2Wins);
-  const rD1Pct = Math.round((stats.race.d1Wins / rTotal) * 100);
-
-  const ptsD1Pct = stats.points.d1SharePercent;
+  // Driver numbers
+  const d1Num = driver1.permanentNumber || driver1.code;
+  const d2Num = driver2.permanentNumber || driver2.code;
 
   return (
     <>
       <div
-        className={`group relative rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/70 via-zinc-950/90 to-zinc-950 p-5 shadow-lg hover:border-zinc-700 transition-all duration-300 hover:shadow-2xl flex flex-col justify-between ${className}`}
+        onClick={() => setModalOpen(true)}
+        className={[
+          'group relative rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col',
+          'bg-card hover:border-white/25 transition-all duration-300 hover:shadow-2xl cursor-pointer select-none',
+          className,
+        ].join(' ')}
       >
-        {/* Top constructor accent line */}
+        {/* ── Top Header Strip (Full-bleed team theme) ────────────────────── */}
         <div
-          className="absolute top-0 inset-x-0 h-[2px] rounded-t-2xl opacity-80 group-hover:opacity-100 transition-opacity"
-          style={{ backgroundColor: primaryColor }}
-        />
-
-        {/* Card Header: Constructor Logo, Name, Alternate Pairing Toggle */}
-        <div className="flex items-start justify-between gap-3 border-b border-zinc-800/60 pb-3.5">
-          <div className="flex items-center gap-3">
-            <TeamLogo constructorId={constructorId} size={36} />
-            <div>
-              <h3 className="font-bold text-white text-base tracking-tight leading-tight group-hover:text-zinc-100 transition-colors">
+          className="p-4 sm:p-5 flex items-center justify-between border-b border-black/15 transition-all group-hover:brightness-105"
+          style={{ backgroundColor: theme.primary }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <TeamLogo constructorId={constructorId} season={season} size={28} />
+            <div className="min-w-0">
+              <h2
+                className={[
+                  'text-xl sm:text-2xl font-black uppercase tracking-tight truncate',
+                  isLight ? 'text-black' : 'text-white',
+                ].join(' ')}
+              >
                 {constructorName}
-              </h3>
-              <div className="text-[11px] text-zinc-400 font-mono flex items-center gap-2 mt-0.5">
-                <span>{rounds.length} Rounds</span>
-                <span>•</span>
-                <span className="text-zinc-300 font-semibold">
-                  {stats.points.total} pts
-                </span>
-              </div>
+              </h2>
             </div>
           </div>
 
-          {/* Alternate pairings switch if team had driver swaps */}
-          {battles.length > 1 && (
-            <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-lg border border-zinc-800 text-[10px] font-mono">
-              {battles.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setSelectedBattleId(b.id)}
-                  className={`px-1.5 py-0.5 rounded transition-colors ${
-                    b.id === selectedBattleId
-                      ? 'bg-zinc-800 text-white font-bold'
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                  title={`${b.driver1.code} vs ${b.driver2.code} (${b.rounds.length} races)`}
-                >
-                  {b.driver1.code} / {b.driver2.code}
-                </button>
-              ))}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Mid-season driver pairing toggle (e.g. Williams 2024: Sargeant / Colapinto) */}
+            {battles.length > 1 && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className={[
+                  'flex items-center gap-1 p-1 rounded-lg border backdrop-blur-sm text-[10px] font-mono font-bold',
+                  isLight
+                    ? 'bg-black/10 border-black/20 text-black'
+                    : 'bg-white/10 border-white/20 text-white',
+                ].join(' ')}
+              >
+                {battles.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setSelectedBattleId(b.id)}
+                    className={[
+                      'px-2 py-0.5 rounded transition-colors',
+                      b.id === selectedBattleId
+                        ? isLight
+                          ? 'bg-black text-white'
+                          : 'bg-white text-black'
+                        : 'opacity-70 hover:opacity-100',
+                    ].join(' ')}
+                  >
+                    {b.driver1.code}/{b.driver2.code}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div
+              className={[
+                'hidden sm:block text-right px-3 py-1 rounded-lg border backdrop-blur-sm',
+                isLight
+                  ? 'bg-black/10 border-black/20 text-black'
+                  : 'bg-white/10 border-white/20 text-white',
+              ].join(' ')}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">
+                RACES
+              </span>
+              <span className="text-sm font-black font-mono">
+                {rounds.length} GPs
+              </span>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Driver Face-off Showcase */}
-        <div className="my-4 grid grid-cols-12 items-center gap-2">
+        {/* ── Driver Showcase (Split 2-column arena with authentic cutouts) ── */}
+        <div
+          className="grid grid-cols-2 divide-x divide-white/10 border-b border-white/10 relative"
+          style={{
+            background: `linear-gradient(180deg, ${theme.primary}25 0%, ${theme.primary}0e 45%, rgba(12,12,14,0.96) 100%)`,
+          }}
+        >
           {/* Driver 1 (Left) */}
-          <div className="col-span-4 flex flex-col items-center text-center">
-            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-gradient-to-t from-zinc-900 to-zinc-800/80 border border-zinc-700/60 shadow-inner group/photo">
+          <div className="relative overflow-hidden min-h-[170px] sm:min-h-[195px] flex flex-col justify-between p-4 sm:p-5">
+            <div className="relative z-10 space-y-0.5 max-w-[65%]">
+              <p className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider drop-shadow-sm">
+                {driver1.givenName}
+              </p>
+              <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight transition-colors drop-shadow-sm truncate">
+                {driver1.familyName}
+              </h3>
+              {d1Num && (
+                <p className="text-2xl sm:text-3xl font-black italic text-white/35 font-mono">
+                  #{d1Num}
+                </p>
+              )}
+            </div>
+
+            <div className="relative z-10 mt-auto pt-2">
+              <CountryFlag countryName={driver1.nationality} />
+            </div>
+
+            {/* Authentic Driver 1 Cutout Photo */}
+            <div className="absolute top-1 -right-2 sm:right-0 h-[210%] w-[72%] sm:w-[66%] pointer-events-none select-none">
               <DriverImage
                 src={d1Photo}
                 alt={`${driver1.givenName} ${driver1.familyName}`}
                 fill
-                sizes="(max-width: 640px) 80px, 96px"
-                className="object-cover object-top scale-105 group-hover/photo:scale-110 transition-transform duration-300"
-              />
-              <div
-                className="absolute bottom-0 inset-x-0 h-1"
-                style={{ backgroundColor: primaryColor }}
+                sizes="(max-width: 640px) 250px, 300px"
+                className="object-contain object-top transition-transform duration-300 group-hover:scale-105 origin-top drop-shadow-lg"
               />
             </div>
-            <div className="mt-2">
-              <div className="font-bold text-white text-sm tracking-tight truncate max-w-[110px]">
-                {driver1.familyName}
-              </div>
-              <div
-                className="inline-block text-[11px] font-mono font-bold px-1.5 py-0.2 rounded mt-0.5"
-                style={{
-                  backgroundColor: `${primaryColor}20`,
-                  color: primaryColor,
-                }}
-              >
-                {driver1.code} #{driver1.permanentNumber || '—'}
-              </div>
-            </div>
-          </div>
-
-          {/* Middle VS Badge & Median Qualy Gap */}
-          <div className="col-span-4 flex flex-col items-center justify-center text-center">
-            <span className="text-zinc-600 font-mono text-xs font-bold uppercase tracking-widest">
-              VS
-            </span>
-            {stats.qualifying.medianDeltaMs !== 0 && (
-              <div className="mt-1.5 flex flex-col items-center">
-                <span className="text-[10px] text-zinc-500 font-mono uppercase">
-                  Avg Gap
-                </span>
-                <span
-                  className="font-mono text-xs font-bold px-2 py-0.5 rounded-full mt-0.5 border"
-                  style={{
-                    backgroundColor: d1Faster
-                      ? `${primaryColor}15`
-                      : 'rgba(148, 163, 184, 0.15)',
-                    borderColor: d1Faster
-                      ? `${primaryColor}40`
-                      : 'rgba(148, 163, 184, 0.3)',
-                    color: d1Faster ? primaryColor : '#cbd5e1',
-                  }}
-                >
-                  {d1Faster
-                    ? `${driver1.code} -${deltaFormatted}`
-                    : `${driver2.code} -${deltaFormatted}`}
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Driver 2 (Right) */}
-          <div className="col-span-4 flex flex-col items-center text-center">
-            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-gradient-to-t from-zinc-900 to-zinc-800/80 border border-zinc-700/60 shadow-inner group/photo">
+          <div className="relative overflow-hidden min-h-[170px] sm:min-h-[195px] flex flex-col justify-between p-4 sm:p-5">
+            <div className="relative z-10 space-y-0.5 max-w-[65%]">
+              <p className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider drop-shadow-sm">
+                {driver2.givenName}
+              </p>
+              <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight transition-colors drop-shadow-sm truncate">
+                {driver2.familyName}
+              </h3>
+              {d2Num && (
+                <p className="text-2xl sm:text-3xl font-black italic text-white/35 font-mono">
+                  #{d2Num}
+                </p>
+              )}
+            </div>
+
+            <div className="relative z-10 mt-auto pt-2">
+              <CountryFlag countryName={driver2.nationality} />
+            </div>
+
+            {/* Authentic Driver 2 Cutout Photo */}
+            <div className="absolute top-1 -right-2 sm:right-0 h-[210%] w-[72%] sm:w-[66%] pointer-events-none select-none">
               <DriverImage
                 src={d2Photo}
                 alt={`${driver2.givenName} ${driver2.familyName}`}
                 fill
-                sizes="(max-width: 640px) 80px, 96px"
-                className="object-cover object-top scale-105 group-hover/photo:scale-110 transition-transform duration-300"
+                sizes="(max-width: 640px) 250px, 300px"
+                className="object-contain object-top transition-transform duration-300 group-hover:scale-105 origin-top drop-shadow-lg"
               />
-              <div className="absolute bottom-0 inset-x-0 h-1 bg-slate-500" />
-            </div>
-            <div className="mt-2">
-              <div className="font-bold text-slate-200 text-sm tracking-tight truncate max-w-[110px]">
-                {driver2.familyName}
-              </div>
-              <div className="inline-block text-[11px] font-mono font-bold px-1.5 py-0.2 rounded mt-0.5 bg-slate-800 text-slate-300">
-                {driver2.code} #{driver2.permanentNumber || '—'}
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Head-to-Head Bars */}
-        <div className="flex flex-col gap-3 my-2 pt-2 border-t border-zinc-800/60">
-          {/* 1. Qualifying Bar */}
+        {/* ── Broadcast Duel Scoreboard ────────────────────────────────────── */}
+        <div className="bg-zinc-950 p-4 sm:p-5 space-y-3">
+          {/* Qualifying Scoreline */}
           {(discipline === 'all' || discipline === 'qualifying') && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="font-bold text-white flex items-center gap-1">
-                  <Zap className="w-3.5 h-3.5 text-yellow-400" />
+            <div className="flex items-center justify-between bg-zinc-900/60 rounded-xl px-4 py-2.5 border border-zinc-800/80">
+              <div className="flex items-center gap-2">
+                <span
+                  className={[
+                    'font-mono text-xl sm:text-2xl font-black tabular-nums',
+                    stats.qualifying.d1Wins >= stats.qualifying.d2Wins
+                      ? 'text-white'
+                      : 'text-zinc-500',
+                  ].join(' ')}
+                >
                   {stats.qualifying.d1Wins}
                 </span>
-                <span className="text-[11px] text-zinc-400 font-sans uppercase tracking-wider font-semibold">
-                  Qualifying
+                <span className="text-[11px] font-mono font-bold text-zinc-400">
+                  {driver1.code}
                 </span>
-                <span className="font-bold text-slate-300">
+              </div>
+
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
+                  <Zap className="size-3 text-yellow-400" />
+                  <span>Qualifying</span>
+                </div>
+                {stats.qualifying.medianDeltaMs !== 0 && (
+                  <span className="text-[10px] font-mono font-semibold text-zinc-400 mt-0.5">
+                    {d1Faster ? `${driver1.code} -${deltaFormatted}` : `${driver2.code} -${deltaFormatted}`}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono font-bold text-zinc-400">
+                  {driver2.code}
+                </span>
+                <span
+                  className={[
+                    'font-mono text-xl sm:text-2xl font-black tabular-nums',
+                    stats.qualifying.d2Wins >= stats.qualifying.d1Wins
+                      ? 'text-white'
+                      : 'text-zinc-500',
+                  ].join(' ')}
+                >
                   {stats.qualifying.d2Wins}
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-zinc-800 overflow-hidden flex">
-                <div
-                  className="h-full transition-all duration-500"
-                  style={{
-                    width: `${qD1Pct}%`,
-                    backgroundColor: primaryColor,
-                  }}
-                />
-                <div
-                  className="h-full bg-slate-500 transition-all duration-500"
-                  style={{ width: `${100 - qD1Pct}%` }}
-                />
-              </div>
             </div>
           )}
 
-          {/* 2. Race Bar */}
+          {/* Race Finish Scoreline */}
           {(discipline === 'all' || discipline === 'race') && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="font-bold text-white flex items-center gap-1">
-                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <div className="flex items-center justify-between bg-zinc-900/60 rounded-xl px-4 py-2.5 border border-zinc-800/80">
+              <div className="flex items-center gap-2">
+                <span
+                  className={[
+                    'font-mono text-xl sm:text-2xl font-black tabular-nums',
+                    stats.race.d1Wins >= stats.race.d2Wins
+                      ? 'text-amber-400'
+                      : 'text-zinc-500',
+                  ].join(' ')}
+                >
                   {stats.race.d1Wins}
                 </span>
-                <span className="text-[11px] text-zinc-400 font-sans uppercase tracking-wider font-semibold">
-                  Race Finish
+                <span className="text-[11px] font-mono font-bold text-zinc-400">
+                  {driver1.code}
                 </span>
-                <span className="font-bold text-slate-300">
+              </div>
+
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
+                  <Trophy className="size-3 text-amber-400" />
+                  <span>Races Ahead</span>
+                </div>
+                <span className="text-[10px] font-mono text-zinc-500 mt-0.5">
+                  {stats.race.bothFinishedCount} both finished
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono font-bold text-zinc-400">
+                  {driver2.code}
+                </span>
+                <span
+                  className={[
+                    'font-mono text-xl sm:text-2xl font-black tabular-nums',
+                    stats.race.d2Wins >= stats.race.d1Wins
+                      ? 'text-amber-400'
+                      : 'text-zinc-500',
+                  ].join(' ')}
+                >
                   {stats.race.d2Wins}
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-zinc-800 overflow-hidden flex">
-                <div
-                  className="h-full transition-all duration-500"
-                  style={{
-                    width: `${rD1Pct}%`,
-                    backgroundColor: primaryColor,
-                  }}
-                />
-                <div
-                  className="h-full bg-slate-500 transition-all duration-500"
-                  style={{ width: `${100 - rD1Pct}%` }}
-                />
-              </div>
             </div>
           )}
 
-          {/* 3. Points Bar */}
+          {/* Points Share Scoreline */}
           {(discipline === 'all' || discipline === 'points') && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="font-bold text-white">
-                  {stats.points.d1Points} pts ({ptsD1Pct}%)
+            <div className="flex items-center justify-between bg-zinc-900/60 rounded-xl px-4 py-2.5 border border-zinc-800/80">
+              <div className="flex items-center gap-2">
+                <span
+                  className={[
+                    'font-mono text-lg sm:text-xl font-black tabular-nums',
+                    stats.points.d1Points >= stats.points.d2Points
+                      ? 'text-white'
+                      : 'text-zinc-500',
+                  ].join(' ')}
+                >
+                  {stats.points.d1Points}
                 </span>
-                <span className="text-[11px] text-zinc-400 font-sans uppercase tracking-wider font-semibold">
-                  Points
-                </span>
-                <span className="font-bold text-slate-300">
-                  {stats.points.d2Points} pts ({(100 - ptsD1Pct).toFixed(1)}%)
+                <span className="text-[10px] font-mono text-zinc-400">
+                  pts
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-zinc-800 overflow-hidden flex">
-                <div
-                  className="h-full transition-all duration-500"
-                  style={{
-                    width: `${ptsD1Pct}%`,
-                    backgroundColor: primaryColor,
-                  }}
-                />
-                <div
-                  className="h-full bg-slate-500 transition-all duration-500"
-                  style={{ width: `${100 - ptsD1Pct}%` }}
-                />
+
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
+                  <TrendingUp className="size-3 text-emerald-400" />
+                  <span>Points Share</span>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] font-mono font-semibold text-zinc-400 mt-0.5">
+                  <span className={stats.points.d1Points >= stats.points.d2Points ? 'text-white font-bold' : ''}>
+                    {stats.points.d1SharePercent}%
+                  </span>
+                  <span>/</span>
+                  <span className={stats.points.d2Points >= stats.points.d1Points ? 'text-white font-bold' : ''}>
+                    {100 - stats.points.d1SharePercent}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-zinc-400">
+                  pts
+                </span>
+                <span
+                  className={[
+                    'font-mono text-lg sm:text-xl font-black tabular-nums',
+                    stats.points.d2Points >= stats.points.d1Points
+                      ? 'text-white'
+                      : 'text-zinc-500',
+                  ].join(' ')}
+                >
+                  {stats.points.d2Points}
+                </span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Quick Secondary Stats Pill Row */}
-        <div className="mt-3 pt-3 border-t border-zinc-800/60 grid grid-cols-3 gap-2 text-center font-mono text-[11px]">
-          <div className="p-1.5 rounded-lg bg-zinc-900/50 border border-zinc-800/40">
-            <span className="text-zinc-500 block text-[10px]">Poles</span>
-            <span className="text-white font-bold">
-              {stats.qualifying.d1Poles} - {stats.qualifying.d2Poles}
-            </span>
-          </div>
-          <div className="p-1.5 rounded-lg bg-zinc-900/50 border border-zinc-800/40">
-            <span className="text-zinc-500 block text-[10px]">Podiums</span>
-            <span className="text-white font-bold">
-              {stats.podiums.d1} - {stats.podiums.d2}
-            </span>
-          </div>
-          <div className="p-1.5 rounded-lg bg-zinc-900/50 border border-zinc-800/40">
-            <span className="text-zinc-500 block text-[10px]">Fastest Laps</span>
-            <span className="text-white font-bold">
-              {stats.fastestLaps.d1} - {stats.fastestLaps.d2}
-            </span>
-          </div>
+        {/* ── Bottom Action Trigger ────────────────────────────────────────── */}
+        <div className="px-5 py-3 bg-zinc-900/50 border-t border-white/5 flex items-center justify-between text-xs text-zinc-400 group-hover:text-white transition-colors">
+          <span className="font-mono text-[11px] uppercase tracking-wider">
+            View Radar &amp; GP Breakdown
+          </span>
+          <ChevronRight className="size-4 transition-transform group-hover:translate-x-1 text-zinc-400 group-hover:text-white" />
         </div>
-
-        {/* Action Button to Open Full Analysis Modal */}
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="mt-4 w-full py-2.5 px-4 rounded-xl bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-800 hover:border-zinc-700 text-xs font-semibold text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2 group/btn shadow-sm"
-        >
-          <span>Full H2H Breakdown & Radar</span>
-          <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover/btn:translate-x-0.5 group-hover/btn:text-white transition-all" />
-        </button>
       </div>
 
-      {/* Deep-Dive Analysis Modal */}
+      {/* Deep Dive Modal */}
       <BattleModal
         battle={activeBattle}
         season={season}

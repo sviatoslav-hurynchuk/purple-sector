@@ -4,21 +4,54 @@ import React, { useMemo, useState } from 'react';
 import type { SeasonHeadToHeadResponse, TeammatePairBattle } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { TeamBattleCard } from './team-battle-card';
-import {
-  Swords,
-  Zap,
-  Trophy,
-  Percent,
-  Search,
-  Users,
-  Gauge,
-  Sparkles,
-} from 'lucide-react';
+import { PreloadedContent } from '@/components/f1/preloaded-content';
+import { getDriverPhotoUrl } from '@/lib/driver-photos';
+import { Search } from 'lucide-react';
 
 interface HeadToHeadContentProps {
   data: SeasonHeadToHeadResponse | null;
   season: number;
   allYears: number[];
+}
+
+function HeadToHeadGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col bg-card animate-pulse h-[360px]"
+        >
+          <div className="p-5 bg-zinc-800 flex items-center justify-between border-b border-white/5">
+            <div className="space-y-2">
+              <div className="h-6 w-40 bg-zinc-700 rounded" />
+            </div>
+            <div className="h-8 w-20 bg-zinc-700/80 rounded-lg" />
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-white/10 flex-1 bg-zinc-900/50 p-5">
+            <div className="space-y-3 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="h-3 w-16 bg-zinc-800 rounded" />
+                <div className="h-6 w-28 bg-zinc-800 rounded" />
+                <div className="h-8 w-12 bg-zinc-800/40 rounded" />
+              </div>
+            </div>
+            <div className="space-y-3 flex flex-col justify-between pl-5">
+              <div className="space-y-2">
+                <div className="h-3 w-16 bg-zinc-800 rounded" />
+                <div className="h-6 w-28 bg-zinc-800 rounded" />
+                <div className="h-8 w-12 bg-zinc-800/40 rounded" />
+              </div>
+            </div>
+          </div>
+          <div className="p-4 bg-zinc-950 space-y-2 border-t border-white/5">
+            <div className="h-9 bg-zinc-900 rounded-xl" />
+            <div className="h-9 bg-zinc-900 rounded-xl" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function HeadToHeadContent({
@@ -67,202 +100,137 @@ export function HeadToHeadContent({
     });
   }, [constructorGroups, searchQuery]);
 
-  // Season summary stats
-  const summaryStats = useMemo(() => {
-    if (!data?.teams || data.teams.length === 0) return null;
-
-    const primaryBattles = data.teams.filter((b) => b.isPrimary);
-    let totalDeltas = 0;
-    let deltaCount = 0;
-    let maxQualyDiff = 0;
-    let maxQualyWinner = '';
-    let closestDelta = 9999;
-    let closestPair = '';
-
-    for (const b of primaryBattles) {
-      const delta = Math.abs(b.stats.qualifying.medianDeltaMs);
-      if (delta > 0) {
-        totalDeltas += delta;
-        deltaCount++;
-        if (delta < closestDelta) {
-          closestDelta = delta;
-          closestPair = `${b.driver1.code} vs ${b.driver2.code}`;
-        }
-      }
-
-      const qDiff = Math.abs(b.stats.qualifying.d1Wins - b.stats.qualifying.d2Wins);
-      if (qDiff > maxQualyDiff) {
-        maxQualyDiff = qDiff;
-        maxQualyWinner = `${b.driver1.code} (${b.stats.qualifying.d1Wins}-${b.stats.qualifying.d2Wins})`;
+  // Collect all driver photos for preloading
+  const allPhotoUrls = useMemo(() => {
+    const urls: string[] = [];
+    for (const group of constructorGroups) {
+      for (const battle of group) {
+        urls.push(
+          getDriverPhotoUrl(
+            battle.driver1.driverId,
+            battle.driver1.givenName,
+            battle.driver1.familyName,
+            String(season),
+            battle.constructorId
+          ),
+          getDriverPhotoUrl(
+            battle.driver2.driverId,
+            battle.driver2.givenName,
+            battle.driver2.familyName,
+            String(season),
+            battle.constructorId
+          )
+        );
       }
     }
-
-    const avgGapMs = deltaCount > 0 ? Math.round(totalDeltas / deltaCount) : 0;
-
-    return {
-      completedRaces: data.completedRaces,
-      totalRaces: data.totalRaces,
-      teamsCount: constructorGroups.length,
-      avgGapMs,
-      maxQualyWinner,
-      closestPair: closestDelta < 9999 ? `${closestPair} (${closestDelta}ms)` : '—',
-    };
-  }, [data, constructorGroups]);
+    return urls;
+  }, [constructorGroups, season]);
 
   return (
     <div className="space-y-8 pb-16">
-      {/* Hero / Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/80 pb-6">
+      {/* Header toolbar matching Teams & Drivers layout */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-border pb-6">
         <div>
-          <div className="flex items-center gap-2.5 text-xs font-mono font-bold text-primary uppercase tracking-widest mb-1.5">
-            <Swords className="w-4 h-4 text-purple-400" />
-            <span>Intra-Team Analytics</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-            Teammate Head-to-Head
+          <h1 className="text-3xl font-black tracking-tight">
+            {season} Teammate Head-to-Head
           </h1>
-          <p className="text-zinc-400 text-sm max-w-xl mt-1.5 leading-relaxed">
-            Direct comparison between Formula 1 teammates on identical machinery.
-            Analyzed across qualifying deltas, race finishes, and points share.
+          <p className="text-muted-foreground mt-1 text-sm">
+            Direct intra-team Formula 1 battles across Qualifying pace deltas, Race finishes, and points contribution for the {season} season.
           </p>
         </div>
-
-        {/* Season Selector */}
-        <div className="flex-shrink-0">
-          <SeasonSelector currentSeason={season} allYears={allYears} />
-        </div>
+        <SeasonSelector currentSeason={season} allYears={allYears} />
       </div>
 
-      {/* Grid Summary Stats Bar */}
-      {summaryStats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Trophy className="w-3.5 h-3.5 text-amber-400" />
-              Completed GPs
-            </div>
-            <div className="text-2xl font-bold font-mono text-white mt-1">
-              {summaryStats.completedRaces}{' '}
-              <span className="text-xs text-zinc-500 font-sans font-normal">
-                of {summaryStats.totalRaces}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Gauge className="w-3.5 h-3.5 text-yellow-400" />
-              Grid Avg Qualy Gap
-            </div>
-            <div className="text-2xl font-bold font-mono text-white mt-1">
-              {(summaryStats.avgGapMs / 1000).toFixed(3)}s
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-              Dominant Qualy
-            </div>
-            <div className="text-lg font-bold font-mono text-purple-300 mt-1 truncate">
-              {summaryStats.maxQualyWinner || '—'}
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-emerald-400" />
-              Closest Teammates
-            </div>
-            <div className="text-lg font-bold font-mono text-emerald-300 mt-1 truncate">
-              {summaryStats.closestPair}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Control Bar: Discipline Tabs & Search Input */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-zinc-950/80 p-2 rounded-2xl border border-zinc-800/80">
-        {/* Discipline Filters */}
-        <div className="flex items-center gap-1 bg-zinc-900/80 p-1 rounded-xl border border-zinc-800 text-xs font-semibold overflow-x-auto">
+      {/* Control Bar: Discipline Segmented Tabs & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        {/* Segmented Discipline Filter */}
+        <div className="inline-flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800 text-xs font-semibold">
           <button
             type="button"
             onClick={() => setDiscipline('all')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            className={[
+              'px-3.5 py-1.5 rounded-lg transition-all',
               discipline === 'all'
                 ? 'bg-white/10 text-white font-bold shadow-sm'
-                : 'text-zinc-400 hover:text-white'
-            }`}
+                : 'text-zinc-400 hover:text-white',
+            ].join(' ')}
           >
-            <Swords className="w-3.5 h-3.5 text-purple-400" />
-            <span>All Duels</span>
+            All Duels
           </button>
           <button
             type="button"
             onClick={() => setDiscipline('qualifying')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            className={[
+              'px-3.5 py-1.5 rounded-lg transition-all',
               discipline === 'qualifying'
                 ? 'bg-white/10 text-white font-bold shadow-sm'
-                : 'text-zinc-400 hover:text-white'
-            }`}
+                : 'text-zinc-400 hover:text-white',
+            ].join(' ')}
           >
-            <Zap className="w-3.5 h-3.5 text-yellow-400" />
-            <span>Qualifying</span>
+            Qualifying
           </button>
           <button
             type="button"
             onClick={() => setDiscipline('race')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            className={[
+              'px-3.5 py-1.5 rounded-lg transition-all',
               discipline === 'race'
                 ? 'bg-white/10 text-white font-bold shadow-sm'
-                : 'text-zinc-400 hover:text-white'
-            }`}
+                : 'text-zinc-400 hover:text-white',
+            ].join(' ')}
           >
-            <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            <span>Race Head-to-Head</span>
+            Races
           </button>
           <button
             type="button"
             onClick={() => setDiscipline('points')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            className={[
+              'px-3.5 py-1.5 rounded-lg transition-all',
               discipline === 'points'
                 ? 'bg-white/10 text-white font-bold shadow-sm'
-                : 'text-zinc-400 hover:text-white'
-            }`}
+                : 'text-zinc-400 hover:text-white',
+            ].join(' ')}
           >
-            <Percent className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Points Share</span>
+            Points
           </button>
         </div>
 
-        {/* Search Input */}
+        {/* Minimalist Search Input */}
         <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
           <input
             type="text"
-            placeholder="Filter driver or team..."
+            placeholder="Search driver or team..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-zinc-900/80 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors font-sans"
           />
         </div>
       </div>
 
-      {/* Head-to-Head Cards Bento Grid */}
-      {filteredGroups.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredGroups.map((group) => (
-            <TeamBattleCard
-              key={group[0].constructorId}
-              battles={group}
-              season={season}
-              discipline={discipline}
-            />
-          ))}
-        </div>
+      {/* Head-to-Head Cards Bento Grid with Image Preloading */}
+      {constructorGroups.length > 0 ? (
+        <PreloadedContent imageUrls={allPhotoUrls} skeleton={<HeadToHeadGridSkeleton />}>
+          {filteredGroups.length > 0 ? (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {filteredGroups.map((group) => (
+                <TeamBattleCard
+                  key={group[0].constructorId}
+                  battles={group}
+                  season={season}
+                  discipline={discipline}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="py-16 text-center text-muted-foreground font-mono text-sm border border-zinc-800/80 rounded-2xl bg-zinc-950/40">
+              No teammate battles found matching &quot;{searchQuery}&quot;.
+            </div>
+          )}
+        </PreloadedContent>
       ) : (
-        <div className="p-12 text-center rounded-2xl border border-zinc-800 bg-zinc-950/40 text-zinc-400 font-mono text-sm">
-          No teammate battles found matching &quot;{searchQuery}&quot;.
+        <div className="py-16 text-center text-muted-foreground">
+          No teammate head-to-head battle data available for {season}.
         </div>
       )}
     </div>
