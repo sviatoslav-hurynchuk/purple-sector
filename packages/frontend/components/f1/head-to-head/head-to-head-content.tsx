@@ -134,9 +134,6 @@ export function HeadToHeadContent({
           <h1 className="text-3xl font-black tracking-tight">
             {season} Teammate Head-to-Head
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Direct intra-team Formula 1 battles across Qualifying pace deltas, Race finishes, and points contribution for the {season} season.
-          </p>
         </div>
         <SeasonSelector currentSeason={season} allYears={allYears} />
       </div>

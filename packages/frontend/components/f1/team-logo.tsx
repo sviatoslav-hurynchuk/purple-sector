@@ -96,11 +96,65 @@ const DARK_LOGO_TEAMS = new Set([
   'renault_f1',
   'williams',
   'haas',
+  'haasf1team',
   'rb',
   'racing_bulls',
   'racingbulls',
   'alpine',
   'mclaren',
+  'red_bull',
+  'redbull',
+  'redbullracing',
+  'toro_rosso',
+  'tororosso',
+  'bmw_sauber',
+  'bmw',
+  'brawn',
+  'brawn_gp',
+  'toyota',
+  'honda',
+  'jordan',
+  'racing_point',
+  'racingpoint',
+  'force_india',
+  'forceindia',
+  'minardi',
+  'super_aguri',
+  'superaguri',
+  'spyker',
+  'spyker_mf1',
+  'midland',
+  'stewart',
+  'bar',
+  'manor',
+  'larrousse',
+  'dallara',
+  'march',
+  'brabham',
+  'brm',
+  'cooper',
+  'matra',
+  'surtees',
+  'shadow',
+  'wolf',
+  'ensign',
+  'fittipaldi',
+  'penske',
+  'theodore',
+  'ats',
+  'osella',
+  'zakspeed',
+  'ags',
+  'leyton_house',
+  'fondmetal',
+  'coloni',
+  'eurobrun',
+  'onyx',
+  'rial',
+  'lola',
+  'simtek',
+  'pacific',
+  'forti',
 ]);
 
 /** Common aliases for constructor IDs from Jolpica / Ergast API. */
@@ -152,7 +206,7 @@ export function TeamLogo({
   const key = id.trim().toLowerCase().replace(/-/g, '_');
   const normalizedKey = ALIASES[key] ?? key;
   const src = resolveLogoSrc(id);
-  const needsWhiteBackdrop = DARK_LOGO_TEAMS.has(normalizedKey);
+  const needsWhiteBackdrop = DARK_LOGO_TEAMS.has(normalizedKey) || DARK_LOGO_TEAMS.has(key);
 
   if (src) {
     return (
@@ -176,19 +230,24 @@ export function TeamLogo({
     );
   }
 
-  // Fallback badge with team theme color and 3-letter code
+  // Fallback badge with white contrast border and team theme color
   const theme = getTeamTheme(constructorId);
   const code = (constructorId ?? 'F1').slice(0, 3).toUpperCase();
   return (
     <div
-      style={{ backgroundColor: theme.primary, width: size, height: size }}
+      style={{ width: size, height: size }}
       className={cn(
-        'rounded-sm flex items-center justify-center font-mono font-black text-[8px] leading-none text-white shrink-0',
+        'rounded-md bg-white p-0.5 shadow-xs flex items-center justify-center shrink-0',
         className
       )}
       aria-label={constructorId ?? 'Team'}
     >
-      {code}
+      <div
+        style={{ backgroundColor: theme.primary }}
+        className="w-full h-full rounded flex items-center justify-center font-mono font-black text-[9px] leading-none text-white shadow-inner"
+      >
+        {code}
+      </div>
     </div>
   );
 }
