@@ -94,6 +94,13 @@ const DARK_LOGO_TEAMS = new Set([
   'tyrrell',
   'renault',
   'renault_f1',
+  'williams',
+  'haas',
+  'rb',
+  'racing_bulls',
+  'racingbulls',
+  'alpine',
+  'mclaren',
 ]);
 
 /** Common aliases for constructor IDs from Jolpica / Ergast API. */
@@ -153,7 +160,7 @@ export function TeamLogo({
         style={{ width: size, height: size }}
         className={cn(
           'relative shrink-0 flex items-center justify-center',
-          needsWhiteBackdrop && 'bg-white rounded-sm p-0.5 shadow-xs',
+          needsWhiteBackdrop && 'bg-white rounded-md p-1 shadow-xs',
           className
         )}
       >

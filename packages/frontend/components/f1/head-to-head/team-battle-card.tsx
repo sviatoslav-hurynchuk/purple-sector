@@ -64,6 +64,30 @@ export function TeamBattleCard({
   const d1Num = driver1.permanentNumber || driver1.code;
   const d2Num = driver2.permanentNumber || driver2.code;
 
+  // Proportional metrics & progress bar calculations
+  // 1. Qualifying
+  const qD1 = stats.qualifying.d1Wins;
+  const qD2 = stats.qualifying.d2Wins;
+  const qTotal = Math.max(1, qD1 + qD2);
+  const qD1Pct = Math.round((qD1 / qTotal) * 100);
+  const qD2Pct = 100 - qD1Pct;
+
+  // 2. Races
+  const rD1 = stats.race.d1Wins;
+  const rD2 = stats.race.d2Wins;
+  const rTotal = Math.max(1, rD1 + rD2);
+  const rD1Pct = Math.round((rD1 / rTotal) * 100);
+  const rD2Pct = 100 - rD1Pct;
+
+  // 3. Points (precision fixed to 1 decimal place max)
+  const d1PtsShare = Number(stats.points.d1SharePercent.toFixed(1));
+  const d2PtsShare = Number((100 - d1PtsShare).toFixed(1));
+  const pD1 = stats.points.d1Points;
+  const pD2 = stats.points.d2Points;
+  const pTotal = Math.max(1, pD1 + pD2);
+  const pD1Pct = Math.round((pD1 / pTotal) * 100);
+  const pD2Pct = 100 - pD1Pct;
+
   return (
     <>
       <div
@@ -80,7 +104,7 @@ export function TeamBattleCard({
           style={{ backgroundColor: theme.primary }}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <TeamLogo constructorId={constructorId} season={season} size={28} />
+            <TeamLogo constructorId={constructorId} season={season} size={30} />
             <div className="min-w-0">
               <h2
                 className={[
@@ -219,149 +243,200 @@ export function TeamBattleCard({
         <div className="bg-zinc-950 p-4 sm:p-5 space-y-3">
           {/* Qualifying Scoreline */}
           {(discipline === 'all' || discipline === 'qualifying') && (
-            <div className="flex items-center justify-between bg-zinc-900/60 rounded-xl px-4 py-2.5 border border-zinc-800/80">
-              <div className="flex items-center gap-2">
-                <span
-                  className={[
-                    'font-mono text-xl sm:text-2xl font-black tabular-nums',
-                    stats.qualifying.d1Wins >= stats.qualifying.d2Wins
-                      ? 'text-white'
-                      : 'text-zinc-500',
-                  ].join(' ')}
-                >
-                  {stats.qualifying.d1Wins}
-                </span>
-                <span className="text-[11px] font-mono font-bold text-zinc-400">
-                  {driver1.code}
-                </span>
-              </div>
-
-              <div className="flex flex-col items-center">
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
-                  <Zap className="size-3 text-yellow-400" />
-                  <span>Qualifying</span>
-                </div>
-                {stats.qualifying.medianDeltaMs !== 0 && (
-                  <span className="text-[10px] font-mono font-semibold text-zinc-400 mt-0.5">
-                    {d1Faster ? `${driver1.code} -${deltaFormatted}` : `${driver2.code} -${deltaFormatted}`}
+            <div className="bg-zinc-900/60 rounded-xl p-3 sm:px-4 sm:py-3 border border-zinc-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={[
+                      'font-mono text-xl sm:text-2xl font-black tabular-nums',
+                      qD1 >= qD2 ? 'text-white' : 'text-zinc-500',
+                    ].join(' ')}
+                  >
+                    {qD1}
                   </span>
-                )}
+                  <span className="text-[11px] font-mono font-bold text-zinc-400">
+                    {driver1.code}
+                  </span>
+                </div>
+
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                    <Zap className="size-3 text-yellow-400" />
+                    <span>Qualifying</span>
+                  </div>
+                  {stats.qualifying.medianDeltaMs !== 0 && (
+                    <span className="text-[10px] font-mono font-semibold text-zinc-400 mt-0.5">
+                      {d1Faster ? `${driver1.code} -${deltaFormatted}` : `${driver2.code} -${deltaFormatted}`}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono font-bold text-zinc-400">
+                    {driver2.code}
+                  </span>
+                  <span
+                    className={[
+                      'font-mono text-xl sm:text-2xl font-black tabular-nums',
+                      qD2 >= qD1 ? 'text-white' : 'text-zinc-500',
+                    ].join(' ')}
+                  >
+                    {qD2}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono font-bold text-zinc-400">
-                  {driver2.code}
-                </span>
-                <span
-                  className={[
-                    'font-mono text-xl sm:text-2xl font-black tabular-nums',
-                    stats.qualifying.d2Wins >= stats.qualifying.d1Wins
-                      ? 'text-white'
-                      : 'text-zinc-500',
-                  ].join(' ')}
-                >
-                  {stats.qualifying.d2Wins}
-                </span>
+              {/* Proportional Progress Bar in team color for better driver */}
+              <div className="h-1.5 sm:h-2 w-full bg-zinc-800/60 rounded-full overflow-hidden flex items-center mt-2.5">
+                <div
+                  className="h-full rounded-l-full transition-all duration-500"
+                  style={{
+                    width: `${qD1Pct}%`,
+                    backgroundColor: qD1 > qD2 ? theme.primary : qD1 === qD2 ? `${theme.primary}99` : '#3f3f46',
+                  }}
+                />
+                <div className="w-0.5 h-full bg-zinc-950 shrink-0" />
+                <div
+                  className="h-full rounded-r-full transition-all duration-500"
+                  style={{
+                    width: `${qD2Pct}%`,
+                    backgroundColor: qD2 > qD1 ? theme.primary : qD1 === qD2 ? `${theme.primary}99` : '#3f3f46',
+                  }}
+                />
               </div>
             </div>
           )}
 
           {/* Race Finish Scoreline */}
           {(discipline === 'all' || discipline === 'race') && (
-            <div className="flex items-center justify-between bg-zinc-900/60 rounded-xl px-4 py-2.5 border border-zinc-800/80">
-              <div className="flex items-center gap-2">
-                <span
-                  className={[
-                    'font-mono text-xl sm:text-2xl font-black tabular-nums',
-                    stats.race.d1Wins >= stats.race.d2Wins
-                      ? 'text-amber-400'
-                      : 'text-zinc-500',
-                  ].join(' ')}
-                >
-                  {stats.race.d1Wins}
-                </span>
-                <span className="text-[11px] font-mono font-bold text-zinc-400">
-                  {driver1.code}
-                </span>
-              </div>
-
-              <div className="flex flex-col items-center">
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
-                  <Trophy className="size-3 text-amber-400" />
-                  <span>Races Ahead</span>
+            <div className="bg-zinc-900/60 rounded-xl p-3 sm:px-4 sm:py-3 border border-zinc-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={[
+                      'font-mono text-xl sm:text-2xl font-black tabular-nums',
+                      rD1 >= rD2 ? 'text-amber-400' : 'text-zinc-500',
+                    ].join(' ')}
+                  >
+                    {rD1}
+                  </span>
+                  <span className="text-[11px] font-mono font-bold text-zinc-400">
+                    {driver1.code}
+                  </span>
                 </div>
-                <span className="text-[10px] font-mono text-zinc-500 mt-0.5">
-                  {stats.race.bothFinishedCount} both finished
-                </span>
+
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                    <Trophy className="size-3 text-amber-400" />
+                    <span>Races Ahead</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-500 mt-0.5">
+                    {stats.race.bothFinishedCount} both finished
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono font-bold text-zinc-400">
+                    {driver2.code}
+                  </span>
+                  <span
+                    className={[
+                      'font-mono text-xl sm:text-2xl font-black tabular-nums',
+                      rD2 >= rD1 ? 'text-amber-400' : 'text-zinc-500',
+                    ].join(' ')}
+                  >
+                    {rD2}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono font-bold text-zinc-400">
-                  {driver2.code}
-                </span>
-                <span
-                  className={[
-                    'font-mono text-xl sm:text-2xl font-black tabular-nums',
-                    stats.race.d2Wins >= stats.race.d1Wins
-                      ? 'text-amber-400'
-                      : 'text-zinc-500',
-                  ].join(' ')}
-                >
-                  {stats.race.d2Wins}
-                </span>
+              {/* Proportional Progress Bar in team color for better driver */}
+              <div className="h-1.5 sm:h-2 w-full bg-zinc-800/60 rounded-full overflow-hidden flex items-center mt-2.5">
+                <div
+                  className="h-full rounded-l-full transition-all duration-500"
+                  style={{
+                    width: `${rD1Pct}%`,
+                    backgroundColor: rD1 > rD2 ? theme.primary : rD1 === rD2 ? `${theme.primary}99` : '#3f3f46',
+                  }}
+                />
+                <div className="w-0.5 h-full bg-zinc-950 shrink-0" />
+                <div
+                  className="h-full rounded-r-full transition-all duration-500"
+                  style={{
+                    width: `${rD2Pct}%`,
+                    backgroundColor: rD2 > rD1 ? theme.primary : rD1 === rD2 ? `${theme.primary}99` : '#3f3f46',
+                  }}
+                />
               </div>
             </div>
           )}
 
           {/* Points Share Scoreline */}
           {(discipline === 'all' || discipline === 'points') && (
-            <div className="flex items-center justify-between bg-zinc-900/60 rounded-xl px-4 py-2.5 border border-zinc-800/80">
-              <div className="flex items-center gap-2">
-                <span
-                  className={[
-                    'font-mono text-lg sm:text-xl font-black tabular-nums',
-                    stats.points.d1Points >= stats.points.d2Points
-                      ? 'text-white'
-                      : 'text-zinc-500',
-                  ].join(' ')}
-                >
-                  {stats.points.d1Points}
-                </span>
-                <span className="text-[10px] font-mono text-zinc-400">
-                  pts
-                </span>
-              </div>
-
-              <div className="flex flex-col items-center">
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
-                  <TrendingUp className="size-3 text-emerald-400" />
-                  <span>Points Share</span>
-                </div>
-                <div className="flex items-center gap-1 text-[10px] font-mono font-semibold text-zinc-400 mt-0.5">
-                  <span className={stats.points.d1Points >= stats.points.d2Points ? 'text-white font-bold' : ''}>
-                    {stats.points.d1SharePercent}%
+            <div className="bg-zinc-900/60 rounded-xl p-3 sm:px-4 sm:py-3 border border-zinc-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={[
+                      'font-mono text-lg sm:text-xl font-black tabular-nums',
+                      pD1 >= pD2 ? 'text-white' : 'text-zinc-500',
+                    ].join(' ')}
+                  >
+                    {pD1}
                   </span>
-                  <span>/</span>
-                  <span className={stats.points.d2Points >= stats.points.d1Points ? 'text-white font-bold' : ''}>
-                    {100 - stats.points.d1SharePercent}%
+                  <span className="text-[10px] font-mono text-zinc-400">
+                    pts
                   </span>
                 </div>
+
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                    <TrendingUp className="size-3 text-emerald-400" />
+                    <span>Points Share</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-mono font-semibold text-zinc-400 mt-0.5">
+                    <span className={pD1 >= pD2 ? 'text-white font-bold' : ''}>
+                      {d1PtsShare}%
+                    </span>
+                    <span>/</span>
+                    <span className={pD2 >= pD1 ? 'text-white font-bold' : ''}>
+                      {d2PtsShare}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-zinc-400">
+                    pts
+                  </span>
+                  <span
+                    className={[
+                      'font-mono text-lg sm:text-xl font-black tabular-nums',
+                      pD2 >= pD1 ? 'text-white' : 'text-zinc-500',
+                    ].join(' ')}
+                  >
+                    {pD2}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono text-zinc-400">
-                  pts
-                </span>
-                <span
-                  className={[
-                    'font-mono text-lg sm:text-xl font-black tabular-nums',
-                    stats.points.d2Points >= stats.points.d1Points
-                      ? 'text-white'
-                      : 'text-zinc-500',
-                  ].join(' ')}
-                >
-                  {stats.points.d2Points}
-                </span>
+              {/* Proportional Progress Bar in team color for better driver */}
+              <div className="h-1.5 sm:h-2 w-full bg-zinc-800/60 rounded-full overflow-hidden flex items-center mt-2.5">
+                <div
+                  className="h-full rounded-l-full transition-all duration-500"
+                  style={{
+                    width: `${pD1Pct}%`,
+                    backgroundColor: pD1 > pD2 ? theme.primary : pD1 === pD2 ? `${theme.primary}99` : '#3f3f46',
+                  }}
+                />
+                <div className="w-0.5 h-full bg-zinc-950 shrink-0" />
+                <div
+                  className="h-full rounded-r-full transition-all duration-500"
+                  style={{
+                    width: `${pD2Pct}%`,
+                    backgroundColor: pD2 > pD1 ? theme.primary : pD1 === pD2 ? `${theme.primary}99` : '#3f3f46',
+                  }}
+                />
               </div>
             </div>
           )}

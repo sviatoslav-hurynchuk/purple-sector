@@ -67,6 +67,9 @@ export function BattleModal({
 
   const d1Faster = stats.qualifying.medianDeltaMs < 0;
 
+  const d1PtsShare = Number(stats.points.d1SharePercent.toFixed(1));
+  const d2PtsShare = Number((100 - d1PtsShare).toFixed(1));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPanel className="max-w-4xl max-h-[92vh] border-zinc-800 bg-zinc-950 p-0 overflow-hidden shadow-2xl">
@@ -299,7 +302,7 @@ export function BattleModal({
                           Constructor Points Share
                         </div>
                         <div className="text-lg font-bold font-mono text-white mt-0.5">
-                          {stats.points.d1SharePercent}% vs {100 - stats.points.d1SharePercent}%
+                          {d1PtsShare}% vs {d2PtsShare}%
                         </div>
                       </div>
                     </div>
