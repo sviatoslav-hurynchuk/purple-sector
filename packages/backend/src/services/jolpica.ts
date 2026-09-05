@@ -23,7 +23,7 @@ import { getOfficialF1DriverStats, getOfficialF1TeamDetails, warmOfficialDriverS
 
 const BASE_URL = process.env.JOLPICA_BASE_URL ?? 'https://api.jolpi.ca/ergast/f1';
 
-function getCurrentSeason(): string {
+export function getCurrentSeason(): string {
   return new Date().getFullYear().toString();
 }
 
@@ -46,12 +46,13 @@ function getUpcomingRaceTTL(): number {
   return isRaceWeekend() ? 60 : 5 * 60; // 60s during race weekend vs 5min mid-week
 }
 
-const TTL = {
+export const TTL = {
   SCHEDULE_CURRENT: 6 * 60 * 60,   // 6 hours
   SCHEDULE_PAST: 24 * 60 * 60,     // 24 hours
   RACE_WITH_RESULTS: 24 * 60 * 60, // 24 hours (immutable data)
   PIT_STOPS: 24 * 60 * 60,         // 24 hours (immutable once race finishes)
   LAPS: 24 * 60 * 60,              // 24 hours (immutable once race finishes)
+  H2H: 24 * 60 * 60,               // 24 hours for completed season H2H
   NEGATIVE_CACHE: 5 * 60,          // 5 minutes for non-existent races
   CONSTRUCTOR_PROFILE: 5 * 60,     // 5 minutes for constructor profiles
 } as const;
@@ -256,7 +257,7 @@ function processJolpicaQueue(): void {
   }, delay);
 }
 
-async function jolpicaFetch<T>(path: string, timeoutMs = 10000): Promise<T> {
+export async function jolpicaFetch<T>(path: string, timeoutMs = 10000): Promise<T> {
   const [pathnameRaw, query] = path.split('?', 2);
   const pathname = pathnameRaw.endsWith('.json') ? pathnameRaw.slice(0, -5) : pathnameRaw;
   const url = `${BASE_URL}${pathname}.json${query ? `?${query}` : ''}`;
@@ -287,9 +288,9 @@ function isNegativeCacheSentinel(val: unknown): val is NegativeCacheSentinel {
 
 const inFlight = new Map<string, Promise<unknown>>();
 
-type TTLResolver<T> = number | ((data: T) => number | Promise<number>);
+export type TTLResolver<T> = number | ((data: T) => number | Promise<number>);
 
-async function cachedFetch<T>(
+export async function cachedFetch<T>(
   key: string,
   ttl: TTLResolver<T>,
   fetcher: () => Promise<T>,
