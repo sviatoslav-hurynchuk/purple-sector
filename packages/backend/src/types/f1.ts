@@ -482,3 +482,107 @@ export interface CarLocationSample {
   y: number;
   z: number;
 }
+
+// ── Teammate Head-to-Head ───────────────────────────────────────────────────
+
+/** Driver summary inside a head-to-head matchup. */
+export interface DriverH2HSummary {
+  driverId: string;
+  code: string;
+  givenName: string;
+  familyName: string;
+  permanentNumber?: string;
+  nationality: string;
+}
+
+/** Per-round breakdown of the head-to-head battle between two teammates. */
+export interface RoundBattle {
+  round: number;
+  raceName: string;
+  circuitName: string;
+  circuitId?: string;
+  country: string;
+  date: string;
+  qualifying: {
+    d1Position?: number;
+    d2Position?: number;
+    d1Time?: string;
+    d2Time?: string;
+    winnerId?: string;
+    deltaMs?: number;
+  };
+  race: {
+    d1Position?: number;
+    d2Position?: number;
+    d1Status: string;
+    d2Status: string;
+    winnerId?: string;
+    d1Points: number;
+    d2Points: number;
+  };
+}
+
+/** Aggregated head-to-head battle statistics between two teammates. */
+export interface TeammatePairStats {
+  qualifying: {
+    d1Wins: number;
+    d2Wins: number;
+    total: number;
+    medianDeltaMs: number;
+    meanDeltaMs: number;
+    d1Poles: number;
+    d2Poles: number;
+  };
+  race: {
+    d1Wins: number;
+    d2Wins: number;
+    bothFinishedCount: number;
+    totalRaces: number;
+  };
+  points: {
+    d1Points: number;
+    d2Points: number;
+    total: number;
+    d1SharePercent: number;
+  };
+  podiums: {
+    d1: number;
+    d2: number;
+  };
+  wins: {
+    d1: number;
+    d2: number;
+  };
+  fastestLaps: {
+    d1: number;
+    d2: number;
+  };
+  bestFinish: {
+    d1: number;
+    d2: number;
+  };
+  bestGrid: {
+    d1: number;
+    d2: number;
+  };
+}
+
+/** Complete head-to-head pairing data for a constructor. */
+export interface TeammatePairBattle {
+  id: string;
+  constructorId: string;
+  constructorName: string;
+  driver1: DriverH2HSummary;
+  driver2: DriverH2HSummary;
+  stats: TeammatePairStats;
+  rounds: RoundBattle[];
+  isPrimary?: boolean;
+}
+
+/** Complete response for season teammate head-to-head battles. */
+export interface SeasonHeadToHeadResponse {
+  season: string;
+  totalRaces: number;
+  completedRaces: number;
+  teams: TeammatePairBattle[];
+}

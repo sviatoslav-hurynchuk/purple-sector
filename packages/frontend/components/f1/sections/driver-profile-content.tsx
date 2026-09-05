@@ -1,15 +1,18 @@
 import Link from 'next/link';
 import { DriverImage } from '@/components/f1/driver-image';
-import type { DriverProfile, DriverSeasonStanding } from '@/types/f1';
+import type { DriverProfile, DriverSeasonStanding, TeammatePairBattle } from '@/types/f1';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { getTeamTheme } from '@/lib/team-colors';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ExternalLink, Trophy } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Trophy, Swords, ChevronRight } from 'lucide-react';
+import { TeamBattleCard } from '@/components/f1/head-to-head/team-battle-card';
 
 interface DriverProfileContentProps {
   profile: DriverProfile;
+  headToHeadBattle?: TeammatePairBattle | null;
+  h2hSeason?: number;
 }
 
 function calculateAge(dateOfBirth: string): number | null {
@@ -37,7 +40,11 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-export function DriverProfileContent({ profile }: DriverProfileContentProps) {
+export function DriverProfileContent({
+  profile,
+  headToHeadBattle,
+  h2hSeason = 2024,
+}: DriverProfileContentProps) {
   const { driver, careerStats, seasonHistory } = profile;
   const age = calculateAge(driver.dateOfBirth);
 
@@ -297,6 +304,33 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
           </div>
         </div>
       </div>
+
+      {/* ── TEAMMATE HEAD-TO-HEAD DUEL ────────────────────────── */}
+      {headToHeadBattle && (
+        <div className="mt-10 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Swords className="h-5 w-5 text-purple-400" />
+              <h2 className="text-xl font-black uppercase tracking-widest text-foreground">
+                Teammate Head-to-Head Duel ({h2hSeason})
+              </h2>
+            </div>
+            <Link
+              href={`/head-to-head?season=${h2hSeason}`}
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+            >
+              <span>View Full Grid</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <TeamBattleCard
+            battles={[headToHeadBattle]}
+            season={h2hSeason}
+            discipline="all"
+          />
+        </div>
+      )}
 
       {/* ── SEASON HISTORY TABLE ─────────────────────────────── */}
       <div className="mt-10">

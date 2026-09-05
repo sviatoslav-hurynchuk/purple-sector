@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Calendar, Users, Trophy, Radio } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Trophy, Radio, Swords } from 'lucide-react';
 import { useSharedLiveSession } from '@/components/live/live-session-provider';
 
 const NAV_ITEMS = [
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/live', label: 'Live Timing', icon: Radio, isLive: true },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/constructors', label: 'Teams & Drivers', icon: Users, aliases: ['/drivers'] },
+  { href: '/head-to-head', label: 'Head-to-Head', icon: Swords },
   { href: '/standings', label: 'Standings', icon: Trophy },
 ];
 

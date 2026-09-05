@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import Link from 'next/link';
 import type { LapData, DriverLapSummary, PitStopEntry, TireStint } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
 import { formatRaceOutcome } from '@/lib/f1-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Swords, X, Trophy, Timer, TrendingUp, Gauge, Disc } from 'lucide-react';
+import { Swords, X, Trophy, Timer, TrendingUp, Gauge, Disc, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PaceComparisonProps {
@@ -16,7 +17,9 @@ interface PaceComparisonProps {
   drivers: DriverLapSummary[];
   pitStops: PitStopEntry[];
   openF1Stints?: TireStint[];
+  isPaused?: boolean;
   onRemoveDriver: (driverId: string) => void;
+  onAddDriver?: (driverId: string) => void;
   onClearAll: () => void;
 }
 
@@ -48,13 +51,33 @@ export function PaceComparison({
   drivers,
   pitStops,
   openF1Stints = [],
+  isPaused,
   onRemoveDriver,
+  onAddDriver,
   onClearAll,
 }: PaceComparisonProps) {
   // Selected driver summaries
   const selectedDrivers = useMemo(() => {
     return drivers.filter((d) => selectedDriverIds.has(d.driverId));
   }, [drivers, selectedDriverIds]);
+
+  // Teammate detection for 1-click comparison
+  const teammate = useMemo(() => {
+    if (selectedDrivers.length !== 1) return null;
+    const current = selectedDrivers[0];
+    return (
+      drivers.find(
+        (d) =>
+          d.constructorId === current.constructorId &&
+          d.driverId !== current.driverId
+      ) || null
+    );
+  }, [selectedDrivers, drivers]);
+
+  const isTeammateDuel = useMemo(() => {
+    if (selectedDrivers.length !== 2) return false;
+    return selectedDrivers[0].constructorId === selectedDrivers[1].constructorId;
+  }, [selectedDrivers]);
 
   // Driver lap times per lap (map driverId -> array of { lap, seconds, timeStr })
   const driverPaceData = useMemo(() => {
@@ -192,12 +215,35 @@ export function PaceComparison({
               <Badge variant="outline" className="font-mono text-xs border-primary/40 text-primary">
                 {selectedDrivers.length} Drivers
               </Badge>
+              {isTeammateDuel && (
+                <Link
+                  href="/head-to-head"
+                  className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-purple-400 hover:text-purple-300 hover:underline px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30"
+                >
+                  <Swords className="size-3" />
+                  <span>Teammate Duel</span>
+                </Link>
+              )}
             </h3>
           </div>
         </div>
 
         {/* Selected Driver Pills & Clear Button */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Quick 1-click Compare Teammate Button */}
+          {teammate && onAddDriver && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isPaused === false}
+              onClick={() => onAddDriver(teammate.driverId)}
+              className="text-xs h-7 border-purple-500/40 text-purple-300 hover:bg-purple-500/15 hover:text-white flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Swords className="size-3 text-purple-400" />
+              <span>Compare Teammate ({teammate.code})</span>
+            </Button>
+          )}
           {selectedDrivers.map((d) => {
             const theme = getTeamTheme(d.constructorId);
             return (

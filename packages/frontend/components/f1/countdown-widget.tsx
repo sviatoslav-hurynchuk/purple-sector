@@ -7,6 +7,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { getNextSessionForRace, resolveQualifyingSegment } from '@/lib/sessions';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { getCircuitDetails } from '@/lib/circuit-details';
+import { useSharedLiveSession } from '@/components/live/live-session-provider';
 import { cn } from '@/lib/utils';
 
 interface CountdownWidgetProps {
@@ -26,13 +27,19 @@ export function CountdownWidget({
   const nextSession = race ? getNextSessionForRace(race) : null;
   const countdown = useCountdown(nextSession?.rawDate);
 
+  const { state: liveSessionState } = useSharedLiveSession();
+  const isLiveActive = Boolean(liveSessionState?.isActive);
+  const isOngoing = Boolean(nextSession?.isOngoing);
+  const isSessionLive = Boolean(isOngoing || isLiveActive);
+  const ongoingSession = isOngoing ? nextSession : null;
+
   useEffect(() => {
-    if (!nextSession?.isOngoing) return;
+    if (!isSessionLive) return;
     const interval = setInterval(() => {
       setNowMs(Date.now());
     }, 1000);
     return () => clearInterval(interval);
-  }, [nextSession?.isOngoing]);
+  }, [isSessionLive]);
 
   if (!race) return null;
 
@@ -60,16 +67,21 @@ export function CountdownWidget({
 
   const pad = (num: number) => num.toString().padStart(2, '0');
 
-  if (nextSession?.isOngoing) {
-    if (nextSession.code === 'RACE') {
+  if (isSessionLive) {
+    const isRaceSession =
+      ongoingSession?.code === 'RACE' ||
+      Boolean(liveSessionState?.sessionType?.toLowerCase().includes('race'));
+
+    if (isRaceSession && ongoingSession) {
       const circuitInfo = getCircuitDetails(race.Circuit.circuitId);
       const totalLaps = circuitInfo?.numberOfLaps ?? '70';
-      const elapsedMs = Math.max(0, nowMs - nextSession.rawDate.getTime());
+      const elapsedMs = Math.max(0, nowMs - ongoingSession.rawDate.getTime());
       const estLap = Math.min(Number(totalLaps) || 70, Math.max(1, Math.floor(elapsedMs / 90000) + 1));
 
       return (
         <Link
-          href={eventUrl}
+          href="/live"
+          title="Live Timing is active — click to view live stream"
           className={cn(
             'group inline-flex items-center gap-3 p-2.5 sm:p-3 rounded-xl bg-zinc-950/95 border border-red-800/60 hover:border-red-500 hover:bg-zinc-900/90 shadow-lg backdrop-blur-sm transition-all cursor-pointer',
             className
@@ -98,24 +110,29 @@ export function CountdownWidget({
       );
     }
 
-    let displayCode = nextSession.code;
-    let remainingMs = Math.max(0, nextSession.rawDate.getTime() + nextSession.durationMinutes * 60 * 1000 - nowMs);
+    let displayCode = ongoingSession?.code ?? liveSessionState?.sessionName?.toUpperCase() ?? 'LIVE';
+    let formattedLiveTimer: string | null = null;
 
-    if (nextSession.code === 'QUALY' || nextSession.code === 'SQ') {
-      const qSegment = resolveQualifyingSegment(nextSession.code, nextSession.rawDate, new Date(nowMs));
-      if (qSegment) {
-        displayCode = qSegment.segmentCode;
-        remainingMs = Math.max(0, qSegment.remainingSeconds * 1000);
+    if (ongoingSession) {
+      let remainingMs = Math.max(0, ongoingSession.rawDate.getTime() + ongoingSession.durationMinutes * 60 * 1000 - nowMs);
+
+      if (ongoingSession.code === 'QUALY' || ongoingSession.code === 'SQ') {
+        const qSegment = resolveQualifyingSegment(ongoingSession.code, ongoingSession.rawDate, new Date(nowMs));
+        if (qSegment) {
+          displayCode = qSegment.segmentCode;
+          remainingMs = Math.max(0, qSegment.remainingSeconds * 1000);
+        }
       }
-    }
 
-    const remMinutes = Math.floor(remainingMs / (1000 * 60));
-    const remSeconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
-    const formattedLiveTimer = `${pad(remMinutes)}:${pad(remSeconds)}`;
+      const remMinutes = Math.floor(remainingMs / (1000 * 60));
+      const remSeconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
+      formattedLiveTimer = `${pad(remMinutes)}:${pad(remSeconds)}`;
+    }
 
     return (
       <Link
-        href={eventUrl}
+        href="/live"
+        title="Live Timing is active — click to view live stream"
         className={cn(
           'group inline-flex items-center gap-3 p-2.5 sm:p-3 rounded-xl bg-zinc-950/95 border border-red-800/60 hover:border-red-500 hover:bg-zinc-900/90 shadow-lg backdrop-blur-sm transition-all cursor-pointer',
           className
@@ -128,7 +145,9 @@ export function CountdownWidget({
 
         <div className="flex items-center gap-2 font-mono text-sm sm:text-base font-black text-foreground tracking-tight">
           <span>{displayCode}</span>
-          <span className="font-mono text-primary font-black">{formattedLiveTimer}</span>
+          {formattedLiveTimer && (
+            <span className="font-mono text-primary font-black">{formattedLiveTimer}</span>
+          )}
         </div>
 
         <svg

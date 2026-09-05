@@ -17,6 +17,8 @@ import type {
   PitStopsResponse,
   RaceLapsResponse,
   RaceSessionData,
+  SeasonHeadToHeadResponse,
+  TeammatePairBattle,
 } from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -199,4 +201,45 @@ export async function getOpenF1RaceData(
   const currentYear = getCurrentYear();
   const revalidate = year === currentYear ? 3600 : 86400;
   return apiFetchNullable<RaceSessionData>(`/api/openf1/race/${season}/${round}`, revalidate);
+}
+
+// ── Teammate Head-to-Head ───────────────────────────────────────────────────
+
+export async function getSeasonHeadToHead(
+  season?: number | string
+): Promise<SeasonHeadToHeadResponse | null> {
+  const currentYear = getCurrentYear();
+  const year = season ? String(season) : String(currentYear);
+  const revalidate = Number(year) < currentYear ? 86400 : 900;
+  return apiFetchNullable<SeasonHeadToHeadResponse>(
+    `/api/head-to-head/${year}`,
+    revalidate
+  );
+}
+
+export async function getTeammateBattle(
+  season: number | string,
+  driver1: string,
+  driver2: string
+): Promise<TeammatePairBattle | null> {
+  const currentYear = getCurrentYear();
+  const year = String(season);
+  const revalidate = Number(year) < currentYear ? 86400 : 900;
+  return apiFetchNullable<TeammatePairBattle>(
+    `/api/head-to-head/${year}/battle/${driver1}/${driver2}`,
+    revalidate
+  );
+}
+
+export async function getConstructorHeadToHead(
+  season: number | string,
+  constructorId: string
+): Promise<TeammatePairBattle[] | null> {
+  const currentYear = getCurrentYear();
+  const year = String(season);
+  const revalidate = Number(year) < currentYear ? 86400 : 900;
+  return apiFetchNullable<TeammatePairBattle[]>(
+    `/api/head-to-head/${year}/constructor/${constructorId}`,
+    revalidate
+  );
 }
