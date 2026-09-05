@@ -50,6 +50,7 @@ export class LivePollingEngine extends EventEmitter {
   private sessionMeta: OpenF1Session | null = null;
   private driverMap = new Map<number, DriverMeta>();
   private cycleCount = 0;
+  private sessionGeneration = 0;
 
   // Watermarks for incremental polling
   private lastIntervalDate: string | null = null;
@@ -90,6 +91,7 @@ export class LivePollingEngine extends EventEmitter {
    */
   public setCompletedState(completedState: LiveSessionState): void {
     if (this.isRunning) return;
+    this.sessionGeneration++;
     this.state = completedState;
     this.sessionKey = completedState.sessionKey;
     this.meetingKey = completedState.meetingKey;
@@ -229,6 +231,7 @@ export class LivePollingEngine extends EventEmitter {
     }
 
     this.isRunning = true;
+    this.sessionGeneration++;
     this.emit('start', { sessionKey: this.sessionKey });
     this.emit('state', this.state);
 
@@ -244,6 +247,7 @@ export class LivePollingEngine extends EventEmitter {
    * Stops the live polling loop and updates state.
    */
   public stop(): void {
+    this.sessionGeneration++;
     if (this.pollTimer) {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
@@ -273,10 +277,10 @@ export class LivePollingEngine extends EventEmitter {
     if (!this.isRunning || !this.sessionKey || this.isPolling) return;
     this.isPolling = true;
     this.cycleCount++;
+    const generation = this.sessionGeneration;
+    const sKey = this.sessionKey;
 
     try {
-      const sKey = this.sessionKey;
-
       // Intervals & Positions params with incremental watermark
       const intervalParams: Record<string, string | number> = { session_key: sKey };
       if (this.lastIntervalDate) {
@@ -299,6 +303,11 @@ export class LivePollingEngine extends EventEmitter {
         openF1Fetch<OpenF1Position>('/position', positionParams).catch(() => []),
         openF1Fetch<OpenF1RaceControl>('/race_control', raceControlParams).catch(() => []),
       ]);
+
+      // Guard: Abort if engine was stopped or session changed while requests were in-flight
+      if (!this.isRunning || this.sessionGeneration !== generation || this.sessionKey !== sKey) {
+        return;
+      }
 
       let stateChanged = false;
 
@@ -400,7 +409,7 @@ export class LivePollingEngine extends EventEmitter {
         }
       }
 
-      if (stateChanged) {
+      if (stateChanged && this.isRunning && this.sessionGeneration === generation && this.sessionKey === sKey) {
         this.state.lastUpdated = new Date().toISOString();
         this.emit('state', this.state);
 
