@@ -466,6 +466,7 @@ export interface LiveSessionState {
     dateStart?: string;
     dateEnd?: string;
     isActive: boolean;
+    status?: 'LIVE' | 'COMPLETED' | 'UPCOMING' | 'OFFLINE';
     lastUpdated: string;
     drivers: LiveDriverState[];
     raceControlFeed: RaceEvent[];

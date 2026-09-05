@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { livePollingEngine } from '../services/live-polling';
+import { sessionWatcher } from '../services/session-watcher';
 import {
   getRecentDriverTelemetry,
   getDriverLapTelemetry,
@@ -43,17 +44,19 @@ function adminAuth(req: Request, res: Response, next: NextFunction): void {
 /**
  * GET /api/live/state
  * Returns the current live session snapshot (JSON).
+ * Automatically wakes up live engine if in-session, or provides completed snapshot.
  */
-router.get('/state', (_req: Request, res: Response) => {
+router.get('/state', async (_req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.json(livePollingEngine.getState());
+  const state = await sessionWatcher.ensureSessionState();
+  res.json(state);
 });
 
 /**
  * GET /api/live/stream
  * Server-Sent Events (SSE) stream for real-time live timing & dashboard updates.
  */
-router.get('/stream', (req: Request, res: Response) => {
+router.get('/stream', async (req: Request, res: Response) => {
   // SSE Headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -61,22 +64,53 @@ router.get('/stream', (req: Request, res: Response) => {
   res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering on Nginx/Render proxies
   res.flushHeaders?.();
 
-  // Send initial full state immediately upon connection
-  const initialState = livePollingEngine.getState();
-  res.write(`event: state\ndata: ${JSON.stringify(initialState)}\n\n`);
+  let isClosed = false;
+  let heartbeatInterval: NodeJS.Timeout | null = null;
 
   // Event handlers
   const handleState = (state: LiveSessionState) => {
-    res.write(`event: state\ndata: ${JSON.stringify(state)}\n\n`);
+    if (!isClosed && !res.writableEnded) {
+      res.write(`event: state\ndata: ${JSON.stringify(state)}\n\n`);
+    }
   };
 
   const handleRaceControl = (events: RaceEvent[]) => {
-    res.write(`event: raceControl\ndata: ${JSON.stringify(events)}\n\n`);
+    if (!isClosed && !res.writableEnded) {
+      res.write(`event: raceControl\ndata: ${JSON.stringify(events)}\n\n`);
+    }
   };
 
   const handleWeather = (weather: WeatherSnapshot | null) => {
-    res.write(`event: weather\ndata: ${JSON.stringify(weather)}\n\n`);
+    if (!isClosed && !res.writableEnded) {
+      res.write(`event: weather\ndata: ${JSON.stringify(weather)}\n\n`);
+    }
   };
+
+  // Cleanup on client disconnect registered early to handle aborts during initial state fetch
+  const cleanup = () => {
+    isClosed = true;
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+    livePollingEngine.off('state', handleState);
+    livePollingEngine.off('raceControl', handleRaceControl);
+    livePollingEngine.off('weather', handleWeather);
+    res.end();
+  };
+
+  req.on('close', cleanup);
+
+  // Send initial state immediately upon connection (with lazy wakeup if in-session)
+  const initialState = await sessionWatcher.ensureSessionState();
+
+  // If client disconnected while waiting for sessionWatcher, abort setup
+  if (isClosed || req.destroyed || res.writableEnded) {
+    cleanup();
+    return;
+  }
+
+  res.write(`event: state\ndata: ${JSON.stringify(initialState)}\n\n`);
 
   // Subscribe to LivePollingEngine events
   livePollingEngine.on('state', handleState);
@@ -84,18 +118,11 @@ router.get('/stream', (req: Request, res: Response) => {
   livePollingEngine.on('weather', handleWeather);
 
   // Keepalive heartbeat ping every 15 seconds
-  const heartbeatInterval = setInterval(() => {
-    res.write(': keep-alive\n\n');
+  heartbeatInterval = setInterval(() => {
+    if (!isClosed && !res.writableEnded) {
+      res.write(': keep-alive\n\n');
+    }
   }, 15000);
-
-  // Cleanup on client disconnect
-  req.on('close', () => {
-    clearInterval(heartbeatInterval);
-    livePollingEngine.off('state', handleState);
-    livePollingEngine.off('raceControl', handleRaceControl);
-    livePollingEngine.off('weather', handleWeather);
-    res.end();
-  });
 });
 
 /**

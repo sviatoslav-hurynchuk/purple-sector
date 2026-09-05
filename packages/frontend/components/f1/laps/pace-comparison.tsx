@@ -409,9 +409,6 @@ export function PaceComparison({
             <span className="text-xs font-bold uppercase tracking-wider text-foreground">
               Stint Evolution & Tyre Strategy
             </span>
-            <Badge variant="outline" className="text-[9px] font-mono border-zinc-700 text-muted-foreground">
-              {openF1Stints && openF1Stints.length > 0 ? 'Pirelli Telemetry' : pitStops.length > 0 ? 'Pit Strategy' : 'Single Stint'}
-            </Badge>
           </div>
           <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-400">
             <span className="flex items-center gap-1">
@@ -438,9 +435,15 @@ export function PaceComparison({
               .sort((a, b) => (parseInt(a.stop, 10) || 0) - (parseInt(b.stop, 10) || 0));
 
             // Find matching OpenF1 driver stints if available
-            const driverOpenF1Stints = openF1Stints?.filter(
-              (s) => s.driverId === d.driverId
-            ) ?? [];
+            const driverOpenF1Stints = openF1Stints?.filter((s) => {
+              if (s.driverId === d.driverId) return true;
+              const sNorm = s.driverId.toLowerCase().replace(/[-_]/g, '');
+              const dNorm = d.driverId.toLowerCase().replace(/[-_]/g, '');
+              if (sNorm.includes(dNorm) || dNorm.includes(sNorm)) return true;
+              const familyNorm = d.familyName?.toLowerCase().replace(/[-_\s]/g, '');
+              if (familyNorm && sNorm.includes(familyNorm)) return true;
+              return false;
+            }) ?? [];
 
             const effectiveTotal = Math.max(1, d.totalLaps || totalLaps);
             const stints: {
