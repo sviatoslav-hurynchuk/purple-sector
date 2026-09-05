@@ -17,6 +17,7 @@ interface PaceComparisonProps {
   drivers: DriverLapSummary[];
   pitStops: PitStopEntry[];
   openF1Stints?: TireStint[];
+  isPaused?: boolean;
   onRemoveDriver: (driverId: string) => void;
   onAddDriver?: (driverId: string) => void;
   onClearAll: () => void;
@@ -50,6 +51,7 @@ export function PaceComparison({
   drivers,
   pitStops,
   openF1Stints = [],
+  isPaused,
   onRemoveDriver,
   onAddDriver,
   onClearAll,
@@ -234,8 +236,9 @@ export function PaceComparison({
               type="button"
               variant="outline"
               size="sm"
+              disabled={isPaused === false}
               onClick={() => onAddDriver(teammate.driverId)}
-              className="text-xs h-7 border-purple-500/40 text-purple-300 hover:bg-purple-500/15 hover:text-white flex items-center gap-1.5"
+              className="text-xs h-7 border-purple-500/40 text-purple-300 hover:bg-purple-500/15 hover:text-white flex items-center gap-1.5 disabled:opacity-50"
             >
               <Swords className="size-3 text-purple-400" />
               <span>Compare Teammate ({teammate.code})</span>

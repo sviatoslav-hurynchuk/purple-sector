@@ -375,14 +375,6 @@ export async function getSeasonHeadToHead(
               qWinnerId = driver2.driverId;
               qD2Wins++;
             }
-          } else if (d1QPos) {
-            qTotal++;
-            qWinnerId = driver1.driverId;
-            qD1Wins++;
-          } else if (d2QPos) {
-            qTotal++;
-            qWinnerId = driver2.driverId;
-            qD2Wins++;
           }
 
           // Shared qualifying session delta (Q3 > Q2 > Q1)
@@ -647,6 +639,7 @@ export async function getTeammateBattle(
   driver2Id: string
 ): Promise<TeammatePairBattle | null> {
   const data = await getSeasonHeadToHead(season);
+  if (!data?.teams) return null;
   const d1 = driver1Id.toLowerCase();
   const d2 = driver2Id.toLowerCase();
 
@@ -669,6 +662,7 @@ export async function getConstructorBattles(
   constructorId: string
 ): Promise<TeammatePairBattle[]> {
   const data = await getSeasonHeadToHead(season);
+  if (!data?.teams) return [];
   const cId = constructorId.toLowerCase();
   return data.teams.filter((team) => team.constructorId.toLowerCase() === cId);
 }

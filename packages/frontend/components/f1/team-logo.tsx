@@ -244,7 +244,10 @@ export function TeamLogo({
     >
       <div
         style={{ backgroundColor: theme.primary }}
-        className="w-full h-full rounded flex items-center justify-center font-mono font-black text-[9px] leading-none text-white shadow-inner"
+        className={cn(
+          "w-full h-full rounded flex items-center justify-center font-mono font-black text-[9px] leading-none shadow-inner",
+          theme.textColor === 'dark' ? 'text-black' : 'text-white'
+        )}
       >
         {code}
       </div>

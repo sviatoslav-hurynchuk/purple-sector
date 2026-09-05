@@ -32,7 +32,8 @@ export default async function DriverProfilePage({ params }: DriverPageProps) {
     notFound();
   }
 
-  const currentConstructorId = profile.seasonHistory[0]?.constructors[0]?.constructorId;
+  const latestSeasonEntry = profile.seasonHistory[0];
+  const currentConstructorId = latestSeasonEntry?.constructors[0]?.constructorId;
   const currentYear = new Date().getFullYear();
   let h2hBattles = currentConstructorId
     ? await getConstructorHeadToHead(currentYear, currentConstructorId).catch(() => null)
@@ -40,10 +41,11 @@ export default async function DriverProfilePage({ params }: DriverPageProps) {
   let h2hSeason = currentYear;
 
   if (!h2hBattles || h2hBattles.length === 0 || h2hBattles[0]?.rounds.length === 0) {
-    h2hBattles = currentConstructorId
-      ? await getConstructorHeadToHead(2024, currentConstructorId).catch(() => null)
-      : null;
-    h2hSeason = 2024;
+    const fallbackSeason = Number(latestSeasonEntry?.season) || currentYear - 1;
+    if (fallbackSeason !== currentYear && currentConstructorId) {
+      h2hBattles = await getConstructorHeadToHead(fallbackSeason, currentConstructorId).catch(() => null);
+      h2hSeason = fallbackSeason;
+    }
   }
 
   const normalizedId = driverId.toLowerCase();

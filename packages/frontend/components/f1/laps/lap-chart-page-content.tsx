@@ -231,6 +231,7 @@ export function LapChartPageContent({
             drivers={lapsData.drivers}
             pitStops={pitStops}
             openF1Stints={openF1Data?.stints}
+            isPaused={!isPlaying}
             onRemoveDriver={handleRemoveDriver}
             onAddDriver={handleToggleDriver}
             onClearAll={handleClearDrivers}

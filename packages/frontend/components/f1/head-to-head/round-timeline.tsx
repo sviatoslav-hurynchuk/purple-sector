@@ -153,7 +153,7 @@ export function RoundTimeline({
                             : 'text-zinc-600'
                         }`}
                       >
-                        {round.race.d1Position ? `P${round.race.d1Position}` : 'DNF'}
+                        {round.race.d1Position ? `P${round.race.d1Position}` : (round.race.d1Status || 'DNF')}
                       </span>
                       {round.race.d1Points > 0 && (
                         <span className="text-[10px] text-emerald-400">
@@ -196,7 +196,7 @@ export function RoundTimeline({
                             : 'text-zinc-600'
                         }`}
                       >
-                        {round.race.d2Position ? `P${round.race.d2Position}` : 'DNF'}
+                        {round.race.d2Position ? `P${round.race.d2Position}` : (round.race.d2Status || 'DNF')}
                       </span>
                       {round.race.d2Points > 0 && (
                         <span className="text-[10px] text-emerald-400">
@@ -294,7 +294,7 @@ export function RoundTimeline({
                     }`}
                   >
                     {driver1.code}{' '}
-                    {round.race.d1Position ? `P${round.race.d1Position}` : 'DNF'}
+                    {round.race.d1Position ? `P${round.race.d1Position}` : (round.race.d1Status || 'DNF')}
                     {round.race.d1Points > 0 && (
                       <span className="text-[10px] text-emerald-400 ml-1">
                         (+{round.race.d1Points})
@@ -308,7 +308,7 @@ export function RoundTimeline({
                     }`}
                   >
                     {driver2.code}{' '}
-                    {round.race.d2Position ? `P${round.race.d2Position}` : 'DNF'}
+                    {round.race.d2Position ? `P${round.race.d2Position}` : (round.race.d2Status || 'DNF')}
                     {round.race.d2Points > 0 && (
                       <span className="text-[10px] text-emerald-400 ml-1">
                         (+{round.race.d2Points})

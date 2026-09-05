@@ -15,14 +15,27 @@ function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
   );
 }
 
+function isValidSeason(season: string): boolean {
+  if (!/^\d{4}$/.test(season)) return false;
+  const year = Number(season);
+  return year >= 1950 && year <= Number(getCurrentSeason()) + 1;
+}
+
 /**
  * GET /api/head-to-head/:season/battle/:driver1/:driver2
  * Returns head-to-head battle between two specific drivers in a given season.
  * Placed before /:season to avoid route collision.
  */
 router.get('/:season/battle/:driver1/:driver2', async (req: Request, res: Response) => {
+  const { season, driver1, driver2 } = req.params;
+  if (!isValidSeason(season)) {
+    res.status(400).json({
+      error: `Invalid season: ${season}. Season must be a 4-digit year between 1950 and ${Number(getCurrentSeason()) + 1}.`,
+    });
+    return;
+  }
+
   try {
-    const { season, driver1, driver2 } = req.params;
     const battle = await getTeammateBattle(season, driver1, driver2);
 
     if (!battle) {
@@ -37,8 +50,8 @@ router.get('/:season/battle/:driver1/:driver2', async (req: Request, res: Respon
     setCacheHeaders(res, maxAge);
     res.json(battle);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(500).json({ error: message });
+    console.error(`[H2H] Failed to load battle for ${driver1} vs ${driver2} in season ${season}:`, err);
+    res.status(500).json({ error: 'Failed to load head-to-head battle data.' });
   }
 });
 
@@ -47,8 +60,15 @@ router.get('/:season/battle/:driver1/:driver2', async (req: Request, res: Respon
  * Returns head-to-head battles for a specific constructor in a given season.
  */
 router.get('/:season/constructor/:constructorId', async (req: Request, res: Response) => {
+  const { season, constructorId } = req.params;
+  if (!isValidSeason(season)) {
+    res.status(400).json({
+      error: `Invalid season: ${season}. Season must be a 4-digit year between 1950 and ${Number(getCurrentSeason()) + 1}.`,
+    });
+    return;
+  }
+
   try {
-    const { season, constructorId } = req.params;
     const battles = await getConstructorBattles(season, constructorId);
 
     if (!battles || battles.length === 0) {
@@ -63,8 +83,8 @@ router.get('/:season/constructor/:constructorId', async (req: Request, res: Resp
     setCacheHeaders(res, maxAge);
     res.json(battles);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(500).json({ error: message });
+    console.error(`[H2H] Failed to load battles for constructor ${constructorId} in season ${season}:`, err);
+    res.status(500).json({ error: 'Failed to load constructor head-to-head data.' });
   }
 });
 
@@ -73,8 +93,15 @@ router.get('/:season/constructor/:constructorId', async (req: Request, res: Resp
  * Returns full season head-to-head data across all constructors and teammate pairs.
  */
 router.get('/:season', async (req: Request, res: Response) => {
+  const { season } = req.params;
+  if (!isValidSeason(season)) {
+    res.status(400).json({
+      error: `Invalid season: ${season}. Season must be a 4-digit year between 1950 and ${Number(getCurrentSeason()) + 1}.`,
+    });
+    return;
+  }
+
   try {
-    const { season } = req.params;
     const data = await getSeasonHeadToHead(season);
 
     const maxAge =
@@ -82,8 +109,8 @@ router.get('/:season', async (req: Request, res: Response) => {
     setCacheHeaders(res, maxAge);
     res.json(data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(500).json({ error: message });
+    console.error(`[H2H] Failed to load season head-to-head for season ${season}:`, err);
+    res.status(500).json({ error: 'Failed to load season head-to-head data.' });
   }
 });
 
