@@ -133,8 +133,8 @@ export class SessionWatcher {
           );
           await livePollingEngine.start(session.session_key);
         }
-      } else {
-        // Outside active session window
+      } else if (now > endMs) {
+        // Concluded session: stop live engine if still running and hydrate completed snapshot
         if (livePollingEngine.isActive()) {
           console.log(
             `[SessionWatcher] Session "${session.session_name}" (${session.session_key}) window has ended. Auto-stopping live engine...`
@@ -144,6 +144,31 @@ export class SessionWatcher {
 
         // Hydrate latest completed session snapshot so users have full classifications
         await this.hydrateCompletedSnapshot(session);
+      } else {
+        // Upcoming session (now < startMs): publish UPCOMING state, do not hydrate as completed
+        if (livePollingEngine.isActive()) {
+          livePollingEngine.stop();
+        }
+
+        const upcomingState: LiveSessionState = {
+          sessionKey: session.session_key,
+          meetingKey: session.meeting_key,
+          sessionType: session.session_type,
+          sessionName: session.session_name,
+          circuitShortName: session.circuit_short_name,
+          countryName: session.country_name,
+          dateStart: session.date_start,
+          dateEnd: session.date_end,
+          isActive: false,
+          status: 'UPCOMING',
+          lastUpdated: new Date().toISOString(),
+          drivers: [],
+          raceControlFeed: [],
+          weather: null,
+        };
+
+        this.cachedSnapshot = upcomingState;
+        livePollingEngine.setCompletedState(upcomingState);
       }
     } catch (err) {
       console.warn('[SessionWatcher] Error checking session lifecycle:', err instanceof Error ? err.message : err);
@@ -157,7 +182,7 @@ export class SessionWatcher {
    */
   public async hydrateCompletedSnapshot(session: OpenF1Session): Promise<LiveSessionState | null> {
     const sessionKey = session.session_key;
-    const cacheKey = `f1:openf1:completed_snapshot:v1:${sessionKey}`;
+    const cacheKey = `f1:openf1:completed_snapshot:v2:${sessionKey}`;
 
     // 1. Check Redis cache first
     const cached = await cache.get<LiveSessionState>(cacheKey);
@@ -199,11 +224,17 @@ export class SessionWatcher {
         lastPosByDriver.set(p.driver_number, p.position);
       }
 
-      // Map best lap duration per driver
-      const bestLapByDriver = new Map<number, number>();
+      // Map latest valid lap duration per driver
+      const latestLapByDriver = new Map<number, { lapNumber: number; duration: number }>();
       for (const l of laps) {
-        if (l.lap_duration && (!bestLapByDriver.has(l.driver_number) || l.lap_duration < bestLapByDriver.get(l.driver_number)!)) {
-          bestLapByDriver.set(l.driver_number, l.lap_duration);
+        if (typeof l.lap_duration === 'number' && l.lap_duration > 0 && typeof l.lap_number === 'number') {
+          const current = latestLapByDriver.get(l.driver_number);
+          if (!current || l.lap_number > current.lapNumber) {
+            latestLapByDriver.set(l.driver_number, {
+              lapNumber: l.lap_number,
+              duration: l.lap_duration,
+            });
+          }
         }
       }
 
@@ -232,7 +263,7 @@ export class SessionWatcher {
           : `driver_${d.driver_number}`);
 
         const position = lastPosByDriver.get(d.driver_number) ?? 20;
-        const bestLap = bestLapByDriver.get(d.driver_number) ?? null;
+        const lastLap = latestLapByDriver.get(d.driver_number)?.duration ?? null;
         const intervalData = lastIntervalByDriver.get(d.driver_number);
         const compoundData = latestCompoundByDriver.get(d.driver_number);
 
@@ -246,7 +277,7 @@ export class SessionWatcher {
           position,
           gapToLeader: position === 1 ? null : intervalData?.gap ?? '—',
           interval: position === 1 ? null : intervalData?.interval ?? '—',
-          lastLapDuration: bestLap,
+          lastLapDuration: lastLap,
           currentCompound: normalizeCompound(compoundData?.compound),
           currentStintLaps: compoundData?.stintLaps ?? 0,
           sector1: null,
