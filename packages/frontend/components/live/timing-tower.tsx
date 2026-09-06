@@ -15,6 +15,7 @@ interface TimingTowerProps {
   drivers: LiveDriverState[];
   selectedDriverNumber?: number | null;
   onSelectDriver?: (driverNumber: number) => void;
+  isRestricted?: boolean;
   className?: string;
 }
 
@@ -22,6 +23,7 @@ export function TimingTower({
   drivers,
   selectedDriverNumber,
   onSelectDriver,
+  isRestricted = false,
   className,
 }: TimingTowerProps) {
   const [columns, setColumns] = useState<VisibleColumns>(DEFAULT_VISIBLE_COLUMNS);
@@ -111,7 +113,18 @@ export function TimingTower({
             {filteredDrivers.length === 0 ? (
               <tr>
                 <td colSpan={10} className="py-12 text-center text-zinc-500 text-xs font-mono">
-                  No drivers matching &quot;{search}&quot;
+                  {isRestricted ? (
+                    <div className="flex flex-col items-center justify-center gap-1.5 py-4">
+                      <span className="font-bold text-amber-400">Live Timing Stream Restricted</span>
+                      <span className="text-[11px] text-zinc-500 max-w-sm">
+                        OpenF1 restricts driver sector times during official live sessions. Configure OPENF1_API_KEY to stream real-time timing data.
+                      </span>
+                    </div>
+                  ) : search ? (
+                    <span>No drivers matching &quot;{search}&quot;</span>
+                  ) : (
+                    <span>Waiting for active session telemetry...</span>
+                  )}
                 </td>
               </tr>
             ) : (

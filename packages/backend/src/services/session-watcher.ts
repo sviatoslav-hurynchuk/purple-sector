@@ -1,6 +1,7 @@
 import type {
   LiveSessionState,
   LiveDriverState,
+  Race,
 } from '../types/f1';
 import type {
   OpenF1Session,
@@ -25,8 +26,50 @@ import {
   mapWeather,
   normalizeCompound,
 } from './openf1-mapper';
+import { getRaceSchedule, getCurrentSeason } from './jolpica';
 import { livePollingEngine } from './live-polling';
 import { cache } from './cache';
+
+interface ActiveCalendarSession {
+  race: Race;
+  sessionType: string;
+  sessionName: string;
+  dateStart: string;
+  dateEnd: string;
+}
+
+function findActiveCalendarSession(races: Race[], nowMs = Date.now()): ActiveCalendarSession | null {
+  for (const race of races) {
+    const candidateSessions: Array<{ name: string; type: string; date?: string; time?: string; durationMinutes: number }> = [
+      { name: 'Practice 1', type: 'Practice', date: race.FirstPractice?.date, time: race.FirstPractice?.time, durationMinutes: 60 },
+      { name: 'Practice 2', type: 'Practice', date: race.SecondPractice?.date, time: race.SecondPractice?.time, durationMinutes: 60 },
+      { name: 'Practice 3', type: 'Practice', date: race.ThirdPractice?.date, time: race.ThirdPractice?.time, durationMinutes: 60 },
+      { name: 'Sprint Qualifying', type: 'Sprint Qualifying', date: race.SprintQualifying?.date, time: race.SprintQualifying?.time, durationMinutes: 44 },
+      { name: 'Sprint', type: 'Sprint', date: race.Sprint?.date, time: race.Sprint?.time, durationMinutes: 60 },
+      { name: 'Qualifying', type: 'Qualifying', date: race.Qualifying?.date, time: race.Qualifying?.time, durationMinutes: 60 },
+      { name: 'Race', type: 'Race', date: race.date, time: race.time, durationMinutes: 150 },
+    ];
+
+    for (const session of candidateSessions) {
+      if (!session.date) continue;
+      const timeStr = session.time ? (session.time.endsWith('Z') ? session.time : `${session.time}Z`) : '13:00:00Z';
+      const startMs = new Date(`${session.date}T${timeStr}`).getTime() - 15 * 60 * 1000;
+      const endMs = startMs + 15 * 60 * 1000 + (session.durationMinutes + 20) * 60 * 1000;
+
+      if (nowMs >= startMs && nowMs <= endMs) {
+        return {
+          race,
+          sessionType: session.type,
+          sessionName: `${race.raceName} — ${session.name}`,
+          dateStart: `${session.date}T${timeStr}`,
+          dateEnd: new Date(startMs + 15 * 60 * 1000 + session.durationMinutes * 60 * 1000).toISOString(),
+        };
+      }
+    }
+  }
+
+  return null;
+}
 
 const CHECK_INTERVAL_MS = 60000; // 60s background check
 const LAZY_CHECK_THROTTLE_MS = 20000; // 20s throttle on client requests
@@ -107,8 +150,63 @@ export class SessionWatcher {
     this.lastCheckTimestamp = Date.now();
 
     try {
-      const latestSessions = await openF1Fetch<OpenF1Session>('/sessions', { session_key: 'latest' }).catch(() => []);
-      if (!latestSessions || latestSessions.length === 0) {
+      let isOpenF1Restricted = false;
+      const latestSessions = await openF1Fetch<OpenF1Session>('/sessions', { session_key: 'latest' })
+        .catch((err) => {
+          if (
+            err?.status === 401 ||
+            err?.isLiveRestricted ||
+            (typeof err?.message === 'string' &&
+              (err.message.includes('401') || err.message.includes('Live F1 session in progress')))
+          ) {
+            isOpenF1Restricted = true;
+          }
+          return [];
+        });
+
+      const now = Date.now();
+
+      // If OpenF1 blocked the request with 401 (or returned no sessions during an active weekend),
+      // cross-reference against the official Jolpica race calendar
+      if (isOpenF1Restricted || latestSessions.length === 0) {
+        const schedule = await getRaceSchedule(getCurrentSeason()).catch(() => []);
+        const activeCalendar = findActiveCalendarSession(schedule, now);
+
+        if (activeCalendar) {
+          if (livePollingEngine.isActive()) {
+            livePollingEngine.stop();
+          }
+
+          const liveRestrictedState: LiveSessionState = {
+            sessionKey: null,
+            meetingKey: null,
+            sessionType: activeCalendar.sessionType,
+            sessionName: activeCalendar.sessionName,
+            circuitShortName: activeCalendar.race.Circuit.circuitName,
+            countryName: activeCalendar.race.Circuit.Location.country,
+            dateStart: activeCalendar.dateStart,
+            dateEnd: activeCalendar.dateEnd,
+            isActive: true,
+            status: 'LIVE',
+            isRestricted: true,
+            restrictionMessage: isOpenF1Restricted
+              ? 'OpenF1 live telemetry is restricted to authenticated accounts during official live F1 sessions. Configure OPENF1_API_KEY in packages/backend/.env for full live telemetry streaming.'
+              : 'Official live session in progress according to FIA schedule.',
+            lastUpdated: new Date().toISOString(),
+            drivers: [],
+            raceControlFeed: [],
+            weather: null,
+          };
+
+          this.cachedSnapshot = liveRestrictedState;
+          livePollingEngine.setCompletedState(liveRestrictedState);
+          return;
+        }
+
+        // If neither OpenF1 nor calendar indicates a live session, and snapshot was restricted, clear it
+        if (this.cachedSnapshot?.isRestricted) {
+          this.cachedSnapshot = null;
+        }
         return;
       }
 
@@ -117,7 +215,6 @@ export class SessionWatcher {
         return;
       }
 
-      const now = Date.now();
       // Active window: 15 minutes before green light to 20 minutes after chequered flag
       const startMs = new Date(session.date_start).getTime() - 15 * 60 * 1000;
       const endMs = new Date(session.date_end).getTime() + 20 * 60 * 1000;

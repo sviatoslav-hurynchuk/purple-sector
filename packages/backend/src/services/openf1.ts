@@ -61,12 +61,19 @@ function enqueueOpenF1Request(
   retries = 3,
   timeoutMs = 12000
 ): Promise<Response> {
+  const token = process.env.OPENF1_TOKEN || process.env.OPENF1_API_KEY;
+  const headers = new Headers(options.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  const mergedOptions: RequestInit = { ...options, headers };
+
   return new Promise((resolve, reject) => {
     if (OPENF1_QUEUE.length >= MAX_OPENF1_QUEUE_CAPACITY) {
       reject(new Error(`OpenF1 request queue is full (${MAX_OPENF1_QUEUE_CAPACITY} pending). Server overloaded.`));
       return;
     }
-    OPENF1_QUEUE.push({ url, options, retries, timeoutMs, resolve, reject });
+    OPENF1_QUEUE.push({ url, options: mergedOptions, retries, timeoutMs, resolve, reject });
     processOpenF1Queue();
   });
 }
@@ -147,6 +154,17 @@ export async function openF1Fetch<T>(
 
   if (!res.ok) {
     if (res.status === 404) return [];
+    if (res.status === 401) {
+      let detail = 'Live F1 session in progress. Global API access is restricted to authenticated users until the session ends.';
+      try {
+        const body = (await res.json()) as { detail?: string };
+        if (body?.detail) detail = body.detail;
+      } catch {}
+      const authErr = new Error(detail) as Error & { status?: number; isLiveRestricted?: boolean };
+      authErr.status = 401;
+      authErr.isLiveRestricted = true;
+      throw authErr;
+    }
     throw new Error(`OpenF1 API error: ${res.status} — ${url}`);
   }
 

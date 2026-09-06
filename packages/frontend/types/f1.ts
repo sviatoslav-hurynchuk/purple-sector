@@ -471,6 +471,8 @@ export interface LiveSessionState {
     drivers: LiveDriverState[];
     raceControlFeed: RaceEvent[];
     weather: WeatherSnapshot | null;
+    isRestricted?: boolean;
+    restrictionMessage?: string;
 }
 
 // ── Telemetry & Track Coordinates ─────────────────────────────────────────────
