@@ -51,8 +51,8 @@ function findActiveCalendarSession(races: Race[], nowMs = Date.now()): ActiveCal
     ];
 
     for (const session of candidateSessions) {
-      if (!session.date) continue;
-      const timeStr = session.time ? (session.time.endsWith('Z') ? session.time : `${session.time}Z`) : '13:00:00Z';
+      if (!session.date || !session.time) continue;
+      const timeStr = session.time.endsWith('Z') ? session.time : `${session.time}Z`;
       const startMs = new Date(`${session.date}T${timeStr}`).getTime() - 15 * 60 * 1000;
       const endMs = startMs + 15 * 60 * 1000 + (session.durationMinutes + 20) * 60 * 1000;
 
