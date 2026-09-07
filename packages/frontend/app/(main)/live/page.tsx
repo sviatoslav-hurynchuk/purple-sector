@@ -202,6 +202,7 @@ function LiveTimingContent() {
               drivers={state?.drivers || []}
               selectedDriverNumber={selectedDriverNumber}
               onSelectDriver={setSelectedDriverNumber}
+              isRestricted={state?.isRestricted}
             />
           </TabsContent>
 
@@ -212,6 +213,7 @@ function LiveTimingContent() {
               drivers={state?.drivers || []}
               selectedDriverNumber={selectedDriverNumber}
               onSelectDriver={setSelectedDriverNumber}
+              isRestricted={state?.isRestricted}
             />
           </TabsContent>
 
