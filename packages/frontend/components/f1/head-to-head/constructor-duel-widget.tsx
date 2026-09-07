@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { TeammatePairBattle } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
@@ -20,6 +20,15 @@ export function ConstructorDuelWidget({
   const [selectedBattleId, setSelectedBattleId] = useState<string>(
     battles.find((b) => b.isPrimary)?.id || battles[0]?.id || ''
   );
+
+  // Synchronize selected battle if absent from the new battles array
+  useEffect(() => {
+    if (battles.length === 0) return;
+    const exists = battles.some((b) => b.id === selectedBattleId);
+    if (!exists) {
+      setSelectedBattleId(battles.find((b) => b.isPrimary)?.id || battles[0]?.id || '');
+    }
+  }, [battles, selectedBattleId]);
 
   const activeBattle =
     battles.find((b) => b.id === selectedBattleId) || battles[0];
@@ -214,7 +223,7 @@ export function ConstructorDuelWidget({
               </span>
               <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
                 <Trophy className="size-3 text-amber-400" />
-                <span>Races Ahead (both finished)</span>
+                <span>Races Ahead</span>
               </div>
               <span className={['font-black text-sm', rD2 >= rD1 ? 'text-white' : 'text-zinc-400'].join(' ')}>
                 <span className="text-[10px] font-normal text-zinc-500">{driver2.code}</span> {rD2}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { TeammatePairBattle } from '@/types/f1';
 import { DriverImage } from '@/components/f1/driver-image';
@@ -32,6 +32,15 @@ export function ArenaFaceoffHero({
     battles.find((b) => b.isPrimary)?.id || battles[0]?.id || ''
   );
   const [activeTab, setActiveTab] = useState<'radar' | 'timeline' | 'stats'>('radar');
+
+  // Synchronize selected battle if absent from the new battles array
+  useEffect(() => {
+    if (battles.length === 0) return;
+    const exists = battles.some((b) => b.id === selectedBattleId);
+    if (!exists) {
+      setSelectedBattleId(battles.find((b) => b.isPrimary)?.id || battles[0]?.id || '');
+    }
+  }, [battles, selectedBattleId]);
 
   const activeBattle =
     battles.find((b) => b.id === selectedBattleId) || battles[0];

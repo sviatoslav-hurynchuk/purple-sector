@@ -109,7 +109,9 @@ export function RoundTimeline({
 
               const d1Finish = getFinishDisplay(round.race.d1Position, round.race.d1Status);
               const d2Finish = getFinishDisplay(round.race.d2Position, round.race.d2Status);
-              const bothDnf = d1Finish.isDnf && d2Finish.isDnf;
+              const isActualDnf = (f: ReturnType<typeof getFinishDisplay>) =>
+                f.isDnf && !f.isDsq && !f.isDns;
+              const bothDnf = isActualDnf(d1Finish) && isActualDnf(d2Finish);
 
               return (
                 <tr

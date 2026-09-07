@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import type { SeasonHeadToHeadResponse, TeammatePairBattle } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { PitlaneTeamSelector } from './pitlane-team-selector';
@@ -13,6 +13,7 @@ interface HeadToHeadContentProps {
   data: SeasonHeadToHeadResponse | null;
   season: number;
   allYears: number[];
+  initialConstructorId?: string;
 }
 
 function BattleArenaSkeleton() {
@@ -50,6 +51,7 @@ export function HeadToHeadContent({
   data,
   season,
   allYears,
+  initialConstructorId,
 }: HeadToHeadContentProps) {
   // Group battles by constructor
   const constructorGroups = useMemo(() => {
@@ -67,8 +69,33 @@ export function HeadToHeadContent({
 
   // Selected constructor for the Face-Off Arena Hero
   const [selectedConstructorId, setSelectedConstructorId] = useState<string>(() => {
+    if (initialConstructorId) {
+      const match = constructorGroups.find((g) => g[0]?.constructorId === initialConstructorId);
+      if (match) return initialConstructorId;
+    }
     return constructorGroups[0]?.[0]?.constructorId || 'ferrari';
   });
+
+  const lastInitialTeamRef = useRef<string | undefined>(initialConstructorId);
+
+  // Synchronize selection state when incoming data or query param changes
+  useEffect(() => {
+    if (constructorGroups.length === 0) return;
+
+    if (initialConstructorId && initialConstructorId !== lastInitialTeamRef.current) {
+      lastInitialTeamRef.current = initialConstructorId;
+      const match = constructorGroups.find((g) => g[0]?.constructorId === initialConstructorId);
+      if (match) {
+        setSelectedConstructorId(initialConstructorId);
+        return;
+      }
+    }
+
+    const exists = constructorGroups.some((g) => g[0]?.constructorId === selectedConstructorId);
+    if (!exists) {
+      setSelectedConstructorId(constructorGroups[0]?.[0]?.constructorId || '');
+    }
+  }, [constructorGroups, initialConstructorId, selectedConstructorId]);
 
   // Active battle group for the selected constructor
   const activeGroup = useMemo(() => {

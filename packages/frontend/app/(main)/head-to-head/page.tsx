@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 interface HeadToHeadPageProps {
-  searchParams: Promise<{ season?: string }>;
+  searchParams: Promise<{ season?: string; team?: string }>;
 }
 
 export default async function HeadToHeadPage({
@@ -40,6 +40,7 @@ export default async function HeadToHeadPage({
       data={data}
       season={validYear}
       allYears={allYears}
+      initialConstructorId={resolvedParams.team}
     />
   );
 }
