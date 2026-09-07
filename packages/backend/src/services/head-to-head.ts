@@ -73,7 +73,8 @@ export function parseTimeToMs(timeStr?: string): number | null {
  */
 export function isFinishedStatus(status?: string): boolean {
   if (!status) return false;
-  return status === 'Finished' || status.startsWith('+');
+  const s = status.toLowerCase();
+  return s === 'finished' || s === 'lapped' || status.startsWith('+');
 }
 
 // ── Core Service ─────────────────────────────────────────────────────────────

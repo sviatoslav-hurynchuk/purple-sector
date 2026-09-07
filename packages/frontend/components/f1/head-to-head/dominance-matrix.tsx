@@ -5,7 +5,7 @@ import type { TeammatePairBattle } from '@/types/f1';
 import { TeamLogo } from '@/components/f1/team-logo';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { getTeamTheme } from '@/lib/team-colors';
-import { Swords, Zap, Trophy, TrendingUp, Flame, ArrowUpRight } from 'lucide-react';
+import { Swords, Zap, Trophy, TrendingUp, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DominanceMatrixProps {
@@ -117,101 +117,85 @@ export function DominanceMatrix({
   return (
     <div className={cn('space-y-4', className)}>
       {/* Control Strip */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-zinc-900 text-zinc-300">
-            <Flame className="size-4 text-amber-400" />
-          </div>
-          <div>
-            <h3 className="text-base font-black uppercase tracking-tight text-white">
-              Grid Dominance Matrix
-            </h3>
-            <p className="text-xs text-zinc-400">
-              Cross-grid comparison of teammate rivalry margins
-            </p>
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+        {/* Metric Selector */}
+        <div className="inline-flex items-center border border-white/10 bg-zinc-900 divide-x divide-white/10 rounded-md overflow-hidden text-xs font-mono">
+          <button
+            type="button"
+            onClick={() => setMetric('race')}
+            className={cn(
+              'px-3 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+              metric === 'race'
+                ? 'bg-zinc-800 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            )}
+          >
+            Races
+          </button>
+          <button
+            type="button"
+            onClick={() => setMetric('qualifying')}
+            className={cn(
+              'px-3 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+              metric === 'qualifying'
+                ? 'bg-zinc-800 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            )}
+          >
+            Qualifying
+          </button>
+          <button
+            type="button"
+            onClick={() => setMetric('points')}
+            className={cn(
+              'px-3 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+              metric === 'points'
+                ? 'bg-zinc-800 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            )}
+          >
+            Points
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Metric Selector */}
-          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-zinc-900 border border-white/10 text-xs font-mono">
-            <button
-              type="button"
-              onClick={() => setMetric('race')}
-              className={cn(
-                'px-2.5 py-1 rounded transition-all cursor-pointer',
-                metric === 'race'
-                  ? 'bg-zinc-800 text-white font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              )}
-            >
-              Races
-            </button>
-            <button
-              type="button"
-              onClick={() => setMetric('qualifying')}
-              className={cn(
-                'px-2.5 py-1 rounded transition-all cursor-pointer',
-                metric === 'qualifying'
-                  ? 'bg-zinc-800 text-white font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              )}
-            >
-              Qualifying
-            </button>
-            <button
-              type="button"
-              onClick={() => setMetric('points')}
-              className={cn(
-                'px-2.5 py-1 rounded transition-all cursor-pointer',
-                metric === 'points'
-                  ? 'bg-zinc-800 text-white font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              )}
-            >
-              Points
-            </button>
-          </div>
-
-          {/* Ranking Sort Filter */}
-          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-zinc-900 border border-white/10 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className={cn(
-                'px-3 py-1 rounded-lg transition-all cursor-pointer',
-                filter === 'all'
-                  ? 'bg-primary text-primary-foreground font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              )}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('closest')}
-              className={cn(
-                'px-3 py-1 rounded-lg transition-all cursor-pointer',
-                filter === 'closest'
-                  ? 'bg-primary text-primary-foreground font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              )}
-            >
-              Closest Duels
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('dominant')}
-              className={cn(
-                'px-3 py-1 rounded-lg transition-all cursor-pointer',
-                filter === 'dominant'
-                  ? 'bg-primary text-primary-foreground font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              )}
-            >
-              Total Dominance
-            </button>
-          </div>
+        {/* Ranking Sort Filter */}
+        <div className="inline-flex items-center border border-white/10 bg-zinc-900 divide-x divide-white/10 rounded-md overflow-hidden text-xs font-mono">
+          <button
+            type="button"
+            onClick={() => setFilter('all')}
+            className={cn(
+              'px-3 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+              filter === 'all'
+                ? 'bg-zinc-800 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            )}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('closest')}
+            className={cn(
+              'px-3 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+              filter === 'closest'
+                ? 'bg-zinc-800 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            )}
+          >
+            Closest Duels
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('dominant')}
+            className={cn(
+              'px-3 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+              filter === 'dominant'
+                ? 'bg-zinc-800 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            )}
+          >
+            Total Dominance
+          </button>
         </div>
       </div>
 
@@ -225,7 +209,7 @@ export function DominanceMatrix({
               key={row.constructorId}
               onClick={() => onSelectConstructor(row.constructorId)}
               className={cn(
-                'group relative rounded-2xl border p-4 transition-all duration-200 cursor-pointer overflow-hidden',
+                'group relative rounded-xl border p-4 transition-all duration-200 cursor-pointer overflow-hidden',
                 isSelected
                   ? 'bg-zinc-900/90 border-white/30 shadow-xl'
                   : 'bg-zinc-950/70 border-white/10 hover:border-white/20 hover:bg-zinc-900/50'

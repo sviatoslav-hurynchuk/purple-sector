@@ -250,7 +250,7 @@ export function ConstructorDuelWidget({
               </span>
               <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
                 <TrendingUp className="size-3 text-emerald-400" />
-                <span>Points Share</span>
+                <span>Points</span>
               </div>
               <span className={['font-black text-sm', pD2 >= pD1 ? 'text-white' : 'text-zinc-400'].join(' ')}>
                 <span className="text-[10px] font-normal text-zinc-500">({d2PtsShare}%)</span> {pD2} pts

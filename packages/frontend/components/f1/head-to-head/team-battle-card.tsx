@@ -7,6 +7,7 @@ import { DriverImage } from '@/components/f1/driver-image';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { getTeamTheme } from '@/lib/team-colors';
+import { cn } from '@/lib/utils';
 import { BattleModal } from './battle-modal';
 import { ChevronRight, Zap, Trophy, TrendingUp } from 'lucide-react';
 
@@ -39,19 +40,23 @@ export function TeamBattleCard({
   const isLight = theme.textColor === 'dark';
 
   const seasonStr = String(season);
+  const seasonNum = parseInt(seasonStr, 10);
+  const isModernSeason = !isNaN(seasonNum) && seasonNum >= 2024;
   const d1Photo = getDriverPhotoUrl(
     driver1.driverId,
     driver1.givenName,
     driver1.familyName,
     seasonStr,
-    constructorId
+    constructorId,
+    'left'
   );
   const d2Photo = getDriverPhotoUrl(
     driver2.driverId,
     driver2.givenName,
     driver2.familyName,
     seasonStr,
-    constructorId
+    constructorId,
+    'right'
   );
 
   const deltaFormatted =
@@ -195,7 +200,14 @@ export function TeamBattleCard({
             </div>
 
             {/* Authentic Driver 1 Cutout Photo */}
-            <div className="absolute top-1 -right-2 sm:right-0 h-[210%] w-[72%] sm:w-[66%] pointer-events-none select-none">
+            <div
+              className={cn(
+                'absolute top-1 pointer-events-none select-none',
+                isModernSeason
+                  ? 'h-[275%] sm:h-[290%] w-[82%] sm:w-[76%] -right-3 sm:-right-1'
+                  : 'h-[115%] w-[62%] -right-2 sm:right-0'
+              )}
+            >
               <DriverImage
                 src={d1Photo}
                 alt={`${driver1.givenName} ${driver1.familyName}`}
@@ -227,7 +239,14 @@ export function TeamBattleCard({
             </div>
 
             {/* Authentic Driver 2 Cutout Photo */}
-            <div className="absolute top-1 -right-2 sm:right-0 h-[210%] w-[72%] sm:w-[66%] pointer-events-none select-none">
+            <div
+              className={cn(
+                'absolute top-1 pointer-events-none select-none',
+                isModernSeason
+                  ? 'h-[275%] sm:h-[290%] w-[82%] sm:w-[76%] -right-3 sm:-right-1'
+                  : 'h-[115%] w-[62%] -right-2 sm:right-0'
+              )}
+            >
               <DriverImage
                 src={d2Photo}
                 alt={`${driver2.givenName} ${driver2.familyName}`}
@@ -392,7 +411,7 @@ export function TeamBattleCard({
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
                     <TrendingUp className="size-3 text-emerald-400" />
-                    <span>Points Share</span>
+                    <span>Points</span>
                   </div>
                   <div className="flex items-center gap-1 text-[10px] font-mono font-semibold text-zinc-400 mt-0.5">
                     <span className={pD1 >= pD2 ? 'text-white font-bold' : ''}>

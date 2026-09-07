@@ -8,7 +8,6 @@ import { ArenaFaceoffHero } from './arena-faceoff-hero';
 import { DominanceMatrix } from './dominance-matrix';
 import { PreloadedContent } from '@/components/f1/preloaded-content';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
-import { Swords, Flame, Zap, Trophy, TrendingUp } from 'lucide-react';
 
 interface HeadToHeadContentProps {
   data: SeasonHeadToHeadResponse | null;
@@ -154,14 +153,16 @@ export function HeadToHeadContent({
             battle.driver1.givenName,
             battle.driver1.familyName,
             String(season),
-            battle.constructorId
+            battle.constructorId,
+            'left'
           ),
           getDriverPhotoUrl(
             battle.driver2.driverId,
             battle.driver2.givenName,
             battle.driver2.familyName,
             String(season),
-            battle.constructorId
+            battle.constructorId,
+            'right'
           )
         );
       }
@@ -184,67 +185,63 @@ export function HeadToHeadContent({
   return (
     <div className="space-y-8 pb-20">
       {/* ── Header Toolbar ───────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-border pb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-white/10 pb-6">
         <div>
-          <div className="flex items-center gap-2">
-            <Swords className="size-6 text-purple-400" />
-            <h1 className="text-3xl font-black tracking-tight">
-              {season} Teammate Head-to-Head Arena
-            </h1>
-          </div>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Telemetry-verified intra-team battles, qualifying deltas, radar performance indices, and round timelines.
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            Teammate Head-to-Head
+          </h1>
         </div>
         <SeasonSelector currentSeason={season} allYears={allYears} />
       </div>
 
-      {/* ── Season Pulse Highlights Strip ───────────────────────────── */}
+      {/* ── Season Pulse Highlights Strip (Monolithic Telemetry Bar) ── */}
       {pulseHighlights && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="p-3.5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm space-y-0.5">
-            <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] font-mono uppercase">
-              <Swords className="size-3.5 text-purple-400" />
-              <span>Grid Rivalries</span>
+        <div className="grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-white/10 bg-zinc-950/80 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-lg">
+          <div className="p-4 flex flex-col justify-between gap-1.5">
+            <div className="text-zinc-300 text-xs font-mono uppercase font-bold tracking-wider">
+              Grid Duels
             </div>
-            <p className="text-lg font-black font-mono text-white">
+            <p className="text-lg sm:text-xl font-black font-mono text-white">
               {pulseHighlights.totalDuels} Constructors
             </p>
+            <p className="text-xs font-mono text-zinc-400 font-medium">
+              Active pairings
+            </p>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm space-y-0.5">
-            <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] font-mono uppercase">
-              <Flame className="size-3.5 text-amber-400" />
-              <span>Closest Battle</span>
+          <div className="p-4 flex flex-col justify-between gap-1.5">
+            <div className="text-zinc-300 text-xs font-mono uppercase font-bold tracking-wider">
+              Closest Margin
             </div>
-            <p className="text-sm font-black text-white truncate">
+            <p className="text-sm sm:text-base font-black text-white truncate">
               {pulseHighlights.closestTeam}
-              <span className="font-mono text-xs font-normal text-amber-400 ml-1.5">
-                ({pulseHighlights.closestMatchup})
-              </span>
+            </p>
+            <p className="text-xs font-mono text-amber-400 font-bold">
+              {pulseHighlights.closestMatchup}
             </p>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm space-y-0.5">
-            <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] font-mono uppercase">
-              <Trophy className="size-3.5 text-emerald-400" />
-              <span>Highest Dominance</span>
+          <div className="p-4 flex flex-col justify-between gap-1.5">
+            <div className="text-zinc-300 text-xs font-mono uppercase font-bold tracking-wider">
+              Highest Dominance
             </div>
-            <p className="text-sm font-black text-white truncate">
+            <p className="text-sm sm:text-base font-black text-white truncate">
               {pulseHighlights.dominantDriver}
-              <span className="font-mono text-xs font-normal text-emerald-400 ml-1.5">
-                {pulseHighlights.dominantShare}% pts
-              </span>
+            </p>
+            <p className="text-xs font-mono text-emerald-400 font-bold">
+              {pulseHighlights.dominantShare}% points share
             </p>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm space-y-0.5">
-            <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] font-mono uppercase">
-              <Zap className="size-3.5 text-yellow-400" />
-              <span>Avg Grid Qualy Delta</span>
+          <div className="p-4 flex flex-col justify-between gap-1.5">
+            <div className="text-zinc-300 text-xs font-mono uppercase font-bold tracking-wider">
+              Avg Qualy Delta
             </div>
-            <p className="text-lg font-black font-mono text-white">
+            <p className="text-lg sm:text-xl font-black font-mono text-white">
               ±{pulseHighlights.avgGapSec}s
+            </p>
+            <p className="text-xs font-mono text-zinc-400 font-medium">
+              Across all constructors
             </p>
           </div>
         </div>
@@ -253,18 +250,12 @@ export function HeadToHeadContent({
       {constructorGroups.length > 0 ? (
         <PreloadedContent imageUrls={allPhotoUrls} skeleton={<BattleArenaSkeleton />}>
           {/* ── Pitlane Team Selector Strip ───────────────────────────── */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-mono text-zinc-400 px-1">
-              <span className="uppercase font-bold tracking-wider">Pitlane Team Selector</span>
-              <span>Click team to focus arena</span>
-            </div>
-            <PitlaneTeamSelector
-              groups={constructorGroups}
-              selectedConstructorId={selectedConstructorId}
-              season={season}
-              onSelectConstructor={handleSelectConstructor}
-            />
-          </div>
+          <PitlaneTeamSelector
+            groups={constructorGroups}
+            selectedConstructorId={selectedConstructorId}
+            season={season}
+            onSelectConstructor={handleSelectConstructor}
+          />
 
           {/* ── Main Face-Off Hero Arena ──────────────────────────────── */}
           <div id="battle-arena-hero">

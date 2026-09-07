@@ -273,8 +273,14 @@ const DRIVER_KEY_ALIAS: Record<string, string> = {
 
 /**
  * Builds the official F1 website Cloudinary URL for a given driver, team, and season.
+ * Supports authentic 'left' and 'right' photoshoot orientations on official F1 CDN (2024+).
  */
-export function buildF1WebpUrl(team: string, code: string, season: string = '2026'): string {
+export function buildF1WebpUrl(
+  team: string,
+  code: string,
+  season: string = '2026',
+  orientation: 'left' | 'right' = 'right'
+): string {
   const s = String(season);
   const seasonNum = parseInt(s, 10);
   const seasonYear = seasonNum >= 2024 ? String(seasonNum) : '2024';
@@ -290,26 +296,31 @@ export function buildF1WebpUrl(team: string, code: string, season: string = '202
 
   const cleanTeam = resolvedTeam.replace(/[^a-z0-9]/g, '');
   const cleanCode = code.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const dir = orientation === 'left' ? 'left' : 'right';
 
-  return `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/d_common:f1:${seasonYear}:fallback:driver:${seasonYear}fallbackdriverright.webp/v1740000001/common/f1/${seasonYear}/${cleanTeam}/${cleanCode}/${seasonYear}${cleanTeam}${cleanCode}right.webp`;
+  return `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/d_common:f1:${seasonYear}:fallback:driver:${seasonYear}fallbackdriver${dir}.webp/v1740000001/common/f1/${seasonYear}/${cleanTeam}/${cleanCode}/${seasonYear}${cleanTeam}${cleanCode}${dir}.webp`;
 }
 
 /**
  * Resolves authentic, season-accurate official F1 driver portrait URL for any given driver, season, and team.
+ * For 2024+, supports fetching authentic 'left' or 'right' facing CDN photos (no programmatic CSS flipping).
+ * For 2023 and historical seasons, returns the original official F1 DAM cutout.
  */
 export function getDriverPhotoUrl(
   driverId: string,
   givenName?: string,
   familyName?: string,
   season: string = '2026',
-  constructorId?: string
+  constructorId?: string,
+  orientation: 'left' | 'right' = 'right'
 ): string {
   const rawKey = driverId.trim().toLowerCase();
   const key = DRIVER_KEY_ALIAS[rawKey] ?? rawKey;
   const s = String(season);
   const seasonNum = parseInt(s, 10);
   const fallbackYear = !isNaN(seasonNum) && seasonNum >= 2024 ? String(seasonNum) : '2026';
-  const silhouetteUrl = `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/${fallbackYear}/fallback/driver/${fallbackYear}fallbackdriverright.webp`;
+  const dir = orientation === 'left' ? 'left' : 'right';
+  const silhouetteUrl = `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/${fallbackYear}/fallback/driver/${fallbackYear}fallbackdriver${dir}.webp`;
 
   // 0. Disambiguation for shared surnames (fathers/sons/brothers across F1 eras)
   const first = (givenName ?? '').trim().toLowerCase();
@@ -344,7 +355,7 @@ export function getDriverPhotoUrl(
   const meta = DRIVER_REGISTRY[key] ?? (key === 'verstappen' && first.includes('max') ? DRIVER_REGISTRY['max_verstappen'] : undefined);
   const driverSlug = meta?.slug ?? key.replace(/_/g, '-');
 
-  // 1. Seasons 2024, 2025, 2026: Official modern F1 WebP Cloudinary pipeline
+  // 1. Seasons 2024, 2025, 2026: Official modern F1 WebP Cloudinary pipeline with CDN orientation
   if (seasonNum >= 2024) {
     if (meta) {
       let team = meta.defaultTeam;
@@ -353,16 +364,16 @@ export function getDriverPhotoUrl(
       } else if (meta.history && meta.history[s]) {
         team = meta.history[s];
       }
-      return buildF1WebpUrl(team, meta.code, s);
+      return buildF1WebpUrl(team, meta.code, s, orientation);
     }
   }
 
-  // 2. Season 2023: Official F1 2023 Season Cutouts
+  // 2. Season 2023: Official F1 2023 Season Cutouts (fixed DAM bust cutout)
   if (seasonNum === 2023) {
     return `https://media.formula1.com/content/dam/fom-website/drivers/2023drivers/${driverSlug}.jpg.transform/2col/image.jpg`;
   }
 
-  // 3. Seasons 2019–2022: Official F1 Season Cutouts (Exact team overalls for that season)
+  // 3. Seasons 2019–2022: Official F1 Season Cutouts (fixed DAM bust cutout)
   if (seasonNum >= 2019 && seasonNum <= 2022) {
     return `https://media.formula1.com/content/dam/fom-website/drivers/${seasonNum}drivers/${driverSlug}.png.transform/2col/image.png`;
   }
@@ -379,9 +390,9 @@ export function getDriverPhotoUrl(
     const dynamicCode = `${givenCode}${familyCode}01`;
     const teamSlug = constructorId ? (TEAM_SLUG_MAP[constructorId.toLowerCase()] ?? constructorId) : 'generic';
     const fallbackYear = seasonNum >= 2024 ? String(seasonNum) : '2026';
-    return buildF1WebpUrl(teamSlug, dynamicCode, fallbackYear);
+    return buildF1WebpUrl(teamSlug, dynamicCode, fallbackYear, orientation);
   }
 
   // 6. Fallback
-  return `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/${fallbackYear}/fallback/driver/${fallbackYear}fallbackdriverright.webp`;
+  return silhouetteUrl;
 }

@@ -4,7 +4,7 @@ import { getMaxYear } from '@/lib/utils';
 import { HeadToHeadContent } from '@/components/f1/head-to-head/head-to-head-content';
 
 export const metadata: Metadata = {
-  title: 'Teammate Head-to-Head | F1 Intra-Team Battles',
+  title: 'Teammate Head-to-Head',
   description:
     'Comprehensive intra-team Formula 1 teammate battles across Qualifying, Race results, points share, and median lap time deltas.',
 };

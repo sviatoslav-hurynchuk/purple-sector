@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import type { TeammatePairBattle } from '@/types/f1';
-import { TeamLogo } from '@/components/f1/team-logo';
 import { DriverImage } from '@/components/f1/driver-image';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
@@ -13,12 +12,8 @@ import { RoundTimeline } from './round-timeline';
 import { BattleModal } from './battle-modal';
 import {
   Swords,
-  Zap,
-  Trophy,
-  TrendingUp,
   Maximize2,
   ChevronRight,
-  Target,
   Clock,
   Flag,
 } from 'lucide-react';
@@ -50,19 +45,24 @@ export function ArenaFaceoffHero({
   const theme = getTeamTheme(constructorId);
 
   const seasonStr = String(season);
+  const seasonNum = parseInt(seasonStr, 10);
+  const isModernSeason = !isNaN(seasonNum) ? seasonNum >= 2024 : true;
+
   const d1Photo = getDriverPhotoUrl(
     driver1.driverId,
     driver1.givenName,
     driver1.familyName,
     seasonStr,
-    constructorId
+    constructorId,
+    'left'
   );
   const d2Photo = getDriverPhotoUrl(
     driver2.driverId,
     driver2.givenName,
     driver2.familyName,
     seasonStr,
-    constructorId
+    constructorId,
+    'right'
   );
 
   const deltaFormatted =
@@ -74,6 +74,11 @@ export function ArenaFaceoffHero({
   // Driver numbers
   const d1Num = driver1.permanentNumber || driver1.code;
   const d2Num = driver2.permanentNumber || driver2.code;
+
+  const formatDriverName = (d: { givenName: string; familyName: string; code?: string }) => {
+    if (d.code === 'ANT') return 'Kimi Antonelli';
+    return `${d.givenName} ${d.familyName}`;
+  };
 
   // 1. Qualifying
   const qD1 = stats.qualifying.d1Wins;
@@ -98,6 +103,32 @@ export function ArenaFaceoffHero({
   const pD1Pct = Math.round((pD1 / pTotal) * 100);
   const pD2Pct = 100 - pD1Pct;
 
+  // Proportional bar width calculations with graceful clamping so bars never collapse to 0%
+  const calcBarSplit = (val1: number, val2: number) => {
+    if (val1 === 0 && val2 === 0) return { d1Pct: 50, d2Pct: 50 };
+    if (val1 === 0) return { d1Pct: 10, d2Pct: 90 };
+    if (val2 === 0) return { d1Pct: 90, d2Pct: 10 };
+    const total = val1 + val2;
+    let d1 = Math.round((val1 / total) * 100);
+    d1 = Math.max(10, Math.min(90, d1));
+    return { d1Pct: d1, d2Pct: 100 - d1 };
+  };
+
+  const qBarSplit = calcBarSplit(qD1, qD2);
+  const rBarSplit = calcBarSplit(rD1, rD2);
+  const pBarSplit = calcBarSplit(pD1, pD2);
+
+  const d1Color = theme.primary;
+  const d2Color =
+    theme.secondary ||
+    (theme.textColor === 'dark' ? '#27272A' : '#E2E8F0');
+  const d1TextColor =
+    theme.textColor === 'dark' ? 'text-zinc-950' : 'text-white';
+  const d2TextColor =
+    (theme.secondaryTextColor ?? 'light') === 'dark'
+      ? 'text-zinc-950'
+      : 'text-white';
+
   return (
     <>
       <div
@@ -112,364 +143,480 @@ export function ArenaFaceoffHero({
           style={{ backgroundColor: theme.primary }}
         />
 
-        {/* ── Arena Top Bar ─────────────────────────────────────────────── */}
-        <div className="relative p-5 sm:p-6 border-b border-white/10 flex flex-wrap items-center justify-between gap-4 bg-zinc-900/50 backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <TeamLogo constructorId={constructorId} season={season} size={36} />
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white">
-                  {constructorName}
-                </h2>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                  {rounds.length} GPs
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400">
-                Official {season} teammate telemetry & performance face-off
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            {/* Mid-season pairings switcher */}
-            {battles.length > 1 && (
-              <div className="flex items-center gap-1 p-1 rounded-lg border border-white/10 bg-zinc-900 text-xs font-mono">
-                {battles.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => setSelectedBattleId(b.id)}
-                    className={cn(
-                      'px-2.5 py-1 rounded transition-colors cursor-pointer',
-                      b.id === selectedBattleId
-                        ? 'bg-primary text-primary-foreground font-bold'
-                        : 'text-zinc-400 hover:text-white'
-                    )}
-                  >
-                    {b.driver2.code}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Fullscreen Dialog Trigger */}
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-white/10 bg-zinc-850 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-              title="Open full-screen modal"
-            >
-              <Maximize2 className="size-3.5" />
-              <span className="hidden sm:inline">Fullscreen Analysis</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ── Main Face-Off Stage ─────────────────────────────────────────── */}
-        <div className="relative p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center border-b border-white/5">
-          {/* Driver 1 (Left Champion) */}
-          <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col items-center sm:items-start lg:items-center text-center sm:text-left lg:text-center gap-4 relative">
-            {/* Cutout Hero Frame */}
+        {/* ── Main Face-Off Stage (Seamless Architectural Layout: Flush Panels, Zero Gaps, Sharp Division) ── */}
+        <div className="relative border-b border-white/10 flex flex-col lg:grid lg:grid-cols-12 items-stretch bg-zinc-950">
+          {/* Mobile Driver Face-Off Bar (< lg) */}
+          <div className="grid grid-cols-2 divide-x divide-white/10 border-b border-white/10 lg:hidden min-h-[175px] bg-zinc-950">
+            {/* Driver 1 Mobile Box */}
             <Link
               href={`/drivers/${driver1.driverId}`}
-              className="group relative size-44 sm:size-48 lg:size-52 rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-950 overflow-hidden shadow-xl hover:border-white/30 transition-all shrink-0"
+              className="relative p-3.5 sm:p-4 overflow-hidden flex flex-col justify-between bg-zinc-900/40 group hover:bg-zinc-900/70 transition-colors"
             >
-              <DriverImage
-                src={d1Photo}
-                alt={`${driver1.givenName} ${driver1.familyName}`}
-                fill
-                sizes="240px"
-                className="object-contain object-top pt-2 scale-105 group-hover:scale-110 transition-transform duration-300 origin-top"
+              <div
+                className="absolute -top-10 -left-10 size-32 rounded-full opacity-25 blur-2xl pointer-events-none"
+                style={{ backgroundColor: d1Color }}
               />
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-sm border border-white/10 text-xs font-mono font-black text-white">
-                #{d1Num}
+              {/* Clean Top Header - No obstruction of face */}
+              <div className="relative z-10 flex items-center gap-1.5 text-xs font-mono text-zinc-400">
+                <CountryFlag countryName={driver1.nationality} />
+                <span className="font-bold text-white/80">#{d1Num}</span>
+                <span className="text-white font-bold text-xs truncate uppercase tracking-tight ml-1 group-hover:text-primary transition-colors">
+                  {driver1.familyName}
+                </span>
+              </div>
+
+              {/* Cutout Photo (Facing Right via left.webp) */}
+              <div className="absolute top-7 -right-2 h-[230%] w-[68%] pointer-events-none select-none">
+                <DriverImage
+                  src={d1Photo}
+                  alt={`${driver1.givenName} ${driver1.familyName}`}
+                  fill
+                  sizes="180px"
+                  className="object-contain object-top drop-shadow-lg"
+                  priority
+                />
+              </div>
+
+              {/* Clean Bottom Stats - Integrated, No floating pill */}
+              <div className="relative z-10 text-xs font-mono font-bold text-amber-400 mt-auto pt-16">
+                {stats.points.d1Points} <span className="text-[10px] text-zinc-400 font-normal">pts</span>
+                <span className="text-zinc-500 font-normal ml-1">• {stats.wins.d1}W</span>
               </div>
             </Link>
 
-            {/* Info */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-center sm:justify-start lg:justify-center gap-1.5 text-xs text-zinc-400">
-                <CountryFlag countryName={driver1.nationality} />
-                <span>{driver1.nationality}</span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
-                <span className="text-zinc-400 text-lg sm:text-xl font-medium block">
-                  {driver1.givenName}
-                </span>
-                {driver1.familyName}
-              </h3>
-              <div className="flex items-center justify-center sm:justify-start lg:justify-center gap-2 pt-1 font-mono text-xs text-zinc-300">
-                <span className="font-bold text-amber-400">{stats.points.d1Points} pts</span>
-                <span>•</span>
-                <span>{stats.wins.d1}W</span>
-                <span>•</span>
-                <span>{stats.podiums.d1}P</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Center Battle Core (Quick duel metrics) */}
-          <div className="lg:col-span-4 flex flex-col items-center space-y-5 px-2">
-            {/* VS Badge */}
-            <div className="flex items-center gap-3">
-              <div className="h-px w-12 bg-gradient-to-r from-transparent to-white/20" />
-              <div
-                className="size-11 rounded-full flex items-center justify-center text-xs font-black font-mono tracking-widest border shadow-lg"
-                style={{
-                  borderColor: `${theme.primary}80`,
-                  backgroundColor: '#09090b',
-                  color: theme.primary,
-                  boxShadow: `0 0 15px ${theme.primary}30`,
-                }}
-              >
-                VS
-              </div>
-              <div className="h-px w-12 bg-gradient-to-l from-transparent to-white/20" />
-            </div>
-
-            {/* Duel Metric Bars Container */}
-            <div className="w-full space-y-4 bg-zinc-900/60 border border-white/10 rounded-2xl p-4 sm:p-5 backdrop-blur-sm">
-              {/* 1. Qualifying Bar */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className={cn('font-black', qD1 >= qD2 ? 'text-white' : 'text-zinc-400')}>
-                    {qD1} <span className="text-[10px] font-normal text-zinc-500">{driver1.code}</span>
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <Zap className="size-3 text-amber-400" />
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">
-                      Qualifying
-                    </span>
-                    {deltaFormatted !== '0.000s' && (
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.2 rounded"
-                        style={{
-                          backgroundColor: `${theme.primary}25`,
-                          color: theme.primary,
-                        }}
-                      >
-                        {d1Faster ? driver1.code : driver2.code} -{deltaFormatted}
-                      </span>
-                    )}
-                  </div>
-                  <span className={cn('font-black', qD2 >= qD1 ? 'text-white' : 'text-zinc-400')}>
-                    <span className="text-[10px] font-normal text-zinc-500">{driver2.code}</span> {qD2}
-                  </span>
-                </div>
-
-                <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden flex">
-                  <div
-                    className="h-full transition-all duration-500"
-                    style={{
-                      width: `${qD1Pct}%`,
-                      backgroundColor: qD1 >= qD2 ? theme.primary : '#52525b',
-                    }}
-                  />
-                  <div
-                    className="h-full transition-all duration-500"
-                    style={{
-                      width: `${qD2Pct}%`,
-                      backgroundColor: qD2 >= qD1 ? theme.primary : '#52525b',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* 2. Races Bar */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className={cn('font-black', rD1 >= rD2 ? 'text-white' : 'text-zinc-400')}>
-                    {rD1} <span className="text-[10px] font-normal text-zinc-500">{driver1.code}</span>
-                  </span>
-                  <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
-                    <Trophy className="size-3 text-amber-400" />
-                    <span>Races Ahead</span>
-                  </div>
-                  <span className={cn('font-black', rD2 >= rD1 ? 'text-white' : 'text-zinc-400')}>
-                    <span className="text-[10px] font-normal text-zinc-500">{driver2.code}</span> {rD2}
-                  </span>
-                </div>
-
-                <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden flex">
-                  <div
-                    className="h-full transition-all duration-500"
-                    style={{
-                      width: `${rD1Pct}%`,
-                      backgroundColor: rD1 >= rD2 ? theme.primary : '#52525b',
-                    }}
-                  />
-                  <div
-                    className="h-full transition-all duration-500"
-                    style={{
-                      width: `${rD2Pct}%`,
-                      backgroundColor: rD2 >= rD1 ? theme.primary : '#52525b',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* 3. Points Bar */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className={cn('font-black', pD1 >= pD2 ? 'text-white' : 'text-zinc-400')}>
-                    {pD1} <span className="text-[10px] font-normal text-zinc-500">({d1PtsShare}%)</span>
-                  </span>
-                  <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
-                    <TrendingUp className="size-3 text-emerald-400" />
-                    <span>Points Share</span>
-                  </div>
-                  <span className={cn('font-black', pD2 >= pD1 ? 'text-white' : 'text-zinc-400')}>
-                    <span className="text-[10px] font-normal text-zinc-500">({d2PtsShare}%)</span> {pD2}
-                  </span>
-                </div>
-
-                <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden flex">
-                  <div
-                    className="h-full transition-all duration-500"
-                    style={{
-                      width: `${pD1Pct}%`,
-                      backgroundColor: pD1 >= pD2 ? theme.primary : '#52525b',
-                    }}
-                  />
-                  <div
-                    className="h-full transition-all duration-500"
-                    style={{
-                      width: `${pD2Pct}%`,
-                      backgroundColor: pD2 >= pD1 ? theme.primary : '#52525b',
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Driver 2 (Right Champion) */}
-          <div className="lg:col-span-4 flex flex-col sm:flex-row-reverse lg:flex-col items-center sm:items-start lg:items-center text-center sm:text-right lg:text-center gap-4 relative">
-            {/* Cutout Hero Frame */}
+            {/* Driver 2 Mobile Box */}
             <Link
               href={`/drivers/${driver2.driverId}`}
-              className="group relative size-44 sm:size-48 lg:size-52 rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-950 overflow-hidden shadow-xl hover:border-white/30 transition-all shrink-0"
+              className="relative p-3.5 sm:p-4 overflow-hidden flex flex-col justify-between text-right bg-zinc-900/40 group hover:bg-zinc-900/70 transition-colors"
             >
-              <DriverImage
-                src={d2Photo}
-                alt={`${driver2.givenName} ${driver2.familyName}`}
-                fill
-                sizes="240px"
-                className="object-contain object-top pt-2 scale-105 group-hover:scale-110 transition-transform duration-300 origin-top"
+              <div
+                className="absolute -top-10 -right-10 size-32 rounded-full opacity-20 blur-2xl pointer-events-none"
+                style={{ backgroundColor: d2Color }}
               />
-              <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-sm border border-white/10 text-xs font-mono font-black text-white">
-                #{d2Num}
+              {/* Clean Top Header - No obstruction of face */}
+              <div className="relative z-10 flex items-center justify-end gap-1.5 text-xs font-mono text-zinc-400">
+                <span className="text-white font-bold text-xs truncate uppercase tracking-tight mr-1 group-hover:text-primary transition-colors">
+                  {driver2.familyName}
+                </span>
+                <span className="font-bold text-white/80">#{d2Num}</span>
+                <CountryFlag countryName={driver2.nationality} />
+              </div>
+
+              {/* Cutout Photo (Facing Left via right.webp) */}
+              <div className="absolute top-7 -left-2 h-[230%] w-[68%] pointer-events-none select-none">
+                <DriverImage
+                  src={d2Photo}
+                  alt={`${driver2.givenName} ${driver2.familyName}`}
+                  fill
+                  sizes="180px"
+                  className="object-contain object-top drop-shadow-lg"
+                  priority
+                />
+              </div>
+
+              {/* Clean Bottom Stats - Integrated, No floating pill */}
+              <div className="relative z-10 text-xs font-mono font-bold text-amber-400 mt-auto pt-16 text-right">
+                <span className="text-zinc-500 font-normal mr-1">{stats.wins.d2}W •</span>
+                {stats.points.d2Points} <span className="text-[10px] text-zinc-400 font-normal">pts</span>
+              </div>
+            </Link>
+          </div>
+
+          {/* ── Left Driver Panel (Desktop >= lg:col-span-3) ── */}
+          <div className="hidden lg:flex lg:col-span-3 flex-col justify-between border-r border-white/10 relative overflow-hidden min-h-[440px] lg:min-h-[480px] bg-zinc-950 group">
+            {/* Architectural Top Bar */}
+            <Link
+              href={`/drivers/${driver1.driverId}`}
+              className="h-[52px] border-b border-white/10 px-5 flex items-center justify-between bg-zinc-950/85 backdrop-blur-md relative z-20 group/header hover:bg-zinc-900/80 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <CountryFlag countryName={driver1.nationality} />
+                <span className="font-mono text-xs font-bold text-zinc-400">#{d1Num}</span>
+                <span className="text-zinc-600 font-bold">•</span>
+                <h3 className="text-sm xl:text-base font-black uppercase tracking-tight text-white truncate group-hover/header:text-primary transition-colors">
+                  {formatDriverName(driver1)}
+                </h3>
               </div>
             </Link>
 
-            {/* Info */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-center sm:justify-end lg:justify-center gap-1.5 text-xs text-zinc-400">
-                <CountryFlag countryName={driver2.nationality} />
-                <span>{driver2.nationality}</span>
+            {/* Authentic Cutout Photo (Facing Inward Right via left.webp) */}
+            <div className="absolute top-[52px] bottom-[44px] inset-x-0 overflow-hidden pointer-events-none select-none">
+              {/* Ambient Driver Glow */}
+              <div
+                className="absolute -top-10 -left-10 size-48 rounded-full opacity-20 blur-3xl pointer-events-none"
+                style={{ backgroundColor: d1Color }}
+              />
+              <div
+                className={cn(
+                  'relative w-full h-[260%] transition-transform duration-300 origin-top',
+                  isModernSeason
+                    ? 'top-1 flex items-start'
+                    : 'h-full flex items-center justify-center p-2'
+                )}
+              >
+                <DriverImage
+                  src={d1Photo}
+                  alt={`${driver1.givenName} ${driver1.familyName}`}
+                  fill
+                  sizes="320px"
+                  className="object-contain object-top drop-shadow-2xl"
+                  priority
+                />
               </div>
-              <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
-                <span className="text-zinc-400 text-lg sm:text-xl font-medium block">
-                  {driver2.givenName}
+            </div>
+
+            {/* Architectural Bottom Telemetry Strip */}
+            <div className="h-[44px] border-t border-white/10 px-5 flex items-center justify-between bg-zinc-950/85 backdrop-blur-md relative z-20">
+              <span className="font-mono text-xs font-black text-amber-400 tracking-tight">
+                {stats.points.d1Points} <span className="text-[10px] text-zinc-500 font-bold">PTS</span>
+              </span>
+              <span className="font-mono text-[11px] font-bold text-zinc-400">
+                {stats.wins.d1}W • {stats.podiums.d1}P
+              </span>
+            </div>
+          </div>
+
+          {/* ── Center Metrics Slab (Desktop lg:col-span-6 / Flush 3-Tier Division) ── */}
+          <div className="w-full lg:col-span-6 flex flex-col justify-stretch divide-y divide-white/10 bg-zinc-950">
+            {/* 1. Qualifying Duel */}
+            <div className="relative min-h-[115px] sm:min-h-[135px] lg:min-h-[145px] overflow-hidden select-none group flex items-center justify-between">
+              {/* Proportional Split Background Bars (Pinned Absolutely to fill 100% on Mobile and Desktop) */}
+              <div className="absolute inset-0 flex pointer-events-none select-none">
+                <div
+                  className="h-full transition-all duration-700 relative"
+                  style={{
+                    width: `${qBarSplit.d1Pct}%`,
+                    backgroundColor: d1Color,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/35 pointer-events-none" />
+                </div>
+                <div
+                  className="h-full transition-all duration-700 relative"
+                  style={{
+                    width: `${qBarSplit.d2Pct}%`,
+                    backgroundColor: d2Color,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-l from-black/20 via-transparent to-black/35 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Clean Architectural Center Typography (No Floating Stickers) */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10 px-2 sm:px-4">
+                <span className="text-xl sm:text-4xl lg:text-5xl font-black uppercase tracking-[0.16em] sm:tracking-[0.22em] text-white/20 mix-blend-overlay whitespace-nowrap">
+                  QUALIFYING
                 </span>
-                {driver2.familyName}
-              </h3>
-              <div className="flex items-center justify-center sm:justify-end lg:justify-center gap-2 pt-1 font-mono text-xs text-zinc-300">
-                <span className="font-bold text-amber-400">{stats.points.d2Points} pts</span>
-                <span>•</span>
-                <span>{stats.wins.d2}W</span>
-                <span>•</span>
-                <span>{stats.podiums.d2}P</span>
+                <span className="font-mono text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5">
+                  {deltaFormatted !== '0.000s'
+                    ? `${d1Faster ? driver1.code : driver2.code} -${deltaFormatted}`
+                    : 'EQUAL PACE'}
+                </span>
               </div>
+
+              {/* Foreground Values */}
+              <div className="relative z-20 w-full flex items-center justify-between px-4 sm:px-8 pointer-events-none">
+                {/* Left: Driver 1 Score */}
+                <div className="flex flex-col items-start drop-shadow-md">
+                  <span className={cn('font-mono text-3xl sm:text-4xl lg:text-5xl font-black leading-none', d1TextColor)}>
+                    {qD1}
+                  </span>
+                  <span className={cn('text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 opacity-90', d1TextColor)}>
+                    {driver1.code} ({qD1Pct}%)
+                  </span>
+                </div>
+
+                {/* Right: Driver 2 Score */}
+                <div className="flex flex-col items-end drop-shadow-md text-right">
+                  <span className={cn('font-mono text-3xl sm:text-4xl lg:text-5xl font-black leading-none', d2TextColor)}>
+                    {qD2}
+                  </span>
+                  <span className={cn('text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 opacity-90', d2TextColor)}>
+                    {driver2.code} ({qD2Pct}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Races Ahead / Race Results */}
+            <div className="relative min-h-[115px] sm:min-h-[135px] lg:min-h-[145px] overflow-hidden select-none group flex items-center justify-between">
+              {/* Proportional Split Background Bars (Pinned Absolutely to fill 100% on Mobile and Desktop) */}
+              <div className="absolute inset-0 flex pointer-events-none select-none">
+                <div
+                  className="h-full transition-all duration-700 relative"
+                  style={{
+                    width: `${rBarSplit.d1Pct}%`,
+                    backgroundColor: d1Color,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/35 pointer-events-none" />
+                </div>
+                <div
+                  className="h-full transition-all duration-700 relative"
+                  style={{
+                    width: `${rBarSplit.d2Pct}%`,
+                    backgroundColor: d2Color,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-l from-black/20 via-transparent to-black/35 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Clean Architectural Center Typography (No Floating Stickers) */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10 px-2 sm:px-4">
+                <span className="text-xl sm:text-4xl lg:text-5xl font-black uppercase tracking-[0.16em] sm:tracking-[0.22em] text-white/20 mix-blend-overlay whitespace-nowrap">
+                  RACES AHEAD
+                </span>
+                <span className="font-mono text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5">
+                  {rD1 > rD2
+                    ? `+${rD1 - rD2} ${driver1.code} ADVANTAGE`
+                    : rD2 > rD1
+                    ? `+${rD2 - rD1} ${driver2.code} ADVANTAGE`
+                    : 'TIED DUEL'}
+                </span>
+              </div>
+
+              {/* Foreground Values */}
+              <div className="relative z-20 w-full flex items-center justify-between px-4 sm:px-8 pointer-events-none">
+                {/* Left: Driver 1 Ahead */}
+                <div className="flex flex-col items-start drop-shadow-md">
+                  <span className={cn('font-mono text-3xl sm:text-4xl lg:text-5xl font-black leading-none', d1TextColor)}>
+                    {rD1}
+                  </span>
+                  <span className={cn('text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 opacity-90', d1TextColor)}>
+                    {driver1.code} ({rD1Pct}%)
+                  </span>
+                </div>
+
+                {/* Right: Driver 2 Ahead */}
+                <div className="flex flex-col items-end drop-shadow-md text-right">
+                  <span className={cn('font-mono text-3xl sm:text-4xl lg:text-5xl font-black leading-none', d2TextColor)}>
+                    {rD2}
+                  </span>
+                  <span className={cn('text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 opacity-90', d2TextColor)}>
+                    {driver2.code} ({rD2Pct}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Championship Points */}
+            <div className="relative min-h-[115px] sm:min-h-[135px] lg:min-h-[145px] overflow-hidden select-none group flex items-center justify-between">
+              {/* Proportional Split Background Bars (Pinned Absolutely to fill 100% on Mobile and Desktop) */}
+              <div className="absolute inset-0 flex pointer-events-none select-none">
+                <div
+                  className="h-full transition-all duration-700 relative"
+                  style={{
+                    width: `${pBarSplit.d1Pct}%`,
+                    backgroundColor: d1Color,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/35 pointer-events-none" />
+                </div>
+                <div
+                  className="h-full transition-all duration-700 relative"
+                  style={{
+                    width: `${pBarSplit.d2Pct}%`,
+                    backgroundColor: d2Color,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-l from-black/20 via-transparent to-black/35 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Clean Architectural Center Typography (No Floating Stickers) */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10 px-2 sm:px-4">
+                <span className="text-xl sm:text-4xl lg:text-5xl font-black uppercase tracking-[0.16em] sm:tracking-[0.22em] text-white/20 mix-blend-overlay whitespace-nowrap">
+                  POINTS
+                </span>
+                <span className="font-mono text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5">
+                  {pD1 !== pD2
+                    ? `+${Math.abs(pD1 - pD2)} PTS GAP`
+                    : 'EQUAL PTS'}
+                </span>
+              </div>
+
+              {/* Foreground Values */}
+              <div className="relative z-20 w-full flex items-center justify-between px-4 sm:px-8 pointer-events-none">
+                {/* Left: Driver 1 Points */}
+                <div className="flex flex-col items-start drop-shadow-md">
+                  <span className={cn('font-mono text-3xl sm:text-4xl lg:text-5xl font-black leading-none', d1TextColor)}>
+                    {pD1} <span className="text-sm font-normal opacity-75">pts</span>
+                  </span>
+                  <span className={cn('text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 opacity-90', d1TextColor)}>
+                    {driver1.code} ({d1PtsShare}%)
+                  </span>
+                </div>
+
+                {/* Right: Driver 2 Points */}
+                <div className="flex flex-col items-end drop-shadow-md text-right">
+                  <span className={cn('font-mono text-3xl sm:text-4xl lg:text-5xl font-black leading-none', d2TextColor)}>
+                    {pD2} <span className="text-sm font-normal opacity-75">pts</span>
+                  </span>
+                  <span className={cn('text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 opacity-90', d2TextColor)}>
+                    {driver2.code} ({d2PtsShare}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Right Driver Panel (Desktop >= lg:col-span-3) ── */}
+          <div className="hidden lg:flex lg:col-span-3 flex-col justify-between border-l border-white/10 relative overflow-hidden min-h-[440px] lg:min-h-[480px] bg-zinc-950 group text-right">
+            {/* Architectural Top Bar */}
+            <Link
+              href={`/drivers/${driver2.driverId}`}
+              className="h-[52px] border-b border-white/10 px-5 flex items-center justify-between bg-zinc-950/85 backdrop-blur-md relative z-20 group/header hover:bg-zinc-900/80 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0 justify-end w-full">
+                <h3 className="text-sm xl:text-base font-black uppercase tracking-tight text-white truncate group-hover/header:text-primary transition-colors">
+                  {formatDriverName(driver2)}
+                </h3>
+                <span className="text-zinc-600 font-bold">•</span>
+                <span className="font-mono text-xs font-bold text-zinc-400">#{d2Num}</span>
+                <CountryFlag countryName={driver2.nationality} />
+              </div>
+            </Link>
+
+            {/* Authentic Cutout Photo (Facing Inward Left via right.webp) */}
+            <div className="absolute top-[52px] bottom-[44px] inset-x-0 overflow-hidden pointer-events-none select-none">
+              {/* Ambient Driver Glow */}
+              <div
+                className="absolute -top-10 -right-10 size-48 rounded-full opacity-20 blur-3xl pointer-events-none"
+                style={{ backgroundColor: d2Color }}
+              />
+              <div
+                className={cn(
+                  'relative w-full h-[260%] transition-transform duration-300 origin-top',
+                  isModernSeason
+                    ? 'top-1 flex items-start'
+                    : 'h-full flex items-center justify-center p-2'
+                )}
+              >
+                <DriverImage
+                  src={d2Photo}
+                  alt={`${driver2.givenName} ${driver2.familyName}`}
+                  fill
+                  sizes="320px"
+                  className="object-contain object-top drop-shadow-2xl"
+                  priority
+                />
+              </div>
+            </div>
+
+            {/* Architectural Bottom Telemetry Strip */}
+            <div className="h-[44px] border-t border-white/10 px-5 flex items-center justify-between bg-zinc-950/85 backdrop-blur-md relative z-20">
+              <span className="font-mono text-[11px] font-bold text-zinc-400">
+                {stats.wins.d2}W • {stats.podiums.d2}P
+              </span>
+              <span className="font-mono text-xs font-black text-amber-400 tracking-tight">
+                {stats.points.d2Points} <span className="text-[10px] text-zinc-500 font-bold">PTS</span>
+              </span>
             </div>
           </div>
         </div>
 
         {/* ── In-Page Analysis Hub (Radar & Timeline directly visible) ─────── */}
-        <div className="p-5 sm:p-8 space-y-6 bg-zinc-950/80">
+        <div className="p-4 sm:p-6 lg:py-3.5 lg:px-6 space-y-3 sm:space-y-4 lg:space-y-3 bg-zinc-950/80">
           {/* Tab Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/10 pb-4">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-zinc-900 text-zinc-300">
-                <Target className="size-4" />
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-white/10 pb-2.5 lg:pb-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Mid-season pairings switcher if multiple */}
+              {battles.length > 1 && (
+                <div className="flex items-center gap-1 p-0.5 rounded-lg border border-white/10 bg-zinc-900 text-xs font-mono">
+                  {battles.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setSelectedBattleId(b.id)}
+                      className={cn(
+                        'px-2 py-0.5 rounded text-xs transition-colors cursor-pointer',
+                        b.id === selectedBattleId
+                          ? 'bg-primary text-primary-foreground font-bold'
+                          : 'text-zinc-400 hover:text-white'
+                      )}
+                    >
+                      {b.driver2.code}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="inline-flex items-center border border-white/10 bg-zinc-900 divide-x divide-white/10 rounded-md overflow-hidden text-xs font-mono">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('radar')}
+                  className={cn(
+                    'px-3 sm:px-3.5 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+                    activeTab === 'radar'
+                      ? 'bg-zinc-800 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  )}
+                >
+                  Radar Comparison
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('timeline')}
+                  className={cn(
+                    'px-3 sm:px-3.5 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+                    activeTab === 'timeline'
+                      ? 'bg-zinc-800 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  )}
+                >
+                  GP Timeline ({rounds.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('stats')}
+                  className={cn(
+                    'px-3 sm:px-3.5 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+                    activeTab === 'stats'
+                      ? 'bg-zinc-800 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  )}
+                >
+                  Key Stats Table
+                </button>
               </div>
-              <h4 className="text-sm font-black uppercase tracking-tight text-white">
-                Deep Dive Telemetry &amp; Round Logs
-              </h4>
             </div>
 
-            <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-zinc-900 border border-white/10 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setActiveTab('radar')}
-                className={cn(
-                  'px-3.5 py-1.5 rounded-lg transition-all cursor-pointer',
-                  activeTab === 'radar'
-                    ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                )}
-              >
-                Radar Comparison
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('timeline')}
-                className={cn(
-                  'px-3.5 py-1.5 rounded-lg transition-all cursor-pointer',
-                  activeTab === 'timeline'
-                    ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                )}
-              >
-                GP Timeline ({rounds.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('stats')}
-                className={cn(
-                  'px-3.5 py-1.5 rounded-lg transition-all cursor-pointer',
-                  activeTab === 'stats'
-                    ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                )}
-              >
-                Key Stats Table
-              </button>
-            </div>
+            {/* Fullscreen Dialog Trigger */}
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="px-3 py-1.5 rounded-md border border-white/10 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer uppercase tracking-wider ml-auto sm:ml-0"
+              title="Open full-screen modal"
+            >
+              <Maximize2 className="size-3.5 text-zinc-400" />
+              <span className="hidden sm:inline">Fullscreen</span>
+            </button>
           </div>
 
-          {/* Tab 1: Radar Chart */}
+          {/* Tab 1: Radar Chart + 6 Essential Telemetry Cards (Seamless Monolithic Matrix) */}
           {activeTab === 'radar' && (
-            <div className="space-y-4">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-4 sm:p-6 rounded-2xl bg-zinc-900/40 border border-white/5">
-                <div className="w-full md:w-1/2 flex justify-center">
-                  <RadarChart
-                    stats={stats}
-                    driver1={driver1}
-                    driver2={driver2}
-                    constructorId={constructorId}
-                    size={320}
-                  />
-                </div>
+            <div className="flex flex-col lg:flex-row items-center gap-4 sm:gap-6 lg:gap-6 pt-1 lg:pt-0">
+              <div className="w-full lg:w-5/12 flex justify-center py-1 lg:py-0 shrink-0">
+                <RadarChart
+                  stats={stats}
+                  driver1={driver1}
+                  driver2={driver2}
+                  constructorId={constructorId}
+                  size={285}
+                />
+              </div>
 
-                <div className="w-full md:w-1/2 space-y-4">
-                  <div className="space-y-1">
-                    <h5 className="text-base font-black uppercase tracking-tight text-white">
-                      6-Axis Intra-Team Performance Index
-                    </h5>
-                    <p className="text-xs text-zinc-400">
-                      Holistic evaluation normalized across 6 critical performance vectors:
-                      qualifying pace, race results, points share, podium rate, fastest laps, and best finish.
+              <div className="w-full lg:w-7/12">
+                <div className="grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60 rounded-xl overflow-hidden shadow-xl">
+                  {/* 1. Qualy Delta */}
+                  <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-3 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+                    <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                      Median Qualy Delta
                     </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <div className="p-3 rounded-xl border border-white/10 bg-zinc-900/60 space-y-1">
-                      <p className="text-[10px] font-mono text-zinc-400 uppercase">
-                        Median Qualy Delta
-                      </p>
-                      <p className="text-base font-black font-mono text-white">
+                    <div className="pt-1.5 lg:pt-1">
+                      <p className="text-base sm:text-lg lg:text-base xl:text-lg font-black font-mono text-white">
                         {deltaFormatted !== '0.000s' ? (
                           <span style={{ color: theme.primary }}>
                             {d1Faster ? driver1.code : driver2.code} -{deltaFormatted}
@@ -478,24 +625,115 @@ export function ArenaFaceoffHero({
                           'Equal 0.000s'
                         )}
                       </p>
+                      <p className="text-xs font-mono text-zinc-400 mt-0.5">season median</p>
                     </div>
+                  </div>
 
-                    <div className="p-3 rounded-xl border border-white/10 bg-zinc-900/60 space-y-1">
-                      <p className="text-[10px] font-mono text-zinc-400 uppercase">
-                        Points Dominance
-                      </p>
-                      <p className="text-base font-black font-mono text-white">
+                  {/* 2. Points Share */}
+                  <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-3 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+                    <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                      Points Share
+                    </p>
+                    <div className="pt-1.5 lg:pt-1">
+                      <p className="text-base sm:text-lg lg:text-base xl:text-lg font-black font-mono text-white">
                         {pD1 >= pD2 ? (
                           <>
-                            {driver1.code}{' '}
-                            <span className="text-xs text-zinc-400">({d1PtsShare}%)</span>
+                            <span style={{ color: theme.primary }}>{driver1.code}</span>{' '}
+                            <span className="text-xs text-zinc-300 font-normal">({d1PtsShare}%)</span>
                           </>
                         ) : (
                           <>
-                            {driver2.code}{' '}
-                            <span className="text-xs text-zinc-400">({d2PtsShare}%)</span>
+                            <span className="text-zinc-200">{driver2.code}</span>{' '}
+                            <span className="text-xs text-zinc-300 font-normal">({d2PtsShare}%)</span>
                           </>
                         )}
+                      </p>
+                      <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                        {pD1} vs {pD2} pts
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 3. Best Finish */}
+                  <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-3 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+                    <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                      Best Finish
+                    </p>
+                    <div className="pt-1.5 lg:pt-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-base sm:text-lg lg:text-base xl:text-lg font-black text-white">
+                          P{stats.bestFinish.d1 > 0 ? stats.bestFinish.d1 : '—'}
+                        </span>
+                        <span className="text-xs font-mono text-zinc-400 font-semibold">vs</span>
+                        <span className="font-mono text-base sm:text-lg lg:text-base xl:text-lg font-black text-white">
+                          P{stats.bestFinish.d2 > 0 ? stats.bestFinish.d2 : '—'}
+                        </span>
+                      </div>
+                      <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                        <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 4. Best Grid */}
+                  <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-3 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+                    <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                      Best Grid
+                    </p>
+                    <div className="pt-1.5 lg:pt-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-base sm:text-lg lg:text-base xl:text-lg font-black text-white">
+                          P{stats.bestGrid.d1 > 0 ? stats.bestGrid.d1 : '—'}
+                        </span>
+                        <span className="text-xs font-mono text-zinc-400 font-semibold">vs</span>
+                        <span className="font-mono text-base sm:text-lg lg:text-base xl:text-lg font-black text-white">
+                          P{stats.bestGrid.d2 > 0 ? stats.bestGrid.d2 : '—'}
+                        </span>
+                      </div>
+                      <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                        <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 5. Fastest Laps */}
+                  <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-3 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+                    <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                      Fastest Laps
+                    </p>
+                    <div className="pt-1.5 lg:pt-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-base sm:text-lg lg:text-base xl:text-lg font-black text-amber-400">
+                          {stats.fastestLaps.d1}x
+                        </span>
+                        <span className="text-xs font-mono text-zinc-400 font-semibold">vs</span>
+                        <span className="font-mono text-base sm:text-lg lg:text-base xl:text-lg font-black text-amber-400">
+                          {stats.fastestLaps.d2}x
+                        </span>
+                      </div>
+                      <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                        <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 6. Pole Positions */}
+                  <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-3 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+                    <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                      Pole Positions
+                    </p>
+                    <div className="pt-1.5 lg:pt-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-base sm:text-lg lg:text-base xl:text-lg font-black text-amber-400">
+                          {stats.qualifying.d1Poles}x
+                        </span>
+                        <span className="text-xs font-mono text-zinc-400 font-semibold">vs</span>
+                        <span className="font-mono text-base sm:text-lg lg:text-base xl:text-lg font-black text-amber-400">
+                          {stats.qualifying.d2Poles}x
+                        </span>
+                      </div>
+                      <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                        <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
                       </p>
                     </div>
                   </div>
@@ -516,58 +754,78 @@ export function ArenaFaceoffHero({
             </div>
           )}
 
-          {/* Tab 3: Key Stats Table */}
+          {/* Tab 3: Key Stats Table (Seamless Monolithic Strip) */}
           {activeTab === 'stats' && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl border border-white/10 bg-zinc-900/50 space-y-1">
-                <p className="text-[11px] font-bold text-zinc-400 uppercase">Best Finish</p>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="font-mono text-lg font-black text-white">
-                    P{stats.bestFinish.d1 > 0 ? stats.bestFinish.d1 : '—'}
-                  </span>
-                  <span className="text-xs font-mono text-zinc-500">vs</span>
-                  <span className="font-mono text-lg font-black text-white">
-                    P{stats.bestFinish.d2 > 0 ? stats.bestFinish.d2 : '—'}
-                  </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 border-t border-l border-white/10 bg-zinc-950/60 rounded-xl overflow-hidden shadow-xl">
+              <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between gap-1.5 lg:gap-1">
+                <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">Best Finish</p>
+                <div className="pt-1 flex flex-col gap-0.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono text-lg sm:text-xl lg:text-xl font-black text-white">
+                      P{stats.bestFinish.d1 > 0 ? stats.bestFinish.d1 : '—'}
+                    </span>
+                    <span className="text-xs font-mono text-zinc-400 font-semibold">vs</span>
+                    <span className="font-mono text-lg sm:text-xl lg:text-xl font-black text-white">
+                      P{stats.bestFinish.d2 > 0 ? stats.bestFinish.d2 : '—'}
+                    </span>
+                  </div>
+                  <p className="text-xs font-mono text-zinc-400">
+                    <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                  </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl border border-white/10 bg-zinc-900/50 space-y-1">
-                <p className="text-[11px] font-bold text-zinc-400 uppercase">Best Grid Start</p>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="font-mono text-lg font-black text-white">
-                    P{stats.bestGrid.d1 > 0 ? stats.bestGrid.d1 : '—'}
-                  </span>
-                  <span className="text-xs font-mono text-zinc-500">vs</span>
-                  <span className="font-mono text-lg font-black text-white">
-                    P{stats.bestGrid.d2 > 0 ? stats.bestGrid.d2 : '—'}
-                  </span>
+              <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between gap-1.5 lg:gap-1">
+                <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">Best Grid Start</p>
+                <div className="pt-1 flex flex-col gap-0.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono text-lg sm:text-xl lg:text-xl font-black text-white">
+                      P{stats.bestGrid.d1 > 0 ? stats.bestGrid.d1 : '—'}
+                    </span>
+                    <span className="text-xs font-mono text-zinc-400 font-semibold">vs</span>
+                    <span className="font-mono text-lg sm:text-xl lg:text-xl font-black text-white">
+                      P{stats.bestGrid.d2 > 0 ? stats.bestGrid.d2 : '—'}
+                    </span>
+                  </div>
+                  <p className="text-xs font-mono text-zinc-400">
+                    <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                  </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl border border-white/10 bg-zinc-900/50 space-y-1">
-                <p className="text-[11px] font-bold text-zinc-400 uppercase">Fastest Laps</p>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="font-mono text-lg font-black text-amber-400">
-                    {stats.fastestLaps.d1}x
-                  </span>
-                  <span className="text-xs font-mono text-zinc-500">vs</span>
-                  <span className="font-mono text-lg font-black text-amber-400">
-                    {stats.fastestLaps.d2}x
-                  </span>
+              <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between gap-1.5 lg:gap-1">
+                <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">Fastest Laps</p>
+                <div className="pt-1 flex flex-col gap-0.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono text-lg sm:text-xl lg:text-xl font-black text-amber-400">
+                      {stats.fastestLaps.d1}x
+                    </span>
+                    <span className="text-xs font-mono text-zinc-400 font-semibold">vs</span>
+                    <span className="font-mono text-lg sm:text-xl lg:text-xl font-black text-amber-400">
+                      {stats.fastestLaps.d2}x
+                    </span>
+                  </div>
+                  <p className="text-xs font-mono text-zinc-400">
+                    <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                  </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl border border-white/10 bg-zinc-900/50 space-y-1">
-                <p className="text-[11px] font-bold text-zinc-400 uppercase">Pole Positions</p>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="font-mono text-lg font-black text-amber-400">
-                    {stats.qualifying.d1Poles}x
-                  </span>
-                  <span className="text-xs font-mono text-zinc-500">vs</span>
-                  <span className="font-mono text-lg font-black text-amber-400">
-                    {stats.qualifying.d2Poles}x
-                  </span>
+              <div className="p-3 sm:p-3.5 lg:p-2.5 lg:px-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between gap-1.5 lg:gap-1">
+                <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">Pole Positions</p>
+                <div className="pt-1 flex flex-col gap-0.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono text-lg sm:text-xl lg:text-xl font-black text-amber-400">
+                      {stats.qualifying.d1Poles}x
+                    </span>
+                    <span className="text-xs font-mono text-zinc-400 font-semibold">vs</span>
+                    <span className="font-mono text-lg sm:text-xl lg:text-xl font-black text-amber-400">
+                      {stats.qualifying.d2Poles}x
+                    </span>
+                  </div>
+                  <p className="text-xs font-mono text-zinc-400">
+                    <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                  </p>
                 </div>
               </div>
             </div>

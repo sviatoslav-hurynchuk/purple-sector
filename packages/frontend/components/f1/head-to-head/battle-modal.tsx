@@ -50,14 +50,16 @@ export function BattleModal({
     driver1.givenName,
     driver1.familyName,
     seasonStr,
-    constructorId
+    constructorId,
+    'left'
   );
   const d2Photo = getDriverPhotoUrl(
     driver2.driverId,
     driver2.givenName,
     driver2.familyName,
     seasonStr,
-    constructorId
+    constructorId,
+    'right'
   );
 
   const deltaFormatted =
@@ -193,10 +195,10 @@ export function BattleModal({
                 Overview &amp; Radar
               </TabsTrigger>
               <TabsTrigger value="qualifying" className="text-xs font-medium">
-                Qualifying Battle
+                Qualifying
               </TabsTrigger>
               <TabsTrigger value="race" className="text-xs font-medium">
-                Race &amp; Points
+                Race
               </TabsTrigger>
               <TabsTrigger value="timeline" className="text-xs font-medium">
                 GP Breakdown ({rounds.length})
@@ -345,31 +347,31 @@ export function BattleModal({
             <TabsContent value="qualifying" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
                 <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 text-center">
-                  <div className="text-xs text-zinc-400">Qualifying Duel</div>
-                  <div className="text-2xl font-bold text-white mt-1">
+                  <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Qualifying Duel</div>
+                  <div className="text-2xl font-black text-white mt-1">
                     {stats.qualifying.d1Wins} - {stats.qualifying.d2Wins}
                   </div>
-                  <div className="text-[11px] text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     {stats.qualifying.total} sessions compared
                   </div>
                 </div>
 
                 <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 text-center">
-                  <div className="text-xs text-zinc-400">Pole Positions</div>
-                  <div className="text-2xl font-bold text-yellow-400 mt-1">
+                  <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Pole Positions</div>
+                  <div className="text-2xl font-black text-yellow-400 mt-1">
                     {stats.qualifying.d1Poles} - {stats.qualifying.d2Poles}
                   </div>
-                  <div className="text-[11px] text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     Season pole awards
                   </div>
                 </div>
 
                 <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 text-center">
-                  <div className="text-xs text-zinc-400">Best Grid Position</div>
-                  <div className="text-2xl font-bold text-emerald-400 mt-1">
+                  <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Best Grid Position</div>
+                  <div className="text-2xl font-black text-emerald-400 mt-1">
                     P{stats.bestGrid.d1 || '—'} vs P{stats.bestGrid.d2 || '—'}
                   </div>
-                  <div className="text-[11px] text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     Highest starting position
                   </div>
                 </div>
@@ -403,41 +405,41 @@ export function BattleModal({
             <TabsContent value="race" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 font-mono">
                 <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 text-center">
-                  <div className="text-xs text-zinc-400">Race Head-to-Head</div>
-                  <div className="text-2xl font-bold text-amber-400 mt-1">
+                  <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Race Head-to-Head</div>
+                  <div className="text-2xl font-black text-amber-400 mt-1">
                     {stats.race.d1Wins} - {stats.race.d2Wins}
                   </div>
-                  <div className="text-[11px] text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     {stats.race.totalRaces} shared starts
                   </div>
                 </div>
 
                 <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 text-center">
-                  <div className="text-xs text-zinc-400">Points Scored</div>
-                  <div className="text-2xl font-bold text-white mt-1">
+                  <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Points Scored</div>
+                  <div className="text-2xl font-black text-white mt-1">
                     {stats.points.d1Points} - {stats.points.d2Points}
                   </div>
-                  <div className="text-[11px] text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     {stats.points.total} team points total
                   </div>
                 </div>
 
                 <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 text-center">
-                  <div className="text-xs text-zinc-400">Podiums &amp; Wins</div>
-                  <div className="text-2xl font-bold text-white mt-1">
+                  <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Podiums &amp; Wins</div>
+                  <div className="text-2xl font-black text-white mt-1">
                     {stats.podiums.d1 + stats.wins.d1} - {stats.podiums.d2 + stats.wins.d2}
                   </div>
-                  <div className="text-[11px] text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     {stats.wins.d1} vs {stats.wins.d2} victories
                   </div>
                 </div>
 
                 <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 text-center">
-                  <div className="text-xs text-zinc-400">Best Finish</div>
-                  <div className="text-2xl font-bold text-emerald-400 mt-1">
+                  <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Best Finish</div>
+                  <div className="text-2xl font-black text-emerald-400 mt-1">
                     P{stats.bestFinish.d1 || '—'} vs P{stats.bestFinish.d2 || '—'}
                   </div>
-                  <div className="text-[11px] text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     Highest race result
                   </div>
                 </div>
