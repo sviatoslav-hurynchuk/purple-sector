@@ -9,10 +9,8 @@ import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { getTeamTheme } from '@/lib/team-colors';
 import { RadarChart } from './radar-chart';
 import { RoundTimeline } from './round-timeline';
-import { BattleModal } from './battle-modal';
 import {
   Swords,
-  Maximize2,
   ChevronRight,
   Clock,
   Flag,
@@ -34,7 +32,6 @@ export function ArenaFaceoffHero({
     battles.find((b) => b.isPrimary)?.id || battles[0]?.id || ''
   );
   const [activeTab, setActiveTab] = useState<'radar' | 'timeline' | 'stats'>('radar');
-  const [modalOpen, setModalOpen] = useState(false);
 
   const activeBattle =
     battles.find((b) => b.id === selectedBattleId) || battles[0];
@@ -130,9 +127,8 @@ export function ArenaFaceoffHero({
       : 'text-white';
 
   return (
-    <>
-      <div
-        className={cn(
+    <div
+      className={cn(
           'relative rounded-3xl border border-white/10 overflow-hidden bg-zinc-950 shadow-2xl',
           className
         )}
@@ -582,17 +578,6 @@ export function ArenaFaceoffHero({
                 </button>
               </div>
             </div>
-
-            {/* Fullscreen Dialog Trigger */}
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className="px-3 py-1.5 rounded-md border border-white/10 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer uppercase tracking-wider ml-auto sm:ml-0"
-              title="Open full-screen modal"
-            >
-              <Maximize2 className="size-3.5 text-zinc-400" />
-              <span className="hidden sm:inline">Fullscreen</span>
-            </button>
           </div>
 
           {/* Tab 1: Radar Chart + 6 Essential Telemetry Cards (Seamless Monolithic Matrix) */}
@@ -832,14 +817,5 @@ export function ArenaFaceoffHero({
           )}
         </div>
       </div>
-
-      {/* Fullscreen Detailed Dialog */}
-      <BattleModal
-        battle={activeBattle}
-        season={season}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-      />
-    </>
   );
 }

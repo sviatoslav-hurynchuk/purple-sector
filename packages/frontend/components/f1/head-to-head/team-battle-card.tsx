@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { TeammatePairBattle } from '@/types/f1';
 import { TeamLogo } from '@/components/f1/team-logo';
 import { DriverImage } from '@/components/f1/driver-image';
@@ -8,7 +9,6 @@ import { CountryFlag } from '@/components/f1/country-flag';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { getTeamTheme } from '@/lib/team-colors';
 import { cn } from '@/lib/utils';
-import { BattleModal } from './battle-modal';
 import { ChevronRight, Zap, Trophy, TrendingUp } from 'lucide-react';
 
 interface TeamBattleCardProps {
@@ -25,10 +25,10 @@ export function TeamBattleCard({
   discipline = 'all',
   className = '',
 }: TeamBattleCardProps) {
+  const router = useRouter();
   const [selectedBattleId, setSelectedBattleId] = useState<string>(
     battles.find((b) => b.isPrimary)?.id || battles[0]?.id || ''
   );
-  const [modalOpen, setModalOpen] = useState(false);
 
   const activeBattle =
     battles.find((b) => b.id === selectedBattleId) || battles[0];
@@ -94,10 +94,9 @@ export function TeamBattleCard({
   const pD2Pct = 100 - pD1Pct;
 
   return (
-    <>
-      <div
-        onClick={() => setModalOpen(true)}
-        className={[
+    <div
+      onClick={() => router.push(`/head-to-head?season=${season}&team=${constructorId}`)}
+      className={[
           'group relative rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col',
           'bg-card hover:border-white/25 transition-all duration-300 hover:shadow-2xl cursor-pointer select-none',
           className,
@@ -462,21 +461,15 @@ export function TeamBattleCard({
         </div>
 
         {/* ── Bottom Action Trigger ────────────────────────────────────────── */}
-        <div className="px-5 py-3 bg-zinc-900/50 border-t border-white/5 flex items-center justify-between text-xs text-zinc-400 group-hover:text-white transition-colors">
-          <span className="font-mono text-[11px] uppercase tracking-wider">
-            View Radar &amp; GP Breakdown
+        <div className="px-5 py-3.5 bg-zinc-900/70 border-t border-white/10 flex items-center justify-between text-xs text-zinc-300 group-hover:text-white transition-colors">
+          <span className="font-mono text-[11px] uppercase tracking-wider font-semibold">
+            Open Full Teammate Arena
           </span>
-          <ChevronRight className="size-4 transition-transform group-hover:translate-x-1 text-zinc-400 group-hover:text-white" />
+          <div className="flex items-center gap-1.5 font-mono text-[11px] text-zinc-400 group-hover:text-zinc-200">
+            <span>Radar &amp; Telemetry</span>
+            <ChevronRight className="size-4 transition-transform group-hover:translate-x-1 text-zinc-400 group-hover:text-white" />
+          </div>
         </div>
       </div>
-
-      {/* Deep Dive Modal */}
-      <BattleModal
-        battle={activeBattle}
-        season={season}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-      />
-    </>
   );
 }

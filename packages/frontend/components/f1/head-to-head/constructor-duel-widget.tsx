@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import type { TeammatePairBattle } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
-import { BattleModal } from './battle-modal';
 import { Swords, Zap, Trophy, TrendingUp, ChevronRight } from 'lucide-react';
 
 interface ConstructorDuelWidgetProps {
@@ -21,7 +20,6 @@ export function ConstructorDuelWidget({
   const [selectedBattleId, setSelectedBattleId] = useState<string>(
     battles.find((b) => b.isPrimary)?.id || battles[0]?.id || ''
   );
-  const [modalOpen, setModalOpen] = useState(false);
 
   const activeBattle =
     battles.find((b) => b.id === selectedBattleId) || battles[0];
@@ -64,9 +62,8 @@ export function ConstructorDuelWidget({
   const pD2Pct = 100 - pD1Pct;
 
   return (
-    <>
-      <div
-        className={[
+    <div
+      className={[
           'rounded-2xl border border-white/10 overflow-hidden bg-gradient-to-b from-zinc-900/90 to-zinc-950 p-5 sm:p-6 shadow-xl space-y-5',
           className,
         ].join(' ')}
@@ -276,25 +273,15 @@ export function ConstructorDuelWidget({
           </div>
         </div>
 
-        {/* Open Detailed Modal Trigger */}
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="w-full py-2.5 px-4 rounded-xl border border-white/10 bg-zinc-900/60 hover:bg-zinc-850 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-xs font-bold text-zinc-300 hover:text-white group cursor-pointer"
+        {/* Open Detailed Arena Trigger */}
+        <Link
+          href={`/head-to-head?season=${season}&team=${constructorId}`}
+          className="w-full py-2.5 px-4 rounded-xl border border-white/10 bg-zinc-900/60 hover:bg-zinc-800/80 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-xs font-bold text-zinc-300 hover:text-white group cursor-pointer"
         >
           <TrendingUp className="size-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
-          <span>View Telemetry Breakdown & Radar Analysis</span>
+          <span>Open Full Teammate Arena</span>
           <ChevronRight className="size-3.5 text-zinc-500 group-hover:translate-x-0.5 group-hover:text-white transition-all" />
-        </button>
+        </Link>
       </div>
-
-      {/* Full Deep Dive Modal */}
-      <BattleModal
-        battle={activeBattle}
-        season={season}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-      />
-    </>
   );
 }
