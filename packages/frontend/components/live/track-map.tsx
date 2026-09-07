@@ -13,6 +13,7 @@ interface TrackMapProps {
   drivers: LiveDriverState[];
   selectedDriverNumber?: number | null;
   onSelectDriver?: (driverNumber: number) => void;
+  isRestricted?: boolean;
   className?: string;
 }
 
@@ -22,6 +23,7 @@ export function TrackMap({
   drivers,
   selectedDriverNumber,
   onSelectDriver,
+  isRestricted = false,
   className,
 }: TrackMapProps) {
   const [zoom, setZoom] = useState(1);
@@ -168,9 +170,18 @@ export function TrackMap({
       {/* SVG Map Canvas */}
       <div className="relative w-full h-[360px] sm:h-[420px] bg-zinc-950/90 flex items-center justify-center overflow-hidden">
         {activeCarCount === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center p-8 text-zinc-500 text-xs">
-            <MapPin className="h-8 w-8 text-zinc-600 opacity-40 mb-2 animate-bounce" />
-            <span>Waiting for car GPS coordinates...</span>
+          <div className="flex flex-col items-center justify-center text-center p-8 text-zinc-500 text-xs gap-1">
+            <MapPin className="h-8 w-8 text-zinc-600 opacity-40 mb-1 animate-bounce" />
+            {isRestricted ? (
+              <>
+                <span className="font-bold text-amber-400">Live GPS Tracking Restricted</span>
+                <span className="text-[11px] text-zinc-500 max-w-xs">
+                  Car GPS coordinates require an authenticated OpenF1 API key during official sessions.
+                </span>
+              </>
+            ) : (
+              <span>Waiting for car GPS coordinates...</span>
+            )}
           </div>
         ) : (
           <svg

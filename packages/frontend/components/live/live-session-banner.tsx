@@ -60,24 +60,36 @@ export function LiveSessionBanner({
         {/* Session info & Status */}
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <LiveStatusIndicator isActive={true} isStreaming={true} size="md" />
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 text-xs font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider',
-                trackStatus.color === 'emerald' && 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-                trackStatus.color === 'amber' && 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse',
-                trackStatus.color === 'yellow' && 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40',
-                trackStatus.color === 'red' && 'bg-red-500/20 text-red-300 border-red-500/40 animate-pulse',
-                trackStatus.color === 'zinc' && 'bg-zinc-800 text-zinc-300 border-white/10'
-              )}
-            >
-              {trackStatus.flag === 'SC' || trackStatus.flag === 'VSC' ? (
+            <LiveStatusIndicator
+              isActive={true}
+              isStreaming={!state.isRestricted}
+              label={state.isRestricted ? 'LIVE (RESTRICTED)' : undefined}
+              size="md"
+            />
+            {state.isRestricted ? (
+              <span className="inline-flex items-center gap-1 text-xs font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider bg-amber-500/15 text-amber-300 border-amber-500/30">
                 <ShieldAlert className="h-3.5 w-3.5" />
-              ) : (
-                <Flag className="h-3.5 w-3.5" />
-              )}
-              <span>{trackStatus.label}</span>
-            </span>
+                <span>OFFICIAL SESSION IN PROGRESS</span>
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 text-xs font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider',
+                  trackStatus.color === 'emerald' && 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                  trackStatus.color === 'amber' && 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse',
+                  trackStatus.color === 'yellow' && 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40',
+                  trackStatus.color === 'red' && 'bg-red-500/20 text-red-300 border-red-500/40 animate-pulse',
+                  trackStatus.color === 'zinc' && 'bg-zinc-800 text-zinc-300 border-white/10'
+                )}
+              >
+                {trackStatus.flag === 'SC' || trackStatus.flag === 'VSC' ? (
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                ) : (
+                  <Flag className="h-3.5 w-3.5" />
+                )}
+                <span>{trackStatus.label}</span>
+              </span>
+            )}
 
             {state.sessionType && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-white/5 text-zinc-300 border border-white/5 uppercase">
@@ -99,7 +111,19 @@ export function LiveSessionBanner({
 
         {/* Quick telemetry summary */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-          {leader && (
+          {state.isRestricted && (
+            <div className="flex items-center gap-3 p-2.5 px-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 max-w-sm">
+              <ShieldAlert className="h-5 w-5 text-amber-400 shrink-0" />
+              <div className="flex flex-col text-xs">
+                <span className="font-bold">Live Stream Restricted</span>
+                <span className="text-[11px] text-zinc-400 leading-tight">
+                  {state.restrictionMessage || 'OpenF1 requires an authenticated API key during official live F1 sessions.'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {leader && !state.isRestricted && (
             <div className="flex items-center gap-3 p-2.5 px-3.5 rounded-xl bg-zinc-950/70 border border-white/10">
               <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
                 <Trophy className="h-4 w-4" />

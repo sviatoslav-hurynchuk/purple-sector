@@ -161,7 +161,7 @@ export function RadarChart({
   return (
     <div className={`relative flex flex-col items-center justify-center ${className}`}>
       {/* Legend */}
-      <div className="flex items-center gap-6 mb-2 text-xs font-mono">
+      <div className="flex items-center gap-5 mb-1 text-xs font-mono">
         <div className="flex items-center gap-2">
           <span
             className="w-3 h-3 rounded-full shadow-[0_0_8px] ring-2 ring-white/20"
@@ -180,9 +180,12 @@ export function RadarChart({
       </div>
 
       {/* SVG Canvas */}
-      <div className="relative w-full max-w-[360px] aspect-square">
+      <div
+        className="relative w-full aspect-square mx-auto"
+        style={{ maxWidth: size ? `${size}px` : '360px' }}
+      >
         <svg
-          viewBox="0 0 400 400"
+          viewBox="-40 -40 480 480"
           className="w-full h-full overflow-visible drop-shadow-md select-none"
         >
           {/* Background Concentric Webs */}
@@ -240,8 +243,7 @@ export function RadarChart({
             stroke={d1Color}
             strokeWidth="2.5"
             strokeLinejoin="round"
-            filter="drop-shadow(0 0 6px rgba(255,255,255,0.2))"
-            className="transition-all duration-300"
+            className="transition-all duration-300 drop-shadow-[0_0_12px_rgba(0,0,0,0.5)]"
           />
 
           {/* Vertices Dots for Driver 2 */}
@@ -281,7 +283,7 @@ export function RadarChart({
           {/* Axis Labels & Interactive Hitboxes */}
           {axes.map((axis, i) => {
             const angle = -Math.PI / 2 + i * angleStep;
-            const labelRadius = maxRadius + 32;
+            const labelRadius = maxRadius + 38;
             const lx = center + labelRadius * Math.cos(angle);
             const ly = center + labelRadius * Math.sin(angle);
 
@@ -306,11 +308,11 @@ export function RadarChart({
               >
                 <text
                   x={lx}
-                  y={ly - (isBottom ? -4 : 0)}
+                  y={ly + (isBottom ? 8 : isTop ? -4 : 0)}
                   textAnchor={textAnchor}
-                  fill={isHovered ? '#ffffff' : '#a1a1aa'}
-                  fontSize="11"
-                  fontWeight={isHovered ? '600' : '500'}
+                  fill={isHovered ? '#38bdf8' : '#ffffff'}
+                  fontSize="20"
+                  fontWeight="700"
                   className="transition-colors duration-150 select-none tracking-tight font-sans"
                 >
                   {axis.shortName}

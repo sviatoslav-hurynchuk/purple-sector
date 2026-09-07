@@ -21,7 +21,7 @@ import { getTeamTheme } from '@/lib/team-colors';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { ConstructorDriverRoster } from '@/components/f1/constructor-driver-roster';
-import { TeamBattleCard } from '@/components/f1/head-to-head/team-battle-card';
+import { ConstructorDuelWidget } from '@/components/f1/head-to-head/constructor-duel-widget';
 
 interface ConstructorProfileContentProps {
   constructorId: string;
@@ -291,31 +291,16 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
               );
             })}
           </div>
-        </div>
-      )}
 
-      {/* Teammate Head-to-Head Duel */}
-      {h2hBattles && h2hBattles.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-              <Swords className="h-5 w-5 text-purple-400" />
-              Teammate Head-to-Head Duel ({h2hSeason})
-            </h2>
-            <Link
-              href={`/head-to-head?season=${h2hSeason}`}
-              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
-            >
-              <span>View Full Season Battles</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <TeamBattleCard
-            battles={h2hBattles}
-            season={h2hSeason}
-            discipline="all"
-          />
+          {/* Teammate Head-to-Head Duel */}
+          {h2hBattles && h2hBattles.length > 0 && (
+            <div className="pt-2">
+              <ConstructorDuelWidget
+                battles={h2hBattles}
+                season={h2hSeason}
+              />
+            </div>
+          )}
         </div>
       )}
 

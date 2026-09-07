@@ -220,9 +220,6 @@ export async function ConstructorsContent({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-border pb-6">
         <div>
           <h1 className="text-3xl font-black tracking-tight">{year} Teams &amp; Drivers</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Formula 1 constructors championship contenders, official driver pairings, and profiles for the {year} season.
-          </p>
         </div>
         <SeasonSelector currentSeason={year} allYears={allYears} />
       </div>

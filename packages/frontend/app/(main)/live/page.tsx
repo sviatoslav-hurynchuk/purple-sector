@@ -83,6 +83,7 @@ function LiveTimingContent() {
             drivers={state?.drivers || []}
             selectedDriverNumber={selectedDriverNumber}
             onSelectDriver={setSelectedDriverNumber}
+            isRestricted={state?.isRestricted}
           />
         );
 
@@ -94,6 +95,7 @@ function LiveTimingContent() {
             drivers={state?.drivers || []}
             selectedDriverNumber={selectedDriverNumber}
             onSelectDriver={setSelectedDriverNumber}
+            isRestricted={state?.isRestricted}
           />
         );
 
@@ -140,7 +142,13 @@ function LiveTimingContent() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <LiveStatusIndicator isActive={state?.isActive} isStreaming={isStreaming} status={state?.status} size="md" />
+          <LiveStatusIndicator
+            isActive={state?.isActive}
+            isStreaming={isStreaming && !state?.isRestricted}
+            status={state?.status}
+            label={state?.isRestricted ? 'LIVE (RESTRICTED)' : undefined}
+            size="md"
+          />
 
           <button
             onClick={reconnect}
@@ -194,6 +202,7 @@ function LiveTimingContent() {
               drivers={state?.drivers || []}
               selectedDriverNumber={selectedDriverNumber}
               onSelectDriver={setSelectedDriverNumber}
+              isRestricted={state?.isRestricted}
             />
           </TabsContent>
 
@@ -204,6 +213,7 @@ function LiveTimingContent() {
               drivers={state?.drivers || []}
               selectedDriverNumber={selectedDriverNumber}
               onSelectDriver={setSelectedDriverNumber}
+              isRestricted={state?.isRestricted}
             />
           </TabsContent>
 

@@ -1,6 +1,8 @@
 export * from './radar-chart';
 export * from './round-timeline';
-export * from './battle-modal';
 export * from './team-battle-card';
+export * from './constructor-duel-widget';
+export * from './pitlane-team-selector';
+export * from './arena-faceoff-hero';
+export * from './dominance-matrix';
 export * from './head-to-head-content';
-
