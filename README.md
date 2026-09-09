@@ -228,6 +228,7 @@ f1:standings:constructors:{season}:{round}
 | `/calendar` | Calendar | Server Component (SSR) | Season race calendar with year selector (1950-present) |
 | `/calendar/[round]` | Race Detail | Server Component (SSR) | Full race results table, sprint results, circuit map, session schedule |
 | `/standings` | Standings | Server Component (SSR) | Full driver and constructor standings with season and round selectors |
+| `/head-to-head` | Head-To-Head | Server Component (SSR) | Full teammates comparison with team selector and stats by races |
 
 All pages include dedicated `loading.tsx` skeletons and `error.tsx` error boundaries.
 
