@@ -3,9 +3,8 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { getCircuitDetails } from '@/lib/circuit-details';
-import { Card, CardContent } from '@/components/ui/card';
+import { CountryFlag } from '@/components/f1/country-flag';
 import { cn } from '@/lib/utils';
-
 import type { RaceResultEntry } from '@/types/f1';
 
 interface CircuitDetailsCardProps {
@@ -36,87 +35,145 @@ export function CircuitDetailsCard({
   const hasValidMapUrl = Boolean(details.officialMapUrl && details.officialMapUrl.trim() !== '');
   const showMap = !imageError && hasValidMapUrl;
 
+  const rawLapTime = details.fastestLap.time?.trim();
+  const isPendingLapTime =
+    !rawLapTime || rawLapTime === '—' || rawLapTime === '-' || rawLapTime === '--';
+  const displayLapTime = isPendingLapTime ? '--' : rawLapTime;
+
+  const rawDriver = details.fastestLap.driver?.trim();
+  const hasDriverRecord =
+    !isPendingLapTime &&
+    Boolean(rawDriver && rawDriver !== '—' && rawDriver !== '-' && rawDriver !== '--');
+
   return (
-    <Card className={cn('border-border overflow-hidden', className)}>
-      <CardContent className="p-6 sm:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {showMap && (
-            <div className="lg:col-span-6 flex items-center justify-center p-2 rounded-xl min-h-[260px] sm:min-h-[320px]">
-              <Image
-                src={details.officialMapUrl}
-                alt={`${details.country} official circuit map`}
-                width={600}
-                height={400}
-                className="w-full h-auto max-h-[340px] object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.08)]"
-                priority
-                unoptimized
-                onError={() => setImageError(true)}
-              />
-            </div>
+    <div
+      className={cn(
+        'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
+        className
+      )}
+    >
+      {/* Official F1 Dual Racing Stripes Header */}
+      <div className="w-full flex flex-col">
+        <div className="h-1.5 bg-[#e10600] w-full" />
+        <div className="h-0.5 bg-[#e10600]/80 w-full mt-0.5" />
+      </div>
+
+      {/* Cockpit Sub-Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-7 py-3 border-b border-white/10 bg-zinc-900/30">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="w-2 h-2 rounded-full bg-[#e10600] animate-pulse shrink-0" />
+          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
+            {details.circuitName ?? 'Circuit Specifications'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <CountryFlag countryName={details.country} className="w-5 h-3.5 shadow-sm rounded-xs" />
+          <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+            {details.country}
+          </span>
+        </div>
+      </div>
+
+      {/* Main Content: Map + Instrument Cluster */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
+        {showMap && (
+          <div className="lg:col-span-7 flex flex-col items-center justify-center p-6 sm:p-8 relative bg-zinc-950/60 overflow-hidden min-h-[260px] sm:min-h-[340px]">
+            {/* Ambient Livery Glow */}
+            <div className="absolute inset-0 bg-[#e10600]/5 blur-3xl pointer-events-none rounded-full" />
+
+            <Image
+              src={details.officialMapUrl}
+              alt={`${details.circuitName ?? details.country} official circuit map`}
+              width={700}
+              height={450}
+              className="w-full h-auto max-h-[340px] object-contain drop-shadow-[0_0_24px_rgba(225,6,0,0.14)] relative z-10 transition-transform duration-500 hover:scale-[1.02]"
+              priority
+              unoptimized
+              onError={() => setImageError(true)}
+            />
+          </div>
+        )}
+
+        {/* Monolithic 1px Telemetry Matrix */}
+        <div
+          className={cn(
+            'flex flex-col justify-between bg-zinc-950/40',
+            showMap
+              ? 'lg:col-span-5 border-t lg:border-t-0 lg:border-l border-white/10'
+              : 'lg:col-span-12'
           )}
+        >
+          {/* Hero Cell: Circuit Length */}
+          <div className="p-5 sm:p-7 border-b border-white/10 bg-zinc-900/20">
+            <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#e10600]" />
+              Circuit Length
+            </p>
+            <p className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono tracking-tight text-white mt-1.5">
+              {details.circuitLength}
+            </p>
+          </div>
 
-          <div
-            className={cn(
-              'space-y-6',
-              showMap
-                ? 'lg:col-span-6 lg:border-l border-border lg:pl-8'
-                : 'lg:col-span-12'
-            )}
-          >
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                Circuit Length
+          {/* 2x2 Instrument Grid */}
+          <div className="grid grid-cols-2 flex-1">
+            {/* First Grand Prix */}
+            <div className="p-4 sm:p-6 border-b border-r border-white/10 bg-zinc-900/10 hover:bg-zinc-900/25 transition-colors">
+              <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                First Grand Prix
               </p>
-              <p className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-foreground mt-1">
-                {details.circuitLength}
+              <p className="text-xl sm:text-2xl font-black font-mono text-white mt-1">
+                {details.firstGrandPrix}
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 pt-2 border-t border-border">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                  First Grand Prix
-                </p>
-                <p className="text-xl sm:text-2xl font-black font-mono text-foreground mt-1">
-                  {details.firstGrandPrix}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                  Number of Laps
-                </p>
-                <p className="text-xl sm:text-2xl font-black font-mono text-foreground mt-1">
-                  {details.numberOfLaps}
-                </p>
-              </div>
+            {/* Number of Laps */}
+            <div className="p-4 sm:p-6 border-b border-white/10 bg-zinc-900/10 hover:bg-zinc-900/25 transition-colors">
+              <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                Number of Laps
+              </p>
+              <p className="text-xl sm:text-2xl font-black font-mono text-white mt-1">
+                {details.numberOfLaps}
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 pt-2 border-t border-border">
+            {/* Fastest Lap Time */}
+            <div className="p-4 sm:p-6 border-r border-white/10 bg-zinc-900/10 hover:bg-zinc-900/25 transition-colors flex flex-col justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                  Fastest lap time
+                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                  Fastest Lap Time
                 </p>
-                <p className="text-lg sm:text-xl font-black font-mono text-primary mt-1">
-                  {details.fastestLap.time}
+                <p
+                  className={cn(
+                    'text-xl sm:text-2xl font-black font-mono mt-1',
+                    isPendingLapTime ? 'text-zinc-400' : 'text-red-400'
+                  )}
+                >
+                  {displayLapTime}
                 </p>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+              </div>
+              {hasDriverRecord ? (
+                <p className="text-xs font-mono text-zinc-400 mt-1 truncate">
                   {details.fastestLap.driver} ({details.fastestLap.year})
                 </p>
-              </div>
+              ) : (
+                <p className="text-[11px] font-mono text-zinc-500 mt-1">Record pending debut</p>
+              )}
+            </div>
 
+            {/* Race Distance */}
+            <div className="p-4 sm:p-6 bg-zinc-900/10 hover:bg-zinc-900/25 transition-colors flex flex-col justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
                   Race Distance
                 </p>
-                <p className="text-xl sm:text-2xl font-black font-mono text-foreground mt-1">
+                <p className="text-xl sm:text-2xl font-black font-mono text-white mt-1">
                   {details.raceDistance}
                 </p>
               </div>
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -17,7 +17,7 @@ export function NextRaceSectionClient({ initialRace }: NextRaceSectionClientProp
     return (
         <>
             <NextRaceCard race={race} />
-            <CircuitDetailsCard circuitId={race.Circuit.circuitId} />
+            <CircuitDetailsCard circuitId={race.Circuit.circuitId} season={race.season} />
         </>
     );
 }
