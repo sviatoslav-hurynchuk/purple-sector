@@ -24,12 +24,12 @@ export default function RootLayout({
     children: ReactNode;
 }>) {
     return (
-        <html lang="en" className={`${geistSans.variable} dark h-full antialiased`}>
-        <body className="min-h-full flex flex-col bg-background text-foreground overflow-x-hidden">
+        <html lang="en" className={`${geistSans.variable} dark antialiased`}>
+        <body className="min-h-screen flex flex-col bg-background text-foreground">
         <LiveSessionProvider>
             <Navbar />
 
-            <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full">
+            <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-24 md:pb-8 w-full overflow-x-clip">
                 {children}
             </main>
 
