@@ -7,15 +7,14 @@ import { NextRaceSkeleton } from '@/components/f1/skeletons/next-race-skeleton';
 import { StandingsSkeleton } from '@/components/f1/skeletons/standings-skeleton';
 
 export const metadata: Metadata = {
-    title: 'Dashboard',
+    title: 'Dashboard | Purple Sector',
+    description: 'Real-time Formula 1 live telemetry, upcoming race countdown, and official championship standings.',
 };
 
 export default function DashboardPage() {
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-black tracking-tight">Dashboard</h1>
-            </div>
+        <div className="space-y-4 sm:space-y-5">
+            <h1 className="sr-only">Formula 1 Dashboard</h1>
 
             <DashboardLiveSection />
 

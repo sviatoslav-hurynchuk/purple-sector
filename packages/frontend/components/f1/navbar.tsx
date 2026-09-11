@@ -117,7 +117,7 @@ export function Navbar() {
                     className={cn(
                       'px-3.5 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5',
                       active
-                        ? 'bg-white/10 text-white font-bold shadow-sm'
+                        ? 'bg-[#e10600] text-white font-bold shadow-[0_0_12px_rgba(225,6,0,0.35)]'
                         : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                     )}
                   >
