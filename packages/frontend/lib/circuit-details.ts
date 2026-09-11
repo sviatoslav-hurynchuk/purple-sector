@@ -813,7 +813,8 @@ export function getCircuitDetails(
         targetKey = 'pedralbes';
       } else if (
         [1968, 1970, 1972, 1974].includes(yearNum) ||
-        (yearNum >= 1976 && yearNum <= 1981)
+        (yearNum >= 1976 && yearNum <= 1979) ||
+        yearNum === 1981
       ) {
         targetKey = 'jarama';
       } else {
