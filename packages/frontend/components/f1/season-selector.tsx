@@ -34,7 +34,7 @@ export function SeasonSelector({ currentSeason, allYears }: SeasonSelectorProps)
           disabled={isPending}
           onClick={() => handleSeasonChange(y)}
           className={cn(
-            'px-2 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-all',
+            'px-2 sm:px-4 py-1 sm:py-1.5 min-h-[44px] inline-flex items-center justify-center rounded-full text-xs sm:text-sm font-semibold border transition-all',
             y === currentSeason
               ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
               : 'border-border text-muted-foreground hover:border-primary hover:text-primary bg-zinc-900/50'
@@ -50,7 +50,7 @@ export function SeasonSelector({ currentSeason, allYears }: SeasonSelectorProps)
           disabled={isPending}
           value={currentSeason}
           onChange={(e) => handleSeasonChange(parseInt(e.target.value, 10))}
-          className="appearance-none bg-zinc-900 border border-border hover:border-primary text-foreground text-xs sm:text-sm font-semibold px-2.5 sm:px-4 py-1 sm:py-1.5 pr-6 sm:pr-8 rounded-full cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="appearance-none bg-zinc-900 border border-border hover:border-primary text-foreground text-xs sm:text-sm font-semibold px-2.5 sm:px-4 py-1 sm:py-1.5 pr-6 sm:pr-8 rounded-full cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[44px]"
         >
           {allYears.map((y) => (
             <option key={y} value={y} className="bg-zinc-950 text-foreground py-1 font-mono text-xs sm:text-sm">

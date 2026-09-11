@@ -647,6 +647,36 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
     },
     officialMapUrl: '',
   },
+  montjuic: {
+    circuitId: 'montjuic',
+    circuitName: 'Montjuïc Circuit (Barcelona)',
+    country: 'Spain',
+    circuitLength: '3.791km',
+    firstGrandPrix: '1969',
+    numberOfLaps: '75',
+    raceDistance: '284.325km',
+    fastestLap: {
+      time: '1:23.8',
+      driver: 'Ronnie Peterson',
+      year: '1973',
+    },
+    officialMapUrl: '',
+  },
+  pedralbes: {
+    circuitId: 'pedralbes',
+    circuitName: 'Pedralbes Circuit (Barcelona)',
+    country: 'Spain',
+    circuitLength: '6.316km',
+    firstGrandPrix: '1951',
+    numberOfLaps: '80',
+    raceDistance: '505.28km',
+    fastestLap: {
+      time: '2:14.28',
+      driver: 'Alberto Ascari',
+      year: '1954',
+    },
+    officialMapUrl: '',
+  },
   indianapolis: {
     circuitId: 'indianapolis',
     country: 'USA',
@@ -722,6 +752,11 @@ const CIRCUIT_ALIASES: Record<string, string> = {
   circuito_de_jerez: 'jerez',
   circuito_del_jarama: 'jarama',
   jarama_circuit: 'jarama',
+  montjuic: 'montjuic',
+  'montjuïc': 'montjuic',
+  montjuic_circuit: 'montjuic',
+  pedralbes: 'pedralbes',
+  pedralbes_circuit: 'pedralbes',
   circuit_de_barcelona_catalunya: 'catalunya',
   circuit_de_catalunya: 'catalunya',
   barcelona: 'catalunya',
@@ -772,8 +807,17 @@ export function getCircuitDetails(
         targetKey = 'catalunya';
       } else if (yearNum >= 1986) {
         targetKey = 'jerez';
-      } else {
+      } else if ([1969, 1971, 1973, 1975].includes(yearNum)) {
+        targetKey = 'montjuic';
+      } else if (yearNum === 1951 || yearNum === 1954) {
+        targetKey = 'pedralbes';
+      } else if (
+        [1968, 1970, 1972, 1974].includes(yearNum) ||
+        (yearNum >= 1976 && yearNum <= 1981)
+      ) {
         targetKey = 'jarama';
+      } else {
+        return null;
       }
     } else {
       targetKey = 'madring';

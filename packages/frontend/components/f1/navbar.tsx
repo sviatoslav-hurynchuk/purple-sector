@@ -138,7 +138,7 @@ export function Navbar() {
               {isLiveActive && (
                 <Link
                   href="/live"
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/25 text-red-400 text-[11px] font-mono font-bold uppercase tracking-wider animate-pulse"
+                  className="flex items-center gap-1.5 px-2.5 py-1 min-h-[44px] rounded-full bg-red-500/10 border border-red-500/25 text-red-400 text-[11px] font-mono font-bold uppercase tracking-wider animate-pulse"
                 >
                   <span className="relative flex h-1.5 w-1.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -193,8 +193,8 @@ export function Navbar() {
                 title={item.label}
                 aria-label={item.label}
                 className={cn(
-                  'dock-item w-full flex items-center justify-center rounded-full transition-colors duration-200 relative z-10',
-                  isCompact ? 'h-8' : 'h-10',
+                  'dock-item w-full flex items-center justify-center rounded-full transition-colors duration-200 relative z-10 min-h-[44px]',
+                  isCompact ? 'h-11' : 'h-11',
                   isTabActive
                     ? 'text-white'
                     : 'text-zinc-500 hover:text-zinc-300'

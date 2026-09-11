@@ -34,18 +34,23 @@ export async function StandingsContent({ searchParams, allYears }: StandingsCont
 
     const maxYear = getMaxYear();
     const year = parseYear(season, maxYear);
-    const selectedRound = parseRound(round) ?? undefined;
+    const rawRound = parseRound(round) ?? undefined;
 
-    const [driverStandings, constructorStandings, races] = await Promise.all([
-        getDriverStandings(year, selectedRound),
-        getConstructorStandings(year, selectedRound),
-        getRaceSchedule(year).catch(() => [] as Race[]),
-    ]);
-
+    const races = await getRaceSchedule(year).catch(() => [] as Race[]);
     const completedRaces = races.filter((r) => isRacePast(r.date, r.time));
 
+    const selectedRound =
+        rawRound !== undefined && completedRaces.some((r) => parseInt(r.round, 10) === rawRound)
+            ? rawRound
+            : undefined;
+
+    const [driverStandings, constructorStandings] = await Promise.all([
+        getDriverStandings(year, selectedRound),
+        getConstructorStandings(year, selectedRound),
+    ]);
+
     const activeRoundRace = selectedRound
-        ? races.find((r) => parseInt(r.round, 10) === selectedRound)
+        ? completedRaces.find((r) => parseInt(r.round, 10) === selectedRound)
         : undefined;
 
     return (
