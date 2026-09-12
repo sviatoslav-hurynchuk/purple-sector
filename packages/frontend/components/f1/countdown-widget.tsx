@@ -73,7 +73,7 @@ export function CountdownWidget({
       Boolean(liveSessionState?.sessionType?.toLowerCase().includes('race'));
 
     if (isRaceSession && ongoingSession) {
-      const circuitInfo = getCircuitDetails(race.Circuit.circuitId);
+      const circuitInfo = getCircuitDetails(race.Circuit.circuitId, race.season);
       const totalLaps = circuitInfo?.numberOfLaps ?? '70';
       const elapsedMs = Math.max(0, nowMs - ongoingSession.rawDate.getTime());
       const estLap = Math.min(Number(totalLaps) || 70, Math.max(1, Math.floor(elapsedMs / 90000) + 1));

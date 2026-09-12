@@ -13,6 +13,7 @@ export interface CircuitConfiguration {
 
 export interface CircuitDetails {
   circuitId: string;
+  circuitName?: string;
   country: string;
   circuitLength: string;
   firstGrandPrix: string;
@@ -201,6 +202,7 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
   },
   catalunya: {
     circuitId: 'catalunya',
+    circuitName: 'Circuit de Barcelona-Catalunya',
     country: 'Spain',
     circuitLength: '4.657km',
     firstGrandPrix: '1991',
@@ -213,6 +215,22 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
     },
     officialMapUrl:
       'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Spain_Circuit.png',
+  },
+  madring: {
+    circuitId: 'madring',
+    circuitName: 'Madring (Madrid Street Circuit)',
+    country: 'Spain',
+    circuitLength: '5.416km',
+    firstGrandPrix: '2026',
+    numberOfLaps: '57',
+    raceDistance: '308.524km',
+    fastestLap: {
+      time: '—',
+      driver: '—',
+      year: '—',
+    },
+    officialMapUrl:
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/common/f1/2026/track/2026trackmadringdetailed.webp',
   },
   red_bull_ring: {
     circuitId: 'red_bull_ring',
@@ -572,6 +590,7 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
   },
   valencia: {
     circuitId: 'valencia',
+    circuitName: 'Valencia Street Circuit',
     country: 'Spain',
     circuitLength: '5.419km',
     firstGrandPrix: '2008',
@@ -600,6 +619,7 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
   },
   jerez: {
     circuitId: 'jerez',
+    circuitName: 'Circuito de Jerez',
     country: 'Spain',
     circuitLength: '4.428km',
     firstGrandPrix: '1986',
@@ -609,6 +629,51 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
       time: '1:23.135',
       driver: 'Heinz-Harald Frentzen',
       year: '1997',
+    },
+    officialMapUrl: '',
+  },
+  jarama: {
+    circuitId: 'jarama',
+    circuitName: 'Circuito del Jarama (Madrid)',
+    country: 'Spain',
+    circuitLength: '3.404km',
+    firstGrandPrix: '1968',
+    numberOfLaps: '80',
+    raceDistance: '272.32km',
+    fastestLap: {
+      time: '1:16.440',
+      driver: 'Gilles Villeneuve',
+      year: '1979',
+    },
+    officialMapUrl: '',
+  },
+  montjuic: {
+    circuitId: 'montjuic',
+    circuitName: 'Montjuïc Circuit (Barcelona)',
+    country: 'Spain',
+    circuitLength: '3.791km',
+    firstGrandPrix: '1969',
+    numberOfLaps: '75',
+    raceDistance: '284.325km',
+    fastestLap: {
+      time: '1:23.8',
+      driver: 'Ronnie Peterson',
+      year: '1973',
+    },
+    officialMapUrl: '',
+  },
+  pedralbes: {
+    circuitId: 'pedralbes',
+    circuitName: 'Pedralbes Circuit (Barcelona)',
+    country: 'Spain',
+    circuitLength: '6.316km',
+    firstGrandPrix: '1951',
+    numberOfLaps: '80',
+    raceDistance: '505.28km',
+    fastestLap: {
+      time: '2:14.28',
+      driver: 'Alberto Ascari',
+      year: '1954',
     },
     officialMapUrl: '',
   },
@@ -685,9 +750,24 @@ const CIRCUIT_ALIASES: Record<string, string> = {
   valencia_street_circuit: 'valencia',
   autodromo_do_estoril: 'estoril',
   circuito_de_jerez: 'jerez',
+  circuito_del_jarama: 'jarama',
+  jarama_circuit: 'jarama',
+  montjuic: 'montjuic',
+  'montjuïc': 'montjuic',
+  montjuic_circuit: 'montjuic',
+  pedralbes: 'pedralbes',
+  pedralbes_circuit: 'pedralbes',
+  circuit_de_barcelona_catalunya: 'catalunya',
+  circuit_de_catalunya: 'catalunya',
+  barcelona: 'catalunya',
+  barcelona_catalunya: 'catalunya',
   indianapolis_motor_speedway: 'indianapolis',
   fuji_speedway: 'fuji',
   adelaide_street_circuit: 'adelaide',
+  ifema_madrid: 'madring',
+  circuito_de_madrid: 'madring',
+  madrid_street_circuit: 'madring',
+  madrid_circuit: 'madring',
 };
 
 interface RaceResultEntryForRecord {
@@ -705,14 +785,57 @@ export function getCircuitDetails(
 ): CircuitDetails | null {
   if (!circuitId) return null;
   const normalizedKey = circuitId.toLowerCase().trim().replace(/[-\s]/g, '_');
-  const targetKey = CIRCUIT_ALIASES[normalizedKey] ?? normalizedKey;
+  const yearNum = seasonYear ? Number(seasonYear) : undefined;
+  const isValidYear = yearNum !== undefined && !isNaN(yearNum);
+
+  let targetKey = CIRCUIT_ALIASES[normalizedKey] ?? normalizedKey;
+
+  // Temporal routing to prevent confusion between Madring (2026+), Catalunya, Jarama (historical Madrid), and Jerez
+  if (normalizedKey === 'madrid') {
+    // Madrid hosted F1 at Jarama between 1968 and 1981, and hosts at Madring from 2026 onwards
+    targetKey = isValidYear && yearNum < 2026 ? 'jarama' : 'madring';
+  } else if (
+    normalizedKey === 'spanish' ||
+    normalizedKey === 'spanish_grand_prix' ||
+    normalizedKey === 'spain'
+  ) {
+    // Historical Spanish Grand Prix venue routing by era
+    if (isValidYear) {
+      if (yearNum >= 2026) {
+        targetKey = 'madring';
+      } else if (yearNum >= 1991) {
+        targetKey = 'catalunya';
+      } else if (yearNum >= 1986) {
+        targetKey = 'jerez';
+      } else if ([1969, 1971, 1973, 1975].includes(yearNum)) {
+        targetKey = 'montjuic';
+      } else if (yearNum === 1951 || yearNum === 1954) {
+        targetKey = 'pedralbes';
+      } else if (
+        [1968, 1970, 1972, 1974].includes(yearNum) ||
+        (yearNum >= 1976 && yearNum <= 1979) ||
+        yearNum === 1981
+      ) {
+        targetKey = 'jarama';
+      } else {
+        return null;
+      }
+    } else {
+      targetKey = 'madring';
+    }
+  }
+
+  // Strict temporal guard: Madring is a brand new track only from 2026 onwards.
+  // It MUST NEVER be associated with pre-2026 historical races.
+  if (targetKey === 'madring' && isValidYear && yearNum < 2026) {
+    return null;
+  }
+
   const baseDetails = F1_CIRCUIT_DETAILS[targetKey];
   if (!baseDetails) return null;
 
   // Shallow copy base details
   const result: CircuitDetails = { ...baseDetails, fastestLap: { ...baseDetails.fastestLap } };
-
-  const yearNum = seasonYear ? Number(seasonYear) : undefined;
 
   // 1. Apply historical configuration matching if seasonYear is specified
   if (yearNum && !isNaN(yearNum) && baseDetails.configurations) {

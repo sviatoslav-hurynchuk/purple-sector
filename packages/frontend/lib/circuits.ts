@@ -22,16 +22,37 @@ const WIKIMEDIA_CIRCUIT_MAP: Record<string, string> = {
   vegas: 'https://commons.wikimedia.org/wiki/Special:FilePath/Las_Vegas_Strip_Circuit_2023.svg',
   yas_marina: 'https://commons.wikimedia.org/wiki/Special:FilePath/Yas_Marina_Circuit_2021.svg',
   catalunya: 'https://commons.wikimedia.org/wiki/Special:FilePath/Circuit_de_Barcelona-Catalunya_2023.svg',
+  madring: 'https://commons.wikimedia.org/wiki/Special:FilePath/Madring_(2026).svg',
+  jarama: 'https://commons.wikimedia.org/wiki/Special:FilePath/Circuito_del_Jarama.svg',
+  jerez: 'https://commons.wikimedia.org/wiki/Special:FilePath/Circuito_de_Jerez.svg',
+  valencia: 'https://commons.wikimedia.org/wiki/Special:FilePath/Valencia_Street_Circuit.svg',
   shanghai: 'https://commons.wikimedia.org/wiki/Special:FilePath/Shanghai_International_Circuit.svg',
   rodriguez: 'https://commons.wikimedia.org/wiki/Special:FilePath/Aut%C3%B3dromo_Hermanos_Rodr%C3%ADguez_2015.svg',
   villeneuve: 'https://commons.wikimedia.org/wiki/Special:FilePath/Circuit_Gilles_Villeneuve.svg',
 };
 
 /**
- * Returns the track layout SVG URL for a given circuit ID.
+ * Returns the track layout SVG URL for a given circuit ID with optional season awareness.
+ * Prevents conflating 2026+ Madring with historical Madrid (Jarama) or Spanish (Catalunya/Jerez) circuits.
  */
-export function getCircuitTrackLayoutUrl(circuitId: string): string | null {
+export function getCircuitTrackLayoutUrl(circuitId: string, seasonYear?: number | string): string | null {
   if (!circuitId) return null;
   const id = circuitId.toLowerCase().trim();
+  const yearNum = seasonYear ? Number(seasonYear) : undefined;
+  const isValidYear = yearNum !== undefined && !isNaN(yearNum);
+
+  if (id === 'madrid') {
+    // Madrid hosted F1 at Jarama before 2026; Madring from 2026+
+    return isValidYear && yearNum < 2026
+      ? WIKIMEDIA_CIRCUIT_MAP.jarama
+      : WIKIMEDIA_CIRCUIT_MAP.madring;
+  }
+
+  if (id === 'madring') {
+    // Madring did not exist prior to 2026
+    if (isValidYear && yearNum < 2026) return null;
+    return WIKIMEDIA_CIRCUIT_MAP.madring;
+  }
+
   return WIKIMEDIA_CIRCUIT_MAP[id] ?? null;
 }

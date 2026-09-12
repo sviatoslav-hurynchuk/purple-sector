@@ -7,7 +7,7 @@ import {
 import type { DriverStanding, ConstructorStanding, Race } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { RoundSelector } from '@/components/f1/round-selector';
-import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
+import { parseYear, parseRound, getMaxYear, isRacePast } from '@/lib/utils';
 import {
     Card,
     CardContent,
@@ -34,21 +34,28 @@ export async function StandingsContent({ searchParams, allYears }: StandingsCont
 
     const maxYear = getMaxYear();
     const year = parseYear(season, maxYear);
-    const selectedRound = parseRound(round) ?? undefined;
+    const rawRound = parseRound(round) ?? undefined;
 
-    const [driverStandings, constructorStandings, races] = await Promise.all([
+    const races = await getRaceSchedule(year).catch(() => [] as Race[]);
+    const completedRaces = races.filter((r) => isRacePast(r.date, r.time));
+
+    const selectedRound =
+        rawRound !== undefined && completedRaces.some((r) => parseInt(r.round, 10) === rawRound)
+            ? rawRound
+            : undefined;
+
+    const [driverStandings, constructorStandings] = await Promise.all([
         getDriverStandings(year, selectedRound),
         getConstructorStandings(year, selectedRound),
-        getRaceSchedule(year).catch(() => [] as Race[]),
     ]);
 
     const activeRoundRace = selectedRound
-        ? races.find((r) => parseInt(r.round, 10) === selectedRound)
+        ? completedRaces.find((r) => parseInt(r.round, 10) === selectedRound)
         : undefined;
 
     return (
         <div className="space-y-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-border pb-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6 border-b border-border pb-6">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight">
                         {year} Championship Standings
@@ -60,13 +67,13 @@ export async function StandingsContent({ searchParams, allYears }: StandingsCont
                     </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <SeasonSelector currentSeason={year} allYears={allYears} />
-                    {races.length > 0 && (
+                    {completedRaces.length > 0 && (
                         <RoundSelector
                             currentSeason={year}
                             currentRound={selectedRound}
-                            races={races}
+                            races={completedRaces}
                         />
                     )}
                 </div>
