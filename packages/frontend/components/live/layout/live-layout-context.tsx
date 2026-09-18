@@ -1,16 +1,15 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import type {
   WidgetId,
   WidgetSpan,
-  WidgetConfig,
   LayoutPreset,
   LiveLayoutState,
 } from '@/types/live-layout';
 import { PRESET_CONFIGS } from '@/types/live-layout';
 
-const STORAGE_KEY = 'ps_live_layout_config_v2';
+const STORAGE_KEY = 'ps_live_layout_config_v3';
 
 interface LiveLayoutContextValue {
   layout: LiveLayoutState;
@@ -25,39 +24,48 @@ interface LiveLayoutContextValue {
 
 const LiveLayoutContext = createContext<LiveLayoutContextValue | null>(null);
 
-export function LiveLayoutProvider({ children }: { children: React.ReactNode }) {
-  const [layout, setLayout] = useState<LiveLayoutState>({
+function getInitialLayoutState(): LiveLayoutState {
+  if (typeof window === 'undefined') {
+    return {
+      preset: 'default',
+      widgets: PRESET_CONFIGS.default,
+    };
+  }
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved) as LiveLayoutState;
+      if (parsed.widgets && Array.isArray(parsed.widgets)) {
+        // Filter out deprecated banner widget from old saves
+        const cleaned = parsed.widgets.filter((w) => (w.id as string) !== 'banner');
+        const existingIds = new Set(cleaned.map((w) => w.id));
+        const mergedWidgets = [...cleaned];
+
+        for (const defaultWidget of PRESET_CONFIGS.default) {
+          if (!existingIds.has(defaultWidget.id)) {
+            mergedWidgets.push(defaultWidget);
+          }
+        }
+
+        return {
+          preset: parsed.preset || 'custom',
+          widgets: mergedWidgets,
+        };
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return {
     preset: 'default',
     widgets: PRESET_CONFIGS.default,
-  });
+  };
+}
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as LiveLayoutState;
-        if (parsed.widgets && Array.isArray(parsed.widgets)) {
-          // Merge with any newly added widgets to guarantee backward compatibility
-          const existingIds = new Set(parsed.widgets.map((w) => w.id));
-          const mergedWidgets = [...parsed.widgets];
-
-          for (const defaultWidget of PRESET_CONFIGS.default) {
-            if (!existingIds.has(defaultWidget.id)) {
-              mergedWidgets.push(defaultWidget);
-            }
-          }
-
-          setLayout({
-            preset: parsed.preset || 'custom',
-            widgets: mergedWidgets,
-          });
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+export function LiveLayoutProvider({ children }: { children: React.ReactNode }) {
+  const [layout, setLayout] = useState<LiveLayoutState>(getInitialLayoutState);
 
   const saveLayout = useCallback((nextState: LiveLayoutState) => {
     setLayout(nextState);

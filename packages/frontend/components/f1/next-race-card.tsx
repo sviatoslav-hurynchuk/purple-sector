@@ -67,15 +67,9 @@ export function NextRaceCard({ race, className }: NextRaceCardProps) {
       </div>
 
       {/* Cockpit Sub-Header */}
-      <div className="flex items-center justify-end gap-3 px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30">
-        <div className="flex items-center gap-2">
-          <CountryFlag countryName={race.Circuit.Location.country} className="w-5 h-3.5 shadow-sm rounded-xs" />
-          <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-            {race.Circuit.Location.country}
-          </span>
-        </div>
+      <div className="flex items-center justify-end min-h-[33px] px-5 sm:px-7 py-1.5 border-b border-white/10 bg-zinc-900/30">
         {isClient && (
-          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-zinc-400 font-mono bg-zinc-900/80 px-2 py-0.5 rounded border border-white/5">
+          <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400 font-mono bg-zinc-900/80 px-2 py-0.5 rounded border border-white/5">
             <Clock className="size-3 text-zinc-500" />
             <span>{userTimeZone.split('/')[1]?.replace(/_/g, ' ') ?? userTimeZone}</span>
           </span>

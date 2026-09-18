@@ -10,6 +10,7 @@ interface LiveStatusIndicatorProps {
   label?: string;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  variant?: 'pill' | 'toolbar';
 }
 
 export function LiveStatusIndicator({
@@ -19,7 +20,10 @@ export function LiveStatusIndicator({
   label,
   className,
   size = 'md',
+  variant = 'pill',
 }: LiveStatusIndicatorProps) {
+  const isToolbar = variant === 'toolbar';
+
   const dotSize = {
     sm: 'h-1.5 w-1.5',
     md: 'h-2 w-2',
@@ -38,8 +42,8 @@ export function LiveStatusIndicator({
     return (
       <span
         className={cn(
-          'inline-flex items-center gap-1.5 font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
-          'bg-red-500/10 text-red-400 border border-red-500/20',
+          'inline-flex items-center gap-1.5 font-mono font-bold uppercase tracking-wider',
+          isToolbar ? 'text-red-400' : 'px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20',
           textSize,
           className
         )}
@@ -62,8 +66,8 @@ export function LiveStatusIndicator({
     return (
       <span
         className={cn(
-          'inline-flex items-center gap-1.5 font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full',
-          'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+          'inline-flex items-center gap-1.5 font-mono font-semibold uppercase tracking-wider',
+          isToolbar ? 'text-emerald-400' : 'px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
           textSize,
           className
         )}
@@ -78,8 +82,8 @@ export function LiveStatusIndicator({
     return (
       <span
         className={cn(
-          'inline-flex items-center gap-1.5 font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full',
-          'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+          'inline-flex items-center gap-1.5 font-mono font-semibold uppercase tracking-wider',
+          isToolbar ? 'text-amber-400' : 'px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20',
           textSize,
           className
         )}
@@ -93,7 +97,8 @@ export function LiveStatusIndicator({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 font-mono text-zinc-500 px-2 py-0.5 rounded-full bg-zinc-900/60 border border-white/5',
+        'inline-flex items-center gap-1.5 font-mono text-zinc-500',
+        isToolbar ? '' : 'px-2 py-0.5 rounded-full bg-zinc-900/60 border border-white/5',
         textSize,
         className
       )}

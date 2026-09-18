@@ -1,46 +1,52 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSharedLiveSession } from '@/components/live/live-session-provider';
 import { useLiveTelemetry } from '@/hooks/use-live-telemetry';
 import { useTrackPositions } from '@/hooks/use-track-positions';
 import { LiveLayoutProvider, useLiveLayout } from '@/components/live/layout/live-layout-context';
 import { WidgetContainer } from '@/components/live/layout/widget-container';
 import { LayoutCustomizerModal } from '@/components/live/layout/layout-customizer-modal';
-import { LiveSessionBanner } from '@/components/live/live-session-banner';
 import { WeatherWidget } from '@/components/live/weather-widget';
 import { TimingTower } from '@/components/live/timing-tower';
 import { TelemetryPanel } from '@/components/live/telemetry-panel';
 import { TrackMap } from '@/components/live/track-map';
 import { RaceControlFeed } from '@/components/live/race-control-feed';
 import { LiveStatusIndicator } from '@/components/live/live-status-indicator';
-import { Radio, RefreshCw, Layers, Activity, MapPin } from 'lucide-react';
+import { Radio, RefreshCw, Layers, Activity, MapPin, Flag, ShieldAlert, Trophy, Clock } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
-import type { LiveDriverState } from '@/types/f1';
+import type { LiveDriverState, LiveSessionState } from '@/types/f1';
+
+function resolveTrackFlag(state: LiveSessionState | null) {
+  if (!state || !state.raceControlFeed || state.raceControlFeed.length === 0) {
+    return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald' };
+  }
+
+  const recentEvents = state.raceControlFeed.slice(-5);
+  for (let i = recentEvents.length - 1; i >= 0; i--) {
+    const e = recentEvents[i];
+    if (e.type === 'safety_car') return { flag: 'SC', label: 'SAFETY CAR', color: 'amber' };
+    if (e.type === 'vsc') return { flag: 'VSC', label: 'VSC DEPLOYED', color: 'amber' };
+    if (e.type === 'red_flag') return { flag: 'RED', label: 'RED FLAG', color: 'red' };
+    if (e.type === 'yellow_flag') return { flag: 'YELLOW', label: 'YELLOW FLAG', color: 'yellow' };
+    if (e.type === 'chequered_flag') return { flag: 'CHEQUERED', label: 'SESSION FINISHED', color: 'zinc' };
+  }
+
+  return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald' };
+}
 
 function LiveTimingContent() {
-  const { state, isConnected, isStreaming, reconnect } = useSharedLiveSession();
+  const { state, isStreaming, reconnect } = useSharedLiveSession();
   const { layout } = useLiveLayout();
-  const [selectedDriverNumber, setSelectedDriverNumber] = useState<number | null>(null);
+  const [selectedDriverNumberState, setSelectedDriverNumber] = useState<number | null>(null);
 
-  // Auto-select P1 driver on initial load or re-select when roster/session changes
-  useEffect(() => {
-    if (!state?.drivers || state.drivers.length === 0) {
-      if (selectedDriverNumber !== null) {
-        setSelectedDriverNumber(null);
-      }
-      return;
-    }
-
-    const driverExists = state.drivers.some(
-      (d: LiveDriverState) => d.driverNumber === selectedDriverNumber
-    );
-
-    if (!driverExists) {
-      setSelectedDriverNumber(state.drivers[0].driverNumber);
-    }
-  }, [state?.sessionKey, state?.drivers, selectedDriverNumber]);
+  // Derive selectedDriverNumber: if selected driver is in roster, use it; otherwise default to P1 (leader)
+  const selectedDriverNumber =
+    selectedDriverNumberState !== null && state?.drivers?.some((d: LiveDriverState) => d.driverNumber === selectedDriverNumberState)
+      ? selectedDriverNumberState
+      : (state?.drivers?.[0]?.driverNumber ?? null);
 
   const selectedDriver = state?.drivers
     ? state.drivers.find((d: LiveDriverState) => d.driverNumber === selectedDriverNumber) ?? null
@@ -61,19 +67,17 @@ function LiveTimingContent() {
     enabled: !!state?.isActive,
   });
 
+  const trackStatus = resolveTrackFlag(state);
+  const leader = state?.drivers?.find((d: LiveDriverState) => d.position === 1);
+  const p2 = state?.drivers?.find((d: LiveDriverState) => d.position === 2);
+  const sessionDisplayName =
+    state?.sessionName && state.sessionName !== 'No Active Session'
+      ? state.sessionName
+      : 'Live Control Room';
+
   // Helper to render widget by ID
   const renderWidgetContent = (widgetId: string) => {
     switch (widgetId) {
-      case 'banner':
-        return state?.isActive ? (
-          <LiveSessionBanner state={state} showLiveLink={false} />
-        ) : (
-          <div className="p-6 rounded-2xl bg-zinc-900/60 border border-white/10 text-center flex flex-col items-center justify-center gap-2">
-            <Radio className="h-5 w-5 text-zinc-500 opacity-50" />
-            <h4 className="font-bold text-xs text-zinc-300">No Active Session</h4>
-          </div>
-        );
-
       case 'weather':
         return <WeatherWidget weather={state?.weather ?? null} />;
 
@@ -119,47 +123,130 @@ function LiveTimingContent() {
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      {/* Top Header & Layout Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-red-600/10 text-red-500 border border-red-500/20">
-            <Radio className="h-5 w-5 animate-pulse" />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white uppercase">
-              Live Timing Console
-            </h1>
-            {state?.sessionName && state.sessionName !== 'No Active Session' && (
-              <p className="text-xs text-zinc-400 font-mono flex items-center gap-1.5 mt-0.5">
-                <span className="font-semibold text-zinc-300">{state.sessionName}</span>
-                {state.circuitShortName && <span>· {state.circuitShortName}</span>}
-                {state.status === 'COMPLETED' && (
-                  <span className="text-emerald-400/90 font-medium">(Completed Session Snapshot)</span>
-                )}
-              </p>
-            )}
-          </div>
+      {/* ── Monolithic Live Cockpit Header ────────────────────────── */}
+      <div className="rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+        {/* Official F1 Dual Racing Stripes Header */}
+        <div className="w-full flex flex-col">
+          <div className="h-1 bg-[#e10600] w-full" />
+          <div className="h-0.5 bg-[#e10600]/60 w-full mt-0.5" />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <LiveStatusIndicator
-            isActive={state?.isActive}
-            isStreaming={isStreaming && !state?.isRestricted}
-            status={state?.status}
-            label={state?.isRestricted ? 'LIVE (RESTRICTED)' : undefined}
-            size="md"
-          />
+        {/* Ambient livery glow */}
+        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#e10600]/10 blur-3xl pointer-events-none" />
 
-          <button
-            onClick={reconnect}
-            title="Reconnect stream"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors shadow-sm"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span>Reconnect</span>
-          </button>
+        <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+          {/* Left: Active Session Identity */}
+          <div className="space-y-1.5 min-w-0">
+            {/* Metadata Tags Row */}
+            <div className="flex flex-wrap items-center gap-2">
+              {state?.isActive ? (
+                <>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1.5 text-[11px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider',
+                      trackStatus.color === 'emerald' && 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                      trackStatus.color === 'amber' && 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse',
+                      trackStatus.color === 'yellow' && 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40',
+                      trackStatus.color === 'red' && 'bg-red-500/20 text-red-300 border-red-500/40 animate-pulse',
+                      trackStatus.color === 'zinc' && 'bg-zinc-800 text-zinc-300 border-white/10'
+                    )}
+                  >
+                    {trackStatus.flag === 'SC' || trackStatus.flag === 'VSC' ? (
+                      <ShieldAlert className="size-3" />
+                    ) : (
+                      <Flag className="size-3" />
+                    )}
+                    <span>{trackStatus.label}</span>
+                  </span>
 
-          <LayoutCustomizerModal />
+                  {state.sessionType && (
+                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-white/10 uppercase tracking-wider">
+                      {state.sessionType}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider bg-zinc-900 text-zinc-400 border-white/10">
+                  <Clock className="size-3 text-zinc-500" />
+                  <span>{state?.status === 'COMPLETED' ? 'COMPLETED SESSION SNAPSHOT' : 'STANDBY MODE'}</span>
+                </span>
+              )}
+
+              {(state?.circuitShortName || state?.countryName) && (
+                <span className="text-xs font-mono text-zinc-400 font-semibold flex items-center gap-1.5">
+                  <span className="text-zinc-600">·</span>
+                  <span>{state.circuitShortName}</span>
+                  {state.countryName && <span>({state.countryName})</span>}
+                </span>
+              )}
+            </div>
+
+            {/* Title & Leader */}
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight uppercase truncate">
+                {sessionDisplayName}
+              </h1>
+
+              {state?.isActive && leader && !state.isRestricted && (
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-white/10 text-xs font-mono">
+                  <span className="text-amber-400 font-bold flex items-center gap-1">
+                    <Trophy className="size-3" />
+                    <span>P1</span>
+                  </span>
+                  <span
+                    className="h-2.5 w-1 rounded-full"
+                    style={{ backgroundColor: leader.teamColour || '#e10600' }}
+                  />
+                  <span className="font-bold text-white">
+                    {leader.code || leader.name || `#${leader.driverNumber}`}
+                  </span>
+                  {p2?.interval && (
+                    <span className="text-zinc-400 text-[11px]">
+                      (+{typeof p2.interval === 'number' ? `${p2.interval.toFixed(3)}s` : p2.interval})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {state?.isRestricted && (
+              <div className="flex items-center gap-1.5 text-xs font-mono text-amber-300">
+                <ShieldAlert className="size-3.5 text-amber-400 shrink-0" />
+                <span>Live stream restricted (Official Session in Progress)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Unified Monolithic Cockpit Toolbar */}
+          <div className="inline-flex items-center rounded-xl border border-white/10 bg-zinc-900/80 p-1 divide-x divide-white/10 shadow-lg backdrop-blur-md shrink-0">
+            {/* Live status segment */}
+            <div className="px-2.5 py-1 flex items-center">
+              <LiveStatusIndicator
+                isActive={state?.isActive}
+                isStreaming={isStreaming && !state?.isRestricted}
+                status={state?.status}
+                label={state?.isRestricted ? 'RESTRICTED' : undefined}
+                size="sm"
+                variant="toolbar"
+              />
+            </div>
+
+            {/* Reconnect button */}
+            <button
+              onClick={reconnect}
+              title="Reconnect live telemetry stream"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 hover:text-white hover:bg-white/5 transition-colors rounded-lg"
+            >
+              <RefreshCw className="size-3.5 text-zinc-400" />
+              <span>Reconnect</span>
+            </button>
+
+            {/* Customize Layout button */}
+            <LayoutCustomizerModal
+              className="rounded-lg bg-transparent border-none text-zinc-300 hover:text-white hover:bg-white/5 shadow-none text-xs font-mono font-bold uppercase tracking-wider px-3 py-1.5"
+              label="Layout"
+            />
+          </div>
         </div>
       </div>
 
@@ -197,7 +284,6 @@ function LiveTimingContent() {
           </TabsList>
 
           <TabsContent value="tower" className="space-y-4">
-            {state?.isActive && <LiveSessionBanner state={state} showLiveLink={false} />}
             <TimingTower
               drivers={state?.drivers || []}
               selectedDriverNumber={selectedDriverNumber}
