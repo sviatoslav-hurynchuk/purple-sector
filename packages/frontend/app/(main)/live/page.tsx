@@ -42,11 +42,14 @@ function LiveTimingContent() {
   const { layout } = useLiveLayout();
   const [selectedDriverNumberState, setSelectedDriverNumber] = useState<number | null>(null);
 
-  // Derive selectedDriverNumber: if selected driver is in roster, use it; otherwise default to P1 (leader)
+  // Derive leader from live session state
+  const leader = state?.drivers?.find((d: LiveDriverState) => d.position === 1);
+
+  // Derive selectedDriverNumber: prefer explicit user selection, then actual P1 race leader, before index fallback
   const selectedDriverNumber =
     selectedDriverNumberState !== null && state?.drivers?.some((d: LiveDriverState) => d.driverNumber === selectedDriverNumberState)
       ? selectedDriverNumberState
-      : (state?.drivers?.[0]?.driverNumber ?? null);
+      : (leader?.driverNumber ?? state?.drivers?.[0]?.driverNumber ?? null);
 
   const selectedDriver = state?.drivers
     ? state.drivers.find((d: LiveDriverState) => d.driverNumber === selectedDriverNumber) ?? null
@@ -68,7 +71,6 @@ function LiveTimingContent() {
   });
 
   const trackStatus = resolveTrackFlag(state);
-  const leader = state?.drivers?.find((d: LiveDriverState) => d.position === 1);
   const p2 = state?.drivers?.find((d: LiveDriverState) => d.position === 2);
   const sessionDisplayName =
     state?.sessionName && state.sessionName !== 'No Active Session'
