@@ -213,13 +213,18 @@ pnpm dev:frontend   # Next.js app at http://localhost:3000
 | `GET` | `/api/openf1/weather/:sessionKey` | Ambient and track temperature, humidity, rainfall readings | 24h |
 | `GET` | `/api/openf1/race_control/:sessionKey` | FIA race control incident log, flags, and safety cars | 24h |
 
+### System & Health Endpoints (Public)
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/health` | Health check with Redis status, latency, and hit/miss statistics |
+
 ### Admin Endpoints (token-protected)
 
 All admin endpoints require `x-admin-token` or `Authorization: Bearer <token>` matching `ADMIN_CACHE_KEY`.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/health` | Health check with Redis status, latency, and hit/miss statistics |
 | `DELETE` | `/api/admin/cache` | Flush all cached keys matching `f1:*` |
 | `DELETE` | `/api/admin/cache?key=f1:next-race` | Invalidate a specific cache key |
 | `DELETE` | `/api/admin/cache?pattern=f1:schedule:*` | Invalidate keys matching a glob pattern |
@@ -247,11 +252,10 @@ The platform uses a two-tier caching architecture engineered to respect upstream
 
 ### Layer 2: Next.js Fetch Cache (Frontend)
 
-Next.js server components configure `next: { revalidate }` aligned with Redis TTLs to enforce the invariant:
+Next.js server components configure `next: { revalidate }` for bounded staleness independent of Redis:
 
-$$\text{TTL}(\text{Next.js revalidate}) \le \text{TTL}(\text{Redis})$$
-
-This ensures Next.js never serves stale data after Redis has received fresh upstream updates.
+- **Bounded Staleness**: Next.js caches fetch responses per route (e.g. 60s for active season, 24h for historical seasons). Cached responses in Next.js remain valid until the route's revalidation window expires, meaning Next.js may serve cached data until that window elapses even if Redis is refreshed or invalidated earlier.
+- **Cache Invalidation Coordination**: When immediate freshness after backend cache mutation is required, on-demand revalidation via Next.js `revalidatePath` or `revalidateTag` should be triggered alongside Redis invalidation.
 
 ### Cache Key Schema
 
