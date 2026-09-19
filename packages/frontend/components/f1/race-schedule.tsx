@@ -161,7 +161,7 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-4 shrink-0">
-          <CountdownWidget race={race as Race} size="sm" showCountry={true} />
+          <CountdownWidget race={race as Race} size="sm" showCountry={false} />
 
           {/* Clock Box widget */}
           <div className="flex items-center gap-4 bg-zinc-900/90 border border-zinc-800 rounded-xl px-4 py-3 shrink-0">

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useLiveLayout } from './live-layout-context';
-import type { LayoutPreset, WidgetId, WidgetSpan } from '@/types/live-layout';
+import type { LayoutPreset, WidgetSpan } from '@/types/live-layout';
 import {
   Sliders,
   Check,
@@ -45,7 +45,15 @@ const PRESET_DESCRIPTIONS: Record<
   },
 };
 
-export function LayoutCustomizerModal() {
+interface LayoutCustomizerModalProps {
+  className?: string;
+  label?: string;
+}
+
+export function LayoutCustomizerModal({
+  className,
+  label = 'Customize Layout',
+}: LayoutCustomizerModalProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const {
     layout,
@@ -61,10 +69,13 @@ export function LayoutCustomizerModal() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors shadow-sm"
+        className={cn(
+          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors shadow-sm",
+          className
+        )}
       >
         <Sliders className="h-3.5 w-3.5 text-primary" />
-        <span>Customize Layout</span>
+        <span>{label}</span>
         {isCustomized && (
           <span className="h-1.5 w-1.5 rounded-full bg-amber-400" title="Customized layout active" />
         )}

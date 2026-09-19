@@ -25,35 +25,31 @@ export interface LiveLayoutState {
 
 export const PRESET_CONFIGS: Record<Exclude<LayoutPreset, 'custom'>, WidgetConfig[]> = {
   default: [
-    { id: 'banner', title: 'Session Status & Leader', enabled: true, span: 'two-thirds' },
-    { id: 'weather', title: 'Track Conditions & Weather', enabled: true, span: 'third' },
     { id: 'timing_tower', title: 'Live Timing Tower', enabled: true, span: 'two-thirds' },
     { id: 'track_map', title: '2D Track Map', enabled: true, span: 'third' },
-    { id: 'telemetry', title: 'Driver Telemetry Trace', enabled: true, span: 'third' },
+    { id: 'telemetry', title: 'Driver Telemetry Trace', enabled: true, span: 'two-thirds' },
+    { id: 'weather', title: 'Track Conditions & Weather', enabled: true, span: 'third' },
     { id: 'race_control', title: 'FIA Race Control Feed', enabled: true, span: 'full' },
   ],
   pitwall: [
-    { id: 'banner', title: 'Session Status & Leader', enabled: true, span: 'full' },
     { id: 'timing_tower', title: 'Live Timing Tower', enabled: true, span: 'half' },
     { id: 'telemetry', title: 'Driver Telemetry Trace', enabled: true, span: 'half' },
-    { id: 'weather', title: 'Track Conditions & Weather', enabled: true, span: 'third' },
-    { id: 'race_control', title: 'FIA Race Control Feed', enabled: true, span: 'two-thirds' },
-    { id: 'track_map', title: '2D Track Map', enabled: false, span: 'half' },
+    { id: 'track_map', title: '2D Track Map', enabled: true, span: 'half' },
+    { id: 'weather', title: 'Track Conditions & Weather', enabled: true, span: 'half' },
+    { id: 'race_control', title: 'FIA Race Control Feed', enabled: true, span: 'full' },
   ],
   driver_focus: [
-    { id: 'banner', title: 'Session Status & Leader', enabled: true, span: 'full' },
     { id: 'telemetry', title: 'Driver Telemetry Trace', enabled: true, span: 'two-thirds' },
     { id: 'track_map', title: '2D Track Map', enabled: true, span: 'third' },
     { id: 'timing_tower', title: 'Live Timing Tower', enabled: true, span: 'half' },
     { id: 'race_control', title: 'FIA Race Control Feed', enabled: true, span: 'half' },
-    { id: 'weather', title: 'Track Conditions & Weather', enabled: false, span: 'third' },
+    { id: 'weather', title: 'Track Conditions & Weather', enabled: true, span: 'third' },
   ],
   track_radar: [
-    { id: 'banner', title: 'Session Status & Leader', enabled: true, span: 'full' },
     { id: 'track_map', title: '2D Track Map', enabled: true, span: 'two-thirds' },
     { id: 'weather', title: 'Track Conditions & Weather', enabled: true, span: 'third' },
     { id: 'timing_tower', title: 'Live Timing Tower', enabled: true, span: 'half' },
     { id: 'race_control', title: 'FIA Race Control Feed', enabled: true, span: 'half' },
-    { id: 'telemetry', title: 'Driver Telemetry Trace', enabled: false, span: 'third' },
+    { id: 'telemetry', title: 'Driver Telemetry Trace', enabled: false, span: 'full' },
   ],
 };
