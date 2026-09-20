@@ -209,7 +209,7 @@ export function HeadToHeadContent({
       </div>
 
       {/* ── Header Toolbar ───────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono tracking-tight text-white uppercase flex items-baseline gap-3">
             <span>{season}</span>
@@ -218,7 +218,7 @@ export function HeadToHeadContent({
             </span>
           </h1>
         </div>
-        <div className="shrink-0 pt-2 lg:pt-0">
+        <div className="shrink-0">
           <SeasonSelector currentSeason={season} allYears={allYears} />
         </div>
       </div>

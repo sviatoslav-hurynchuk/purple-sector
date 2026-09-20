@@ -57,7 +57,6 @@ export function CircuitDetailsCard({
       {/* Cockpit Sub-Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-7 py-2 border-b border-white/10 bg-zinc-900/30">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <span className="w-2 h-2 rounded-full bg-[#e10600] animate-pulse shrink-0" />
           <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
             {details.circuitName ?? 'Circuit Specifications'}
           </span>

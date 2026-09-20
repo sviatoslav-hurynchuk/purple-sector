@@ -67,7 +67,7 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
       </div>
 
       {/* ── Main Cockpit Title & Season Control ───────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono tracking-tight text-white uppercase flex items-baseline gap-3">
             <span>{year}</span>
@@ -81,7 +81,7 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
           </p>
         </div>
 
-        <div className="shrink-0 pt-2 lg:pt-0">
+        <div className="shrink-0">
           <SeasonSelector currentSeason={year} allYears={allYears} />
         </div>
       </div>
@@ -105,9 +105,6 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
           <div className="flex items-center justify-between">
             <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
               Sprint Weekends
-            </span>
-            <span className="px-1.5 py-0.2 rounded bg-red-600/20 text-red-400 border border-red-500/30 text-[9px] font-mono font-bold">
-              [S]
             </span>
           </div>
           <p className="text-xl sm:text-2xl font-black font-mono text-red-400">
@@ -144,12 +141,6 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
             <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
               Next Up
             </span>
-            {stats.nextRace && (
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-            )}
           </div>
           {stats.nextRace ? (
             <div>
