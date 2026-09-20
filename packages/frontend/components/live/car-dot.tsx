@@ -39,11 +39,12 @@ export function CarDot({
       {/* Selected Halo Ring */}
       {isSelected && (
         <circle
-          r="14"
+          r="13"
           fill="none"
           stroke={teamColor}
-          strokeWidth="2"
-          className="animate-ping opacity-75"
+          strokeWidth="1.5"
+          opacity="0.8"
+          className="drop-shadow-[0_0_8px_currentColor]"
         />
       )}
 

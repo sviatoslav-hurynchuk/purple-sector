@@ -97,7 +97,7 @@ export function TelemetryPanel({
     return (
       <div
         className={cn(
-          'flex flex-col items-center justify-center p-8 rounded-2xl bg-zinc-900/80 border border-white/10 text-center min-h-[360px]',
+          'flex flex-col items-center justify-center p-8 rounded-2xl bg-zinc-950/90 border border-white/10 text-center min-h-[360px] shadow-xl',
           className
         )}
       >
@@ -115,12 +115,12 @@ export function TelemetryPanel({
   return (
     <div
       className={cn(
-        'flex flex-col rounded-2xl bg-zinc-900/80 border border-white/10 backdrop-blur-xl overflow-hidden shadow-sm',
+        'flex flex-col rounded-2xl bg-zinc-950/90 border border-white/10 backdrop-blur-xl overflow-hidden shadow-xl',
         className
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-white/5 bg-zinc-950/40">
+      <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-white/10 bg-zinc-900/40">
         <div className="flex items-center gap-2.5">
           <span
             className="w-1.5 h-6 rounded-full shrink-0"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { LiveDriverState } from '@/types/f1';
 import {
   TimingTowerColumnSelector,
@@ -8,7 +8,7 @@ import {
   DEFAULT_VISIBLE_COLUMNS,
 } from './timing-tower-column-selector';
 import { DriverRow } from './driver-row';
-import { Search, Trophy, Timer } from 'lucide-react';
+import { Search, Timer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TimingTowerProps {
@@ -26,23 +26,22 @@ export function TimingTower({
   isRestricted = false,
   className,
 }: TimingTowerProps) {
-  const [columns, setColumns] = useState<VisibleColumns>(DEFAULT_VISIBLE_COLUMNS);
-  const [search, setSearch] = useState('');
-
-  // Load user column preferences from localStorage
-  useEffect(() => {
+  const [columns, setColumns] = useState<VisibleColumns>(() => {
+    if (typeof window === 'undefined') return DEFAULT_VISIBLE_COLUMNS;
     try {
       const saved = localStorage.getItem('ps_timing_columns');
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<VisibleColumns>;
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          setColumns({ ...DEFAULT_VISIBLE_COLUMNS, ...parsed });
+          return { ...DEFAULT_VISIBLE_COLUMNS, ...parsed };
         }
       }
     } catch {
       // ignore
     }
-  }, []);
+    return DEFAULT_VISIBLE_COLUMNS;
+  });
+  const [search, setSearch] = useState('');
 
   const filteredDrivers = useMemo(() => {
     if (!search.trim()) return drivers;
@@ -59,15 +58,15 @@ export function TimingTower({
   return (
     <div
       className={cn(
-        'flex flex-col rounded-2xl bg-zinc-900/80 border border-white/10 backdrop-blur-xl overflow-hidden shadow-sm',
+        'flex flex-col rounded-2xl bg-zinc-950/90 border border-white/10 backdrop-blur-xl overflow-hidden shadow-xl',
         className
       )}
     >
       {/* Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3 sm:p-4 border-b border-white/5 bg-zinc-950/40">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3 sm:p-4 border-b border-white/10 bg-zinc-900/40">
         <div className="flex items-center gap-2">
           <Timer className="h-4 w-4 text-red-500" />
-          <h3 className="font-black text-sm text-zinc-100 uppercase tracking-tight">
+          <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-zinc-100">
             Timing Tower
           </h3>
           <span className="text-[11px] font-mono text-zinc-400">

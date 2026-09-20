@@ -120,16 +120,16 @@ export function TrackMap({
   return (
     <div
       className={cn(
-        'flex flex-col rounded-2xl bg-zinc-900/80 border border-white/10 backdrop-blur-xl overflow-hidden shadow-sm relative',
+        'flex flex-col rounded-2xl bg-zinc-950/90 border border-white/10 backdrop-blur-xl overflow-hidden shadow-xl relative',
         isFullscreen && 'fixed inset-4 z-50 rounded-2xl shadow-2xl bg-zinc-950 border-white/20',
         className
       )}
     >
       {/* Header Bar */}
-      <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-white/5 bg-zinc-950/40 z-10">
+      <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-white/10 bg-zinc-900/40 z-10">
         <div className="flex items-center gap-2">
           <MapPin className="h-4 w-4 text-red-500" />
-          <h3 className="font-black text-sm text-zinc-100 uppercase tracking-tight">
+          <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-zinc-100">
             Live Track Map
           </h3>
           <span className="text-[11px] font-mono text-zinc-400">

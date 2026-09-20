@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { WeatherSnapshot } from '@/types/f1';
-import { CloudRain, Wind, Thermometer, Gauge, Droplets, Sun } from 'lucide-react';
+import { CloudRain, Wind, Thermometer, Droplets, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WeatherWidgetProps {
@@ -30,15 +30,15 @@ export function WeatherWidget({ weather, className }: WeatherWidgetProps) {
   return (
     <div
       className={cn(
-        'p-4 rounded-xl bg-zinc-900/80 border border-white/10 backdrop-blur-md shadow-sm',
+        'p-4 sm:p-5 rounded-2xl bg-zinc-950/90 border border-white/10 backdrop-blur-xl shadow-xl',
         isRaining && 'border-blue-500/30 bg-blue-950/20',
         className
       )}
     >
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-400">
+        <div className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
           {isRaining ? (
-            <CloudRain className="h-4 w-4 text-blue-400 animate-pulse" />
+            <CloudRain className="h-4 w-4 text-blue-400" />
           ) : (
             <Sun className="h-4 w-4 text-amber-400" />
           )}
