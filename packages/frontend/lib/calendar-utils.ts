@@ -1,5 +1,5 @@
 import type { Race } from '@/types/f1';
-import { isRacePast, formatDateDDMMYYYY } from '@/lib/utils';
+import { formatDateDDMMYYYY } from '@/lib/utils';
 
 const MONTH_NAMES = [
   'JAN',
@@ -85,6 +85,44 @@ export function getRaceWeekendInfo(race: Race): RaceWeekendInfo {
   };
 }
 
+/**
+ * Estimated Grand Prix session window in minutes (FIA maximum regulation window).
+ */
+export const RACE_DURATION_MINUTES = 180;
+
+/**
+ * Determines whether a race weekend has completed its main Grand Prix.
+ * A race is considered completed if:
+ * 1. It contains a non-empty `Results` array, OR
+ * 2. Its scheduled race start time plus the standard race duration window (180 mins)
+ *    has elapsed relative to the reference time (`now`).
+ * If no start time is provided, it falls back to the end of the scheduled race day (UTC).
+ */
+export function isRaceCompleted(race: Race, now: Date = new Date()): boolean {
+  if (
+    'Results' in race &&
+    Array.isArray((race as { Results?: unknown[] }).Results) &&
+    (race as { Results?: unknown[] }).Results!.length > 0
+  ) {
+    return true;
+  }
+
+  if (!race.date) return false;
+
+  const nowMs = now.getTime();
+
+  if (race.time) {
+    const cleanTime = race.time.endsWith('Z') ? race.time : `${race.time}Z`;
+    const startMs = new Date(`${race.date}T${cleanTime}`).getTime();
+    if (!isNaN(startMs)) {
+      return startMs + RACE_DURATION_MINUTES * 60 * 1000 <= nowMs;
+    }
+  }
+
+  const endOfDayMs = new Date(`${race.date}T23:59:59Z`).getTime();
+  return !isNaN(endOfDayMs) ? endOfDayMs <= nowMs : false;
+}
+
 export interface SeasonCalendarStats {
   totalRaces: number;
   sprintCount: number;
@@ -97,13 +135,13 @@ export interface SeasonCalendarStats {
 /**
  * Computes telemetry metrics for the entire season calendar.
  */
-export function computeSeasonCalendarStats(races: Race[]): SeasonCalendarStats {
+export function computeSeasonCalendarStats(races: Race[], now: Date = new Date()): SeasonCalendarStats {
   const totalRaces = races.length;
   const sprintCount = races.filter((r) => Boolean(r.Sprint)).length;
-  const completedCount = races.filter((r) => isRacePast(r.date, r.time)).length;
+  const completedCount = races.filter((r) => isRaceCompleted(r, now)).length;
   const remainingCount = Math.max(0, totalRaces - completedCount);
   const progressPercentage = totalRaces > 0 ? Math.round((completedCount / totalRaces) * 100) : 0;
-  const nextRace = races.find((r) => !isRacePast(r.date, r.time)) ?? null;
+  const nextRace = races.find((r) => !isRaceCompleted(r, now)) ?? null;
 
   return {
     totalRaces,

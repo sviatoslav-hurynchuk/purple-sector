@@ -5,8 +5,12 @@ import Link from 'next/link';
 import type { Race } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { CountryFlag } from '@/components/f1/country-flag';
-import { isRacePast, cn } from '@/lib/utils';
-import { getRaceWeekendInfo, computeSeasonCalendarStats } from '@/lib/calendar-utils';
+import { cn } from '@/lib/utils';
+import {
+  getRaceWeekendInfo,
+  computeSeasonCalendarStats,
+  isRaceCompleted,
+} from '@/lib/calendar-utils';
 
 interface CalendarCockpitProps {
   races: Race[];
@@ -26,11 +30,11 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
   const filteredRaces = useMemo(() => {
     switch (filter) {
       case 'upcoming':
-        return races.filter((r) => !isRacePast(r.date, r.time));
+        return races.filter((r) => !isRaceCompleted(r));
       case 'sprint':
         return races.filter((r) => Boolean(r.Sprint));
       case 'completed':
-        return races.filter((r) => isRacePast(r.date, r.time));
+        return races.filter((r) => isRaceCompleted(r));
       case 'all':
       default:
         return races;
@@ -285,7 +289,7 @@ interface RaceCalendarItemProps {
 }
 
 function RaceCalendarItem({ race, year, isNext }: RaceCalendarItemProps) {
-  const past = isRacePast(race.date, race.time);
+  const isCompleted = isRaceCompleted(race);
   const weekend = getRaceWeekendInfo(race);
   const paddedRound = race.round.padStart(2, '0');
 
@@ -294,7 +298,7 @@ function RaceCalendarItem({ race, year, isNext }: RaceCalendarItemProps) {
       href={`/calendar/${race.round}?season=${year}`}
       className={cn(
         'group block p-3.5 sm:p-4 transition-all relative overflow-hidden',
-        past
+        isCompleted
           ? 'bg-zinc-950/40 hover:bg-zinc-900/40 opacity-80 hover:opacity-100'
           : 'bg-zinc-950/70 hover:bg-zinc-900/60',
         isNext && 'border-l-4 border-l-red-500 bg-red-950/15 hover:bg-red-950/25'
@@ -336,7 +340,7 @@ function RaceCalendarItem({ race, year, isNext }: RaceCalendarItemProps) {
             <span
               className={cn(
                 'text-sm sm:text-base font-mono font-black tracking-tight block leading-tight mt-0.5',
-                past
+                isCompleted
                   ? 'text-zinc-300 group-hover:text-white'
                   : 'text-red-500 group-hover:text-red-400'
               )}
@@ -396,7 +400,7 @@ function RaceCalendarItem({ race, year, isNext }: RaceCalendarItemProps) {
           ) : (
             <div className="flex items-center gap-1.5 text-zinc-500 group-hover:text-zinc-300 transition-colors">
               <span className="text-[11px] font-mono font-semibold uppercase tracking-wider hidden sm:inline">
-                {past ? 'Results' : 'Details'}
+                {isCompleted ? 'Results' : 'Details'}
               </span>
               <svg
                 className="size-4 text-zinc-600 group-hover:text-white group-hover:translate-x-1 transition-all"
