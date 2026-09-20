@@ -39,7 +39,13 @@ function resolveTrackFlag(state: LiveSessionState | null) {
     const flag = (e.flag || '').toUpperCase();
 
     // If the latest message/flag is clear or green, the track is clear
-    if (flag === 'CLEAR' || flag === 'GREEN' || msg.includes('TRACK CLEAR') || msg.includes('CLEAR IN SECTOR')) {
+    if (
+      flag === 'CLEAR' ||
+      flag === 'GREEN' ||
+      msg.includes('TRACK CLEAR') ||
+      msg.includes('CLEAR IN SECTOR') ||
+      msg.includes('GREEN FLAG')
+    ) {
       return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald', detail: 'All Sectors Clear' };
     }
 

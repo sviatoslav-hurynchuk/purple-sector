@@ -84,18 +84,29 @@ export function HeadToHeadContent({
       const match = constructorGroups.find((g) => g[0]?.constructorId === initialConstructorId);
       if (match) {
         setSelectedConstructorId(initialConstructorId);
+      } else if (!constructorGroups.some((g) => g[0]?.constructorId === selectedConstructorId)) {
+        setSelectedConstructorId(constructorGroups[0]?.[0]?.constructorId || '');
       }
+    } else if (!constructorGroups.some((g) => g[0]?.constructorId === selectedConstructorId)) {
+      setSelectedConstructorId(constructorGroups[0]?.[0]?.constructorId || '');
     }
   }
+
+  // Reconcile selectedConstructorId so consumers always receive a constructor present in current constructorGroups
+  const effectiveConstructorId = useMemo(() => {
+    if (constructorGroups.length === 0) return '';
+    const exists = constructorGroups.some((g) => g[0]?.constructorId === selectedConstructorId);
+    return exists ? selectedConstructorId : (constructorGroups[0]?.[0]?.constructorId || '');
+  }, [constructorGroups, selectedConstructorId]);
 
   // Active battle group for the selected constructor
   const activeGroup = useMemo(() => {
     return (
       constructorGroups.find(
-        (g) => g[0]?.constructorId === selectedConstructorId
+        (g) => g[0]?.constructorId === effectiveConstructorId
       ) || constructorGroups[0]
     );
-  }, [constructorGroups, selectedConstructorId]);
+  }, [constructorGroups, effectiveConstructorId]);
 
   // Grid Pulse Highlights
   const pulseHighlights = useMemo(() => {
@@ -282,7 +293,7 @@ export function HeadToHeadContent({
           {/* ── Pitlane Team Selector Strip ───────────────────────────── */}
           <PitlaneTeamSelector
             groups={constructorGroups}
-            selectedConstructorId={selectedConstructorId}
+            selectedConstructorId={effectiveConstructorId}
             season={season}
             onSelectConstructor={handleSelectConstructor}
           />
@@ -301,7 +312,7 @@ export function HeadToHeadContent({
           <div className="pt-4">
             <DominanceMatrix
               groups={constructorGroups}
-              selectedConstructorId={selectedConstructorId}
+              selectedConstructorId={effectiveConstructorId}
               season={season}
               onSelectConstructor={handleSelectConstructor}
             />

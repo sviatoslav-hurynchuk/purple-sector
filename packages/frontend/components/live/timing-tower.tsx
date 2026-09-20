@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { LiveDriverState } from '@/types/f1';
 import {
   TimingTowerColumnSelector,
@@ -26,21 +26,23 @@ export function TimingTower({
   isRestricted = false,
   className,
 }: TimingTowerProps) {
-  const [columns, setColumns] = useState<VisibleColumns>(() => {
-    if (typeof window === 'undefined') return DEFAULT_VISIBLE_COLUMNS;
+  const [columns, setColumns] = useState<VisibleColumns>(DEFAULT_VISIBLE_COLUMNS);
+
+  // Synchronize saved preferences on client mount to guarantee identical SSR and hydration markup
+  useEffect(() => {
     try {
       const saved = localStorage.getItem('ps_timing_columns');
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<VisibleColumns>;
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return { ...DEFAULT_VISIBLE_COLUMNS, ...parsed };
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setColumns({ ...DEFAULT_VISIBLE_COLUMNS, ...parsed });
         }
       }
     } catch {
       // ignore
     }
-    return DEFAULT_VISIBLE_COLUMNS;
-  });
+  }, []);
   const [search, setSearch] = useState('');
 
   const filteredDrivers = useMemo(() => {
