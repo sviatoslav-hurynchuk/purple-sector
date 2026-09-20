@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import { ReactNode } from 'react';
 import { Navbar } from '@/components/f1/navbar';
 import { LiveSessionProvider } from '@/components/live/live-session-provider';
@@ -7,6 +7,11 @@ import './globals.css';
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
+    subsets: ['latin'],
+});
+
+const geistMono = Geist_Mono({
+    variable: '--font-geist-mono',
     subsets: ['latin'],
 });
 
@@ -24,7 +29,7 @@ export default function RootLayout({
     children: ReactNode;
 }>) {
     return (
-        <html lang="en" className={`${geistSans.variable} dark antialiased`}>
+        <html lang="en" className={`${geistSans.variable} ${geistMono.variable} dark antialiased`}>
         <body className="min-h-screen flex flex-col bg-background text-foreground">
         <LiveSessionProvider>
             <Navbar />
