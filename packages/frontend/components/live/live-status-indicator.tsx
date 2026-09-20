@@ -48,15 +48,7 @@ export function LiveStatusIndicator({
           className
         )}
       >
-        <span className="relative flex">
-          <span
-            className={cn(
-              'animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75',
-              dotSize
-            )}
-          />
-          <span className={cn('relative inline-flex rounded-full bg-red-500', dotSize)} />
-        </span>
+        <span className={cn('inline-flex rounded-full bg-red-500', dotSize)} />
         <span>{label ?? (isStreaming ? 'LIVE' : 'ACTIVE')}</span>
       </span>
     );

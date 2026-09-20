@@ -19,12 +19,6 @@ export async function DashboardStandings() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-5 items-stretch">
             {/* ── Driver Standings (Top 10) ─────────────────────────────────── */}
             <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col justify-between">
-                {/* Official F1 Dual Racing Stripes Header */}
-                <div className="w-full flex flex-col">
-                    <div className="h-1.5 bg-[#e10600] w-full" />
-                    <div className="h-0.5 bg-[#e10600]/80 w-full mt-0.5" />
-                </div>
-
                 {/* Cockpit Sub-Header */}
                 <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-2.5 border-b border-white/10 bg-zinc-900/30">
                     <div className="flex items-center gap-2 sm:gap-2.5">
@@ -183,12 +177,6 @@ export async function DashboardStandings() {
 
             {/* ── Constructor Standings ───────────────────────────────────── */}
             <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col justify-between">
-                {/* Official F1 Dual Racing Stripes Header */}
-                <div className="w-full flex flex-col">
-                    <div className="h-1.5 bg-amber-500 w-full" />
-                    <div className="h-0.5 bg-amber-500/80 w-full mt-0.5" />
-                </div>
-
                 {/* Cockpit Sub-Header */}
                 <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-2.5 border-b border-white/10 bg-zinc-900/30">
                     <div className="flex items-center gap-2 sm:gap-2.5">

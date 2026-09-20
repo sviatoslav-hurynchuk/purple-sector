@@ -15,6 +15,12 @@ export default function DashboardPage() {
         <div className="space-y-4 sm:space-y-5">
             <h1 className="sr-only">Formula 1 Dashboard</h1>
 
+            {/* ── Top Dual F1 Racing Speed Stripes ───────────────────────────── */}
+            <div className="space-y-1.5" aria-hidden="true">
+                <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
+                <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
+            </div>
+
             <Suspense fallback={<NextRaceSkeleton />}>
                 <NextRaceSection />
             </Suspense>

@@ -13,28 +13,50 @@ import { TelemetryPanel } from '@/components/live/telemetry-panel';
 import { TrackMap } from '@/components/live/track-map';
 import { RaceControlFeed } from '@/components/live/race-control-feed';
 import { LiveStatusIndicator } from '@/components/live/live-status-indicator';
-import { Radio, RefreshCw, Layers, Activity, MapPin, Flag, ShieldAlert, Trophy, Clock } from 'lucide-react';
+import { CountryFlag } from '@/components/f1/country-flag';
+import { Radio, RefreshCw, Layers, Activity, MapPin, Flag, ShieldAlert, Clock } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 import type { LiveDriverState, LiveSessionState } from '@/types/f1';
 
 function resolveTrackFlag(state: LiveSessionState | null) {
-  if (!state || !state.raceControlFeed || state.raceControlFeed.length === 0) {
-    return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald' };
+  if (!state || !state.isActive) {
+    if (state?.status === 'COMPLETED') {
+      return { flag: 'CHEQUERED', label: 'COMPLETED', color: 'zinc', detail: 'Session Snapshot' };
+    }
+    return { flag: 'STANDBY', label: 'STANDBY', color: 'zinc', detail: 'Awaiting Green Light' };
   }
 
-  const recentEvents = state.raceControlFeed.slice(-5);
+  if (!state.raceControlFeed || state.raceControlFeed.length === 0) {
+    return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald', detail: 'All Sectors Clear' };
+  }
+
+  const recentEvents = state.raceControlFeed.slice(-10);
   for (let i = recentEvents.length - 1; i >= 0; i--) {
     const e = recentEvents[i];
-    if (e.type === 'safety_car') return { flag: 'SC', label: 'SAFETY CAR', color: 'amber' };
-    if (e.type === 'vsc') return { flag: 'VSC', label: 'VSC DEPLOYED', color: 'amber' };
-    if (e.type === 'red_flag') return { flag: 'RED', label: 'RED FLAG', color: 'red' };
-    if (e.type === 'yellow_flag') return { flag: 'YELLOW', label: 'YELLOW FLAG', color: 'yellow' };
-    if (e.type === 'chequered_flag') return { flag: 'CHEQUERED', label: 'SESSION FINISHED', color: 'zinc' };
+    const msg = (e.message || '').toUpperCase();
+    const flag = (e.flag || '').toUpperCase();
+
+    // If the latest message/flag is clear or green, the track is clear
+    if (
+      flag === 'CLEAR' ||
+      flag === 'GREEN' ||
+      msg.includes('TRACK CLEAR') ||
+      msg.includes('CLEAR IN SECTOR') ||
+      msg.includes('GREEN FLAG')
+    ) {
+      return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald', detail: 'All Sectors Clear' };
+    }
+
+    if (e.type === 'safety_car') return { flag: 'SC', label: 'SAFETY CAR', color: 'amber', detail: 'Full Course Caution' };
+    if (e.type === 'vsc') return { flag: 'VSC', label: 'VSC DEPLOYED', color: 'amber', detail: 'Virtual Safety Car' };
+    if (e.type === 'red_flag') return { flag: 'RED', label: 'RED FLAG', color: 'red', detail: 'Session Suspended' };
+    if (e.type === 'yellow_flag' || flag === 'YELLOW' || flag === 'DOUBLE YELLOW') return { flag: 'YELLOW', label: 'YELLOW FLAG', color: 'yellow', detail: 'Sector Caution' };
+    if (e.type === 'chequered_flag' || flag === 'CHEQUERED') return { flag: 'CHEQUERED', label: 'SESSION FINISHED', color: 'zinc', detail: 'Chequered Flag' };
   }
 
-  return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald' };
+  return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald', detail: 'All Sectors Clear' };
 }
 
 function LiveTimingContent() {
@@ -124,103 +146,32 @@ function LiveTimingContent() {
   };
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      {/* ── Monolithic Live Cockpit Header ────────────────────────── */}
-      <div className="rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-        {/* Official F1 Dual Racing Stripes Header */}
-        <div className="w-full flex flex-col">
-          <div className="h-1 bg-[#e10600] w-full" />
-          <div className="h-0.5 bg-[#e10600]/60 w-full mt-0.5" />
+    <div className="space-y-6 sm:space-y-8 pb-16 animate-in fade-in duration-300">
+      {/* ── Top Dual F1 Racing Speed Stripes ───────────────────────────── */}
+      <div className="space-y-1.5" aria-hidden="true">
+        <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
+        <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
+      </div>
+
+      {/* ── Main Cockpit Title & Live Toolbar ─────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono tracking-tight text-white uppercase flex flex-wrap items-baseline gap-3">
+            <span>LIVE</span>
+            <span className="text-zinc-400 font-sans font-black tracking-tighter text-2xl sm:text-3xl lg:text-4xl">
+              CONTROL ROOM
+            </span>
+          </h1>
+
+          <p className="text-xs sm:text-sm font-mono text-zinc-400 mt-1 flex flex-wrap items-center gap-2">
+            <span>{sessionDisplayName}</span>
+            <span className="text-zinc-600">•</span>
+            <span>Real-time pit wall telemetry & session tracking</span>
+          </p>
         </div>
 
-        {/* Ambient livery glow */}
-        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#e10600]/10 blur-3xl pointer-events-none" />
-
-        <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
-          {/* Left: Active Session Identity */}
-          <div className="space-y-1.5 min-w-0">
-            {/* Metadata Tags Row */}
-            <div className="flex flex-wrap items-center gap-2">
-              {state?.isActive ? (
-                <>
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1.5 text-[11px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider',
-                      trackStatus.color === 'emerald' && 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-                      trackStatus.color === 'amber' && 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse',
-                      trackStatus.color === 'yellow' && 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40',
-                      trackStatus.color === 'red' && 'bg-red-500/20 text-red-300 border-red-500/40 animate-pulse',
-                      trackStatus.color === 'zinc' && 'bg-zinc-800 text-zinc-300 border-white/10'
-                    )}
-                  >
-                    {trackStatus.flag === 'SC' || trackStatus.flag === 'VSC' ? (
-                      <ShieldAlert className="size-3" />
-                    ) : (
-                      <Flag className="size-3" />
-                    )}
-                    <span>{trackStatus.label}</span>
-                  </span>
-
-                  {state.sessionType && (
-                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-white/10 uppercase tracking-wider">
-                      {state.sessionType}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider bg-zinc-900 text-zinc-400 border-white/10">
-                  <Clock className="size-3 text-zinc-500" />
-                  <span>{state?.status === 'COMPLETED' ? 'COMPLETED SESSION SNAPSHOT' : 'STANDBY MODE'}</span>
-                </span>
-              )}
-
-              {(state?.circuitShortName || state?.countryName) && (
-                <span className="text-xs font-mono text-zinc-400 font-semibold flex items-center gap-1.5">
-                  <span className="text-zinc-600">·</span>
-                  <span>{state.circuitShortName}</span>
-                  {state.countryName && <span>({state.countryName})</span>}
-                </span>
-              )}
-            </div>
-
-            {/* Title & Leader */}
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight uppercase truncate">
-                {sessionDisplayName}
-              </h1>
-
-              {state?.isActive && leader && !state.isRestricted && (
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-white/10 text-xs font-mono">
-                  <span className="text-amber-400 font-bold flex items-center gap-1">
-                    <Trophy className="size-3" />
-                    <span>P1</span>
-                  </span>
-                  <span
-                    className="h-2.5 w-1 rounded-full"
-                    style={{ backgroundColor: leader.teamColour || '#e10600' }}
-                  />
-                  <span className="font-bold text-white">
-                    {leader.code || leader.name || `#${leader.driverNumber}`}
-                  </span>
-                  {p2?.interval && (
-                    <span className="text-zinc-400 text-[11px]">
-                      (+{typeof p2.interval === 'number' ? `${p2.interval.toFixed(3)}s` : p2.interval})
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {state?.isRestricted && (
-              <div className="flex items-center gap-1.5 text-xs font-mono text-amber-300">
-                <ShieldAlert className="size-3.5 text-amber-400 shrink-0" />
-                <span>Live stream restricted (Official Session in Progress)</span>
-              </div>
-            )}
-          </div>
-
-          {/* Right: Unified Monolithic Cockpit Toolbar */}
-          <div className="inline-flex items-center rounded-xl border border-white/10 bg-zinc-900/80 p-1 divide-x divide-white/10 shadow-lg backdrop-blur-md shrink-0">
+        <div className="shrink-0">
+          <div className="inline-flex items-center rounded-xl border border-white/10 bg-zinc-950/90 p-1 divide-x divide-white/10 shadow-xl backdrop-blur-md">
             {/* Live status segment */}
             <div className="px-2.5 py-1 flex items-center">
               <LiveStatusIndicator
@@ -252,6 +203,124 @@ function LiveTimingContent() {
         </div>
       </div>
 
+      {/* ── Live Pulse Telemetry Ribbon (Monolithic 4-Metric Bar) ─────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+        {/* Metric 1: Track Status */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+            Track Status
+          </span>
+          <div className="flex items-center gap-2">
+            {trackStatus.flag === 'SC' || trackStatus.flag === 'VSC' ? (
+              <ShieldAlert className={cn('size-5 shrink-0', trackStatus.color === 'amber' ? 'text-amber-400' : 'text-zinc-400')} />
+            ) : trackStatus.flag === 'STANDBY' ? (
+              <Clock className="size-5 shrink-0 text-zinc-500" />
+            ) : (
+              <Flag className={cn(
+                'size-5 shrink-0 fill-current',
+                trackStatus.color === 'emerald' && 'text-emerald-400',
+                trackStatus.color === 'red' && 'text-red-500',
+                trackStatus.color === 'yellow' && 'text-yellow-400',
+                trackStatus.color === 'amber' && 'text-amber-400',
+                trackStatus.color === 'zinc' && 'text-zinc-400'
+              )} />
+            )}
+            <span
+              className={cn(
+                'text-xl sm:text-2xl font-black font-mono uppercase tracking-tight truncate',
+                trackStatus.color === 'emerald' && 'text-emerald-400',
+                trackStatus.color === 'amber' && 'text-amber-400',
+                trackStatus.color === 'yellow' && 'text-yellow-400',
+                trackStatus.color === 'red' && 'text-red-500',
+                trackStatus.color === 'zinc' && 'text-zinc-300'
+              )}
+            >
+              {trackStatus.label}
+            </span>
+          </div>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {trackStatus.detail}{state?.sessionType ? ` • ${state.sessionType}` : ''}
+          </span>
+        </div>
+
+        {/* Metric 2: Circuit & Location */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+            Circuit Venue
+          </span>
+          <div className="flex items-center gap-2 min-w-0">
+            {state?.countryName && (
+              <CountryFlag
+                countryName={state.countryName}
+                className="w-6 h-4 sm:w-7 sm:h-4.5 object-cover rounded-xs border border-white/15 shadow-sm shrink-0"
+              />
+            )}
+            <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+              {state?.circuitShortName || state?.countryName || 'Championship Track'}
+            </p>
+          </div>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {state?.countryName ? `${state.countryName} • ` : ''}
+            {state?.isActive ? 'Official Session' : 'Standby Mode'}
+          </span>
+        </div>
+
+        {/* Metric 3: Race Leader (P1) */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+            Session Leader
+          </span>
+          {leader ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="h-4 w-1.5 rounded-full shrink-0"
+                style={{ backgroundColor: leader.teamColour || '#e10600' }}
+              />
+              <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+                {leader.code || leader.name || `#${leader.driverNumber}`}
+              </p>
+              <span className="text-xs font-mono font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded shrink-0">
+                P1
+              </span>
+            </div>
+          ) : (
+            <p className="text-xl sm:text-2xl font-black font-mono text-zinc-500 truncate">
+              {state?.isActive ? 'Timing In...' : 'Standby'}
+            </p>
+          )}
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {leader && p2?.interval
+              ? `Lead Gap: +${typeof p2.interval === 'number' ? `${p2.interval.toFixed(3)}s` : p2.interval}`
+              : leader?.teamName || 'Awaiting classification'}
+          </span>
+        </div>
+
+        {/* Metric 4: Pit Wall Conditions */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+            Track Environment
+          </span>
+          <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+            {state?.weather?.trackTemperature != null
+              ? `${Math.round(state.weather.trackTemperature)}°C Track`
+              : `${locations.size || state?.drivers?.length || 0} Cars Active`}
+          </p>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {state?.weather
+              ? `${state.weather.rainfall ? 'Wet Conditions' : 'Dry Surface'} • ${locations.size || state?.drivers?.length || 0} Cars Monitored`
+              : 'GPS & Telemetry Online'}
+          </span>
+        </div>
+      </div>
+
+      {/* Restricted Stream Banner (if applicable) */}
+      {state?.isRestricted && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-mono text-amber-300">
+          <ShieldAlert className="size-4 text-amber-400 shrink-0" />
+          <span>Live stream restricted during official session by FIA regulation. Real-time timing classification remains active.</span>
+        </div>
+      )}
+
       {/* Desktop Customizable Dynamic Grid */}
       <div className="hidden lg:grid grid-cols-12 gap-5 items-start">
         {layout.widgets
@@ -266,21 +335,21 @@ function LiveTimingContent() {
       {/* Mobile Tabbed Fallback */}
       <div className="lg:hidden">
         <Tabs defaultValue="tower" className="w-full">
-          <TabsList className="grid grid-cols-4 w-full bg-zinc-900 border border-white/10 p-1 mb-4">
-            <TabsTrigger value="tower" className="text-xs font-bold gap-1">
-              <Layers className="h-3 w-3" />
+          <TabsList className="grid grid-cols-4 w-full bg-zinc-950/90 border border-white/10 p-1 mb-4 rounded-xl">
+            <TabsTrigger value="tower" className="text-xs font-mono font-bold uppercase tracking-wider gap-1.5">
+              <Layers className="size-3.5" />
               <span>Tower</span>
             </TabsTrigger>
-            <TabsTrigger value="map" className="text-xs font-bold gap-1">
-              <MapPin className="h-3 w-3" />
+            <TabsTrigger value="map" className="text-xs font-mono font-bold uppercase tracking-wider gap-1.5">
+              <MapPin className="size-3.5" />
               <span>Map</span>
             </TabsTrigger>
-            <TabsTrigger value="telemetry" className="text-xs font-bold gap-1">
-              <Activity className="h-3 w-3" />
+            <TabsTrigger value="telemetry" className="text-xs font-mono font-bold uppercase tracking-wider gap-1.5">
+              <Activity className="size-3.5" />
               <span>Telemetry</span>
             </TabsTrigger>
-            <TabsTrigger value="feed" className="text-xs font-bold gap-1">
-              <Radio className="h-3 w-3" />
+            <TabsTrigger value="feed" className="text-xs font-mono font-bold uppercase tracking-wider gap-1.5">
+              <Radio className="size-3.5" />
               <span>Feed</span>
             </TabsTrigger>
           </TabsList>

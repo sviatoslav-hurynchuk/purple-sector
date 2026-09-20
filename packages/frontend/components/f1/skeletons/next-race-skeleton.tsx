@@ -1,12 +1,6 @@
 export function NextRaceSkeleton() {
     return (
         <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl animate-pulse">
-            {/* Official F1 Dual Racing Stripes Header */}
-            <div className="w-full flex flex-col">
-                <div className="h-1.5 bg-[#e10600]/40 w-full" />
-                <div className="h-0.5 bg-[#e10600]/20 w-full mt-0.5" />
-            </div>
-
             {/* Cockpit Sub-Header Skeleton */}
             <div className="flex items-center justify-between px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30">
                 <div className="h-3 w-40 bg-zinc-800 rounded" />

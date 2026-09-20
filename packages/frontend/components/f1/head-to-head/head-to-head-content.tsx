@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { SeasonHeadToHeadResponse, TeammatePairBattle } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { PitlaneTeamSelector } from './pitlane-team-selector';
@@ -76,35 +76,37 @@ export function HeadToHeadContent({
     return constructorGroups[0]?.[0]?.constructorId || 'ferrari';
   });
 
-  const lastInitialTeamRef = useRef<string | undefined>(initialConstructorId);
+  const [prevInitialTeam, setPrevInitialTeam] = useState<string | undefined>(initialConstructorId);
 
-  // Synchronize selection state when incoming data or query param changes
-  useEffect(() => {
-    if (constructorGroups.length === 0) return;
-
-    if (initialConstructorId && initialConstructorId !== lastInitialTeamRef.current) {
-      lastInitialTeamRef.current = initialConstructorId;
+  if (initialConstructorId !== prevInitialTeam) {
+    setPrevInitialTeam(initialConstructorId);
+    if (initialConstructorId) {
       const match = constructorGroups.find((g) => g[0]?.constructorId === initialConstructorId);
       if (match) {
         setSelectedConstructorId(initialConstructorId);
-        return;
+      } else if (!constructorGroups.some((g) => g[0]?.constructorId === selectedConstructorId)) {
+        setSelectedConstructorId(constructorGroups[0]?.[0]?.constructorId || '');
       }
-    }
-
-    const exists = constructorGroups.some((g) => g[0]?.constructorId === selectedConstructorId);
-    if (!exists) {
+    } else if (!constructorGroups.some((g) => g[0]?.constructorId === selectedConstructorId)) {
       setSelectedConstructorId(constructorGroups[0]?.[0]?.constructorId || '');
     }
-  }, [constructorGroups, initialConstructorId, selectedConstructorId]);
+  }
+
+  // Reconcile selectedConstructorId so consumers always receive a constructor present in current constructorGroups
+  const effectiveConstructorId = useMemo(() => {
+    if (constructorGroups.length === 0) return '';
+    const exists = constructorGroups.some((g) => g[0]?.constructorId === selectedConstructorId);
+    return exists ? selectedConstructorId : (constructorGroups[0]?.[0]?.constructorId || '');
+  }, [constructorGroups, selectedConstructorId]);
 
   // Active battle group for the selected constructor
   const activeGroup = useMemo(() => {
     return (
       constructorGroups.find(
-        (g) => g[0]?.constructorId === selectedConstructorId
+        (g) => g[0]?.constructorId === effectiveConstructorId
       ) || constructorGroups[0]
     );
-  }, [constructorGroups, selectedConstructorId]);
+  }, [constructorGroups, effectiveConstructorId]);
 
   // Grid Pulse Highlights
   const pulseHighlights = useMemo(() => {
@@ -210,66 +212,78 @@ export function HeadToHeadContent({
   };
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-6 sm:space-y-8 pb-20">
+      {/* ── Top Dual F1 Racing Speed Stripes ───────────────────────────── */}
+      <div className="space-y-1.5" aria-hidden="true">
+        <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
+        <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
+      </div>
+
       {/* ── Header Toolbar ───────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-white/10 pb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            Teammate Head-to-Head
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono tracking-tight text-white uppercase flex items-baseline gap-3">
+            <span>{season}</span>
+            <span className="text-zinc-400 font-sans font-black tracking-tighter text-2xl sm:text-3xl lg:text-4xl">
+              TEAMMATE HEAD-TO-HEAD
+            </span>
           </h1>
         </div>
-        <SeasonSelector currentSeason={season} allYears={allYears} />
+        <div className="shrink-0">
+          <SeasonSelector currentSeason={season} allYears={allYears} />
+        </div>
       </div>
 
       {/* ── Season Pulse Highlights Strip (Monolithic Telemetry Bar) ── */}
       {pulseHighlights && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-white/10 bg-zinc-950/80 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-lg">
-          <div className="p-4 flex flex-col justify-between gap-1.5">
-            <div className="text-zinc-300 text-xs font-mono uppercase font-bold tracking-wider">
+        <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+          <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
               Grid Duels
-            </div>
-            <p className="text-lg sm:text-xl font-black font-mono text-white">
-              {pulseHighlights.totalDuels} Constructors
+            </span>
+            <p className="text-xl sm:text-2xl font-black font-mono text-white">
+              {pulseHighlights.totalDuels}{' '}
+              <span className="text-xs font-mono font-semibold text-zinc-400">Constructors</span>
             </p>
-            <p className="text-xs font-mono text-zinc-400 font-medium">
+            <span className="text-[11px] font-mono text-zinc-400">
               Active pairings
-            </p>
+            </span>
           </div>
 
-          <div className="p-4 flex flex-col justify-between gap-1.5">
-            <div className="text-zinc-300 text-xs font-mono uppercase font-bold tracking-wider">
+          <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
               Closest Margin
-            </div>
-            <p className="text-sm sm:text-base font-black text-white truncate">
+            </span>
+            <p className="text-base sm:text-lg font-black font-mono text-white truncate">
               {pulseHighlights.closestTeam}
             </p>
-            <p className="text-xs font-mono text-amber-400 font-bold">
+            <span className="text-xs font-mono text-amber-400 font-bold">
               {pulseHighlights.closestMatchup}
-            </p>
+            </span>
           </div>
 
-          <div className="p-4 flex flex-col justify-between gap-1.5">
-            <div className="text-zinc-300 text-xs font-mono uppercase font-bold tracking-wider">
+          <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
               Highest Dominance
-            </div>
-            <p className="text-sm sm:text-base font-black text-white truncate">
+            </span>
+            <p className="text-base sm:text-lg font-black font-mono text-white truncate">
               {pulseHighlights.dominantDriver}
             </p>
-            <p className="text-xs font-mono text-emerald-400 font-bold">
+            <span className="text-xs font-mono text-emerald-400 font-bold">
               {pulseHighlights.dominantShare}% points share
-            </p>
+            </span>
           </div>
 
-          <div className="p-4 flex flex-col justify-between gap-1.5">
-            <div className="text-zinc-300 text-xs font-mono uppercase font-bold tracking-wider">
+          <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
               Avg Qualy Delta
-            </div>
-            <p className="text-lg sm:text-xl font-black font-mono text-white">
+            </span>
+            <p className="text-xl sm:text-2xl font-black font-mono text-white">
               ±{pulseHighlights.avgGapSec}s
             </p>
-            <p className="text-xs font-mono text-zinc-400 font-medium">
+            <span className="text-[11px] font-mono text-zinc-400">
               Across all constructors
-            </p>
+            </span>
           </div>
         </div>
       )}
@@ -279,7 +293,7 @@ export function HeadToHeadContent({
           {/* ── Pitlane Team Selector Strip ───────────────────────────── */}
           <PitlaneTeamSelector
             groups={constructorGroups}
-            selectedConstructorId={selectedConstructorId}
+            selectedConstructorId={effectiveConstructorId}
             season={season}
             onSelectConstructor={handleSelectConstructor}
           />
@@ -298,7 +312,7 @@ export function HeadToHeadContent({
           <div className="pt-4">
             <DominanceMatrix
               groups={constructorGroups}
-              selectedConstructorId={selectedConstructorId}
+              selectedConstructorId={effectiveConstructorId}
               season={season}
               onSelectConstructor={handleSelectConstructor}
             />

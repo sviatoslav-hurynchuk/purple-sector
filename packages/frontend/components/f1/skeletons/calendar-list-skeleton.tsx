@@ -10,9 +10,8 @@ export function CalendarListSkeleton() {
       </div>
 
       {/* ── Cockpit Header Skeleton ── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <div className="h-3 w-48 bg-zinc-800 rounded mb-2" />
           <div className="h-10 w-72 bg-zinc-800 rounded-lg" />
           <div className="h-4 w-56 bg-zinc-800/60 rounded mt-2" />
         </div>

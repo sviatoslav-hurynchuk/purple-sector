@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { RaceEvent, RaceEventType } from '@/types/f1';
+import React, { useState, useMemo, useRef } from 'react';
+import type { RaceEvent } from '@/types/f1';
 import {
   ShieldAlert,
   Flag,
@@ -9,8 +9,6 @@ import {
   AlertTriangle,
   Radio,
   CheckCircle2,
-  Filter,
-  ArrowDownCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -133,7 +131,6 @@ export function RaceControlFeed({
   maxHeight = 'max-h-[380px]',
 }: RaceControlFeedProps) {
   const [filterType, setFilterType] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [order, setOrder] = useState<'newest' | 'oldest'>('newest');
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -159,35 +156,27 @@ export function RaceControlFeed({
       list = list.filter((e) => e.type === 'penalty' || e.type === 'warning');
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.message.toLowerCase().includes(q) ||
-          (e.driverNumber && String(e.driverNumber) === q) ||
-          e.type.toLowerCase().includes(q)
-      );
-    }
-
     if (order === 'newest') {
       list.reverse();
     }
 
     return list;
-  }, [events, filterType, searchQuery, order]);
+  }, [events, filterType, order]);
 
   return (
     <div
       className={cn(
-        'flex flex-col rounded-xl bg-zinc-900/80 border border-white/10 backdrop-blur-md overflow-hidden shadow-sm',
+        'flex flex-col rounded-2xl bg-zinc-950/90 border border-white/10 backdrop-blur-xl overflow-hidden shadow-xl',
         className
       )}
     >
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3.5 border-b border-white/5 bg-zinc-950/40">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3.5 sm:p-4 border-b border-white/10 bg-zinc-900/40">
         <div className="flex items-center gap-2">
-          <Radio className="h-4 w-4 text-red-500 animate-pulse" />
-          <h3 className="font-bold text-sm text-zinc-100 tracking-tight">Race Control Feed</h3>
+          <Radio className="h-4 w-4 text-red-500" />
+          <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-zinc-100">
+            Race Control Feed
+          </h3>
           <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
             {events.length}
           </span>
