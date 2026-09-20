@@ -308,7 +308,7 @@ function RaceCalendarItem({ race, year, isNext }: RaceCalendarItemProps) {
           </div>
 
           {/* Date Range Unit (F1 Poster style: Month over Digital Days) */}
-          <div className="w-[38px] sm:w-[42px] shrink-0 text-left">
+          <div className="w-[41px] sm:w-[46px] shrink-0 text-left">
             <span className="text-[10px] sm:text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-widest block leading-none truncate">
               {weekend.month}
             </span>

@@ -14,28 +14,43 @@ import { TrackMap } from '@/components/live/track-map';
 import { RaceControlFeed } from '@/components/live/race-control-feed';
 import { LiveStatusIndicator } from '@/components/live/live-status-indicator';
 import { CountryFlag } from '@/components/f1/country-flag';
-import { Radio, RefreshCw, Layers, Activity, MapPin, Flag, ShieldAlert } from 'lucide-react';
+import { Radio, RefreshCw, Layers, Activity, MapPin, Flag, ShieldAlert, Clock } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 import type { LiveDriverState, LiveSessionState } from '@/types/f1';
 
 function resolveTrackFlag(state: LiveSessionState | null) {
-  if (!state || !state.raceControlFeed || state.raceControlFeed.length === 0) {
-    return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald' };
+  if (!state || !state.isActive) {
+    if (state?.status === 'COMPLETED') {
+      return { flag: 'CHEQUERED', label: 'COMPLETED', color: 'zinc', detail: 'Session Snapshot' };
+    }
+    return { flag: 'STANDBY', label: 'STANDBY', color: 'zinc', detail: 'Awaiting Green Light' };
   }
 
-  const recentEvents = state.raceControlFeed.slice(-5);
+  if (!state.raceControlFeed || state.raceControlFeed.length === 0) {
+    return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald', detail: 'All Sectors Clear' };
+  }
+
+  const recentEvents = state.raceControlFeed.slice(-10);
   for (let i = recentEvents.length - 1; i >= 0; i--) {
     const e = recentEvents[i];
-    if (e.type === 'safety_car') return { flag: 'SC', label: 'SAFETY CAR', color: 'amber' };
-    if (e.type === 'vsc') return { flag: 'VSC', label: 'VSC DEPLOYED', color: 'amber' };
-    if (e.type === 'red_flag') return { flag: 'RED', label: 'RED FLAG', color: 'red' };
-    if (e.type === 'yellow_flag') return { flag: 'YELLOW', label: 'YELLOW FLAG', color: 'yellow' };
-    if (e.type === 'chequered_flag') return { flag: 'CHEQUERED', label: 'SESSION FINISHED', color: 'zinc' };
+    const msg = (e.message || '').toUpperCase();
+    const flag = (e.flag || '').toUpperCase();
+
+    // If the latest message/flag is clear or green, the track is clear
+    if (flag === 'CLEAR' || flag === 'GREEN' || msg.includes('TRACK CLEAR') || msg.includes('CLEAR IN SECTOR')) {
+      return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald', detail: 'All Sectors Clear' };
+    }
+
+    if (e.type === 'safety_car') return { flag: 'SC', label: 'SAFETY CAR', color: 'amber', detail: 'Full Course Caution' };
+    if (e.type === 'vsc') return { flag: 'VSC', label: 'VSC DEPLOYED', color: 'amber', detail: 'Virtual Safety Car' };
+    if (e.type === 'red_flag') return { flag: 'RED', label: 'RED FLAG', color: 'red', detail: 'Session Suspended' };
+    if (e.type === 'yellow_flag' || flag === 'YELLOW' || flag === 'DOUBLE YELLOW') return { flag: 'YELLOW', label: 'YELLOW FLAG', color: 'yellow', detail: 'Sector Caution' };
+    if (e.type === 'chequered_flag' || flag === 'CHEQUERED') return { flag: 'CHEQUERED', label: 'SESSION FINISHED', color: 'zinc', detail: 'Chequered Flag' };
   }
 
-  return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald' };
+  return { flag: 'GREEN', label: 'TRACK CLEAR', color: 'emerald', detail: 'All Sectors Clear' };
 }
 
 function LiveTimingContent() {
@@ -192,9 +207,11 @@ function LiveTimingContent() {
           <div className="flex items-center gap-2">
             {trackStatus.flag === 'SC' || trackStatus.flag === 'VSC' ? (
               <ShieldAlert className={cn('size-5 shrink-0', trackStatus.color === 'amber' ? 'text-amber-400' : 'text-zinc-400')} />
+            ) : trackStatus.flag === 'STANDBY' ? (
+              <Clock className="size-5 shrink-0 text-zinc-500" />
             ) : (
               <Flag className={cn(
-                'size-5 shrink-0',
+                'size-5 shrink-0 fill-current',
                 trackStatus.color === 'emerald' && 'text-emerald-400',
                 trackStatus.color === 'red' && 'text-red-500',
                 trackStatus.color === 'yellow' && 'text-yellow-400',
@@ -216,7 +233,7 @@ function LiveTimingContent() {
             </span>
           </div>
           <span className="text-[11px] font-mono text-zinc-400 truncate">
-            FIA Sector Clearance{state?.sessionType ? ` • ${state.sessionType}` : ''}
+            {trackStatus.detail}{state?.sessionType ? ` • ${state.sessionType}` : ''}
           </span>
         </div>
 
