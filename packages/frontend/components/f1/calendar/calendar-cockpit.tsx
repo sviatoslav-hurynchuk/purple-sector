@@ -67,18 +67,8 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
       </div>
 
       {/* ── Main Cockpit Title & Season Control ───────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-6 relative">
-        <div className="relative">
-          {/* Subtle crimson background glow */}
-          <div className="absolute -top-10 -left-6 w-56 h-28 bg-red-600/10 blur-3xl pointer-events-none" />
-
-          <div className="flex items-center gap-2 mb-1">
-            <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
-            <span className="text-[10px] sm:text-xs font-mono font-bold tracking-widest text-red-500 uppercase">
-              FIA Formula 1 World Championship™
-            </span>
-          </div>
-
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-6">
+        <div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono tracking-tight text-white uppercase flex items-baseline gap-3">
             <span>{year}</span>
             <span className="text-zinc-400 font-sans font-black tracking-tighter text-2xl sm:text-3xl lg:text-4xl">
@@ -271,12 +261,6 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
           </div>
         )}
 
-      </div>
-
-      {/* ── Bottom Dual F1 Speed Stripes (Poster Footer Hook) ─────────── */}
-      <div className="space-y-1.5" aria-hidden="true">
-        <div className="h-0.5 sm:h-1 w-2/3 ml-auto bg-gradient-to-l from-red-600 via-red-700 to-transparent rounded-full opacity-60" />
-        <div className="h-1 sm:h-1.5 w-full bg-gradient-to-l from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
       </div>
     </div>
   );
