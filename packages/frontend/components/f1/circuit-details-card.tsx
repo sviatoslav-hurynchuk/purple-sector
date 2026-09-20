@@ -54,12 +54,6 @@ export function CircuitDetailsCard({
         className
       )}
     >
-      {/* Official F1 Dual Racing Stripes Header */}
-      <div className="w-full flex flex-col">
-        <div className="h-1.5 bg-[#e10600] w-full" />
-        <div className="h-0.5 bg-[#e10600]/80 w-full mt-0.5" />
-      </div>
-
       {/* Cockpit Sub-Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-7 py-2 border-b border-white/10 bg-zinc-900/30">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
