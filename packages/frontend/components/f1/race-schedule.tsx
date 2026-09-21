@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Race, RaceResult, RaceResultEntry, QualifyingResultEntry } from '@/types/f1';
 import {
   getCircuitTimezone,
@@ -8,14 +8,13 @@ import {
   formatTimeInTimezone,
   type FormattedSessionItem,
 } from '@/lib/timezones';
+import { getCircuitDetails } from '@/lib/circuit-details';
+import { getNextSessionForRace } from '@/lib/sessions';
+import { useCountdown } from '@/hooks/useCountdown';
 import { cn } from '@/lib/utils';
-import { Card } from '@/components/ui/card';
-import { CountdownWidget } from '@/components/f1/countdown-widget';
 import { RaceResultsTable } from '@/components/f1/race-results-table';
 import { QualifyingResultsTable } from '@/components/f1/qualifying-results-table';
-import { PitStopButton } from '@/components/f1/pit-stops/pit-stop-button';
-import { LapsButton } from '@/components/f1/laps/laps-button';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Calendar } from 'lucide-react';
 
 interface RaceScheduleProps {
   race: Race | RaceResult;
@@ -81,6 +80,21 @@ function getResultsForSession(
   return undefined;
 }
 
+function formatTimeZoneLabel(tz: string, date: Date | null) {
+  try {
+    const city = tz.split('/').pop()?.replace(/_/g, ' ') ?? tz;
+    const now = date ?? new Date();
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      timeZoneName: 'short',
+    }).formatToParts(now);
+    const tzShort = parts.find((p) => p.type === 'timeZoneName')?.value ?? '';
+    return tzShort ? `${city} (${tzShort})` : city;
+  } catch {
+    return tz;
+  }
+}
+
 export function RaceSchedule({ race }: RaceScheduleProps) {
   const [mode, setMode] = useState<'my' | 'track'>('my');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
@@ -140,257 +154,274 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
   const activeTimeZone = mode === 'my' ? userTimeZone : trackTimeZone;
   const sessions = getFormattedSessions(race, activeTimeZone);
 
+  const circuitDetails = useMemo(() => {
+    return getCircuitDetails(race.Circuit.circuitId, race.season);
+  }, [race.Circuit.circuitId, race.season]);
+
+  const raceResults = 'Results' in race && Array.isArray(race.Results) ? race.Results : null;
+  const hasResults = Boolean(raceResults && raceResults.length > 0);
+  const winner = hasResults && raceResults ? (raceResults[0] as RaceResultEntry) : null;
+
+  const now = useMemo(() => currentTime ?? new Date(), [currentTime]);
+  const nextSession = useMemo(() => {
+    return getNextSessionForRace(race as Race, now);
+  }, [race, now]);
+
+  const countdown = useCountdown(hasResults ? null : nextSession?.rawDate);
+
   const myTimeStr = currentTime ? formatTimeInTimezone(currentTime, userTimeZone) : '--:--';
   const trackTimeStr = currentTime ? formatTimeInTimezone(currentTime, trackTimeZone) : '--:--';
 
-  const now = currentTime ?? new Date();
+  const trackTzLabel = formatTimeZoneLabel(trackTimeZone, currentTime);
+  const userTzLabel = formatTimeZoneLabel(userTimeZone, currentTime);
 
   return (
     <div className="space-y-6">
-      {/* Top Banner: SCHEDULE title + Clock Box */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-zinc-950/80 border border-zinc-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
+      {/* ── Race Pulse Telemetry Ribbon (Monolithic 4-Metric Bar) ───── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+        {/* Metric 1: Weekend Status / Lights Out */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+            {hasResults ? 'Classification' : 'Lights Out'}
+          </span>
+          <p className="text-xl sm:text-2xl font-black font-mono text-white">
+            {hasResults ? (
+              <span className="flex items-center gap-2 text-emerald-400">
+                <CheckeredFlagIcon className="size-5 text-emerald-400" />
+                OFFICIAL
+              </span>
+            ) : countdown.isReady && !countdown.isExpired ? (
+              <span>
+                {countdown.days}D {String(countdown.hours).padStart(2, '0')}H {String(countdown.minutes).padStart(2, '0')}M
+              </span>
+            ) : (
+              <span>EVENT READY</span>
+            )}
+          </p>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {hasResults && winner
+              ? `P1: ${winner.Driver.code || winner.Driver.familyName} (${winner.Constructor.name})`
+              : `${nextSession?.name ?? 'Race'} • ${race.date}`}
+          </span>
+        </div>
 
-        <div className="flex items-center gap-4">
-          <div className="bg-primary text-primary-foreground font-black italic px-3 py-1 rounded text-sm tracking-wider">
-            F1
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase italic">
-            SCHEDULE
+        {/* Metric 2: Track Local Time */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+            Track Time
+          </span>
+          <p className="text-xl sm:text-2xl font-black font-mono text-white tabular-nums">
+            {trackTimeStr}
+          </p>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {trackTzLabel}
+          </span>
+        </div>
+
+        {/* Metric 3: Your Local Time */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+            Your Time
+          </span>
+          <p className="text-xl sm:text-2xl font-black font-mono text-white tabular-nums">
+            {myTimeStr}
+          </p>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {userTzLabel}
+          </span>
+        </div>
+
+        {/* Metric 4: Circuit Distance & Specs */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+            Grand Prix Distance
+          </span>
+          <p className="text-xl sm:text-2xl font-black font-mono text-red-400">
+            {circuitDetails?.numberOfLaps ?? '—'}{' '}
+            <span className="text-xs font-mono font-semibold text-zinc-400">Laps</span>
+          </p>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {circuitDetails?.circuitLength ?? '—'} • {circuitDetails?.raceDistance ?? 'Grand Prix'}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Timetable Controls Bar ───────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <span className="size-2 rounded-full bg-red-600" />
+          <h2 className="text-lg sm:text-xl font-black font-mono uppercase tracking-tight text-white">
+            Weekend Timetable
           </h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 shrink-0">
-          <CountdownWidget race={race as Race} size="sm" showCountry={false} />
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Kept by user instruction: "Add F1 calendar (in progress)" */}
+          <button
+            type="button"
+            onClick={() => alert('Add to calendar feature coming soon!')}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/10 bg-primary text-zinc-300 hover:text-white hover:bg-white/5 font-mono text-xs font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer"
+          >
+            <Calendar className="size-3.5 text-zinc-300" />
+            <span>Add F1 calendar (in progress)</span>
+          </button>
 
-          {/* Clock Box widget */}
-          <div className="flex items-center gap-4 bg-zinc-900/90 border border-zinc-800 rounded-xl px-4 py-3 shrink-0">
-            <div className="space-y-1 text-xs font-mono">
-              <div className="flex items-center justify-between gap-6">
-                <span className={cn('flex items-center gap-1.5 font-bold', mode === 'my' ? 'text-primary' : 'text-zinc-400')}>
-                  {mode === 'my' && <span className="size-1.5 rounded-full bg-primary animate-pulse" />}
-                  MY TIME
-                </span>
-                <span className="font-bold text-foreground tabular-nums">{myTimeStr}</span>
-              </div>
-              <div className="flex items-center justify-between gap-6">
-                <span className={cn('flex items-center gap-1.5 font-bold', mode === 'track' ? 'text-primary' : 'text-zinc-400')}>
-                  {mode === 'track' && <span className="size-1.5 rounded-full bg-primary animate-pulse" />}
-                  TRACK TIME
-                </span>
-                <span className="font-bold text-foreground tabular-nums">{trackTimeStr}</span>
-              </div>
-            </div>
-
-            {/* Red clock graphic */}
-            <div className="size-10 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
-              <svg
-                className="size-5 text-primary"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-            </div>
+          {/* Timezone Switcher */}
+          <div className="inline-flex items-center rounded-xl border border-white/10 bg-zinc-950/90 p-1 divide-x divide-white/10 shadow-xl backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => handleModeChange('my')}
+              className={cn(
+                'px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-wider transition-colors',
+                mode === 'my'
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              )}
+            >
+              My Time
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeChange('track')}
+              className={cn(
+                'px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-wider transition-colors',
+                mode === 'track'
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              )}
+            >
+              Track Time
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Controls Bar: Actions + Timezone Switcher */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => alert('Add to calendar feature coming soon!')}
-            className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-5 py-2.5 rounded-xl text-sm transition-all shadow-md shadow-primary/20"
-          >
-            <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-              <line x1="16" x2="16" y1="2" y2="6" />
-              <line x1="8" x2="8" y1="2" y2="6" />
-              <line x1="3" x2="21" y1="10" y2="10" />
-              <path d="M8 14h.01" />
-              <path d="M12 14h.01" />
-              <path d="M16 14h.01" />
-              <path d="M8 18h.01" />
-              <path d="M12 18h.01" />
-              <path d="M16 18h.01" />
-            </svg>
-            Add F1 calendar (in progress)
-          </button>
+      {/* ── Sessions List Monolith (1px Contiguous Grid Architecture) ─── */}
+      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl divide-y divide-white/10">
+        {sessions.length > 0 ? (
+          sessions.map((item) => {
+            const isRace = item.id === 'race';
+            const isSprint = item.id === 'sprint';
+            const isQualy = item.id === 'qualifying';
+            const resultData = getResultsForSession(race, item.id);
+            const hasSessionResults = !!resultData && resultData.data.length > 0;
+            const completed = isSessionCompleted(item, now, hasSessionResults);
+            const isExpandable = hasSessionResults;
 
-          {'Results' in race && Array.isArray(race.Results) && race.Results.length > 0 && (
-            <>
-              <LapsButton
-                season={race.season}
-                round={race.round}
-              />
-              <PitStopButton
-                season={race.season}
-                round={race.round}
-              />
-            </>
-          )}
-        </div>
+            // Determine expanded state
+            const isExpanded = isRace
+              ? raceExpanded && hasSessionResults
+              : isSprint
+              ? sprintExpanded && hasSessionResults
+              : isQualy
+              ? qualyExpanded && hasSessionResults
+              : expandedNonRace === item.id;
 
-        {/* Timezone Switcher */}
-        <div className="inline-flex items-center bg-zinc-900 border border-zinc-800 p-1 rounded-xl self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => handleModeChange('my')}
-            className={cn(
-              'px-5 py-2 rounded-lg text-sm font-bold transition-all',
-              mode === 'my'
-                ? 'bg-zinc-100 text-zinc-950 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-100'
-            )}
-          >
-            My time
-          </button>
-          <button
-            type="button"
-            onClick={() => handleModeChange('track')}
-            className={cn(
-              'px-5 py-2 rounded-lg text-sm font-bold transition-all',
-              mode === 'track'
-                ? 'bg-zinc-100 text-zinc-950 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-100'
-            )}
-          >
-            Track time
-          </button>
-        </div>
-      </div>
-
-      {/* Sessions List Card */}
-      <Card className="border-zinc-800 overflow-hidden shadow-2xl" style={{ background: 'var(--card)' }}>
-        <div className="divide-y divide-zinc-800/80">
-          {sessions.length > 0 ? (
-            sessions.map((item) => {
-              const isRace = item.id === 'race';
-              const isSprint = item.id === 'sprint';
-              const isQualy = item.id === 'qualifying';
-              const resultData = getResultsForSession(race, item.id);
-              const hasResults = !!resultData && resultData.data.length > 0;
-              const completed = isSessionCompleted(item, now, hasResults);
-              const isExpandable = hasResults;
-
-              // Determine expanded state
-              const isExpanded = isRace
-                ? raceExpanded && hasResults
-                : isSprint
-                ? sprintExpanded && hasResults
-                : isQualy
-                ? qualyExpanded && hasResults
-                : expandedNonRace === item.id;
-
-              return (
-                <div key={item.id}>
-                  {/* Session Row */}
-                  <div
-                    className={cn(
-                      'flex items-center justify-between px-4 sm:px-8 py-6 transition-colors',
-                      isRace && 'bg-primary/5 hover:bg-primary/10',
-                      !isRace && 'hover:bg-zinc-900/40',
-                      isExpandable && 'cursor-pointer select-none'
-                    )}
-                    onClick={isExpandable ? () => handleToggleSession(item.id) : undefined}
-                    role={isExpandable ? 'button' : undefined}
-                    tabIndex={isExpandable ? 0 : undefined}
-                    onKeyDown={isExpandable ? (e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleToggleSession(item.id);
-                      }
-                    } : undefined}
-                  >
-                    {/* Left side: Date + Session Name + (completed: inline time & flag) */}
-                    <div className="flex items-center gap-6 sm:gap-10 min-w-0">
-                      <div className="flex flex-col items-center justify-center w-12 sm:w-14 border-r border-zinc-800 pr-6 shrink-0 text-center">
-                        <span className="text-2xl sm:text-3xl font-black font-mono leading-none tracking-tight">
-                          {item.dateParts.day}
-                        </span>
-                        <span className="text-xs font-black tracking-widest text-primary mt-1 uppercase">
-                          {item.dateParts.month}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className={cn(
-                          'text-base sm:text-xl font-black tracking-wide uppercase',
-                          isRace ? 'text-primary' : 'text-foreground'
-                        )}>
-                          {item.name}
-                        </span>
-
-                        {/* Completed: inline time + Checkered Flag */}
-                        {completed && (
-                          <>
-                            <span className="font-mono font-bold text-xs sm:text-sm tabular-nums text-zinc-500">
-                              {item.timeString}
-                            </span>
-                            <CheckeredFlagIcon />
-                          </>
-                        )}
-                      </div>
+            return (
+              <div key={item.id}>
+                {/* Session Row */}
+                <div
+                  className={cn(
+                    'flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 transition-colors',
+                    isRace && 'bg-red-950/10 hover:bg-red-950/20',
+                    !isRace && 'hover:bg-zinc-900/40',
+                    isExpandable && 'cursor-pointer select-none'
+                  )}
+                  onClick={isExpandable ? () => handleToggleSession(item.id) : undefined}
+                  role={isExpandable ? 'button' : undefined}
+                  tabIndex={isExpandable ? 0 : undefined}
+                  onKeyDown={
+                    isExpandable
+                      ? (e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleToggleSession(item.id);
+                          }
+                        }
+                      : undefined
+                  }
+                >
+                  {/* Left side: Date block + Session Name */}
+                  <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+                    <div className="flex flex-col items-center justify-center w-12 sm:w-14 border-r border-white/10 pr-4 sm:pr-6 shrink-0 text-center">
+                      <span className="text-xl sm:text-2xl font-black font-mono leading-none tracking-tight text-white">
+                        {item.dateParts.day}
+                      </span>
+                      <span className="text-[10px] sm:text-xs font-mono font-black tracking-widest text-red-500 mt-1 uppercase">
+                        {item.dateParts.month}
+                      </span>
                     </div>
 
-                    {/* Right side: time (if NOT completed) or chevron (if expandable) */}
-                    <div className="flex items-center gap-3 shrink-0 ml-4">
-                      {!completed && (
-                        <span className="font-mono font-bold text-sm sm:text-lg tabular-nums text-zinc-300">
-                          {item.timeString}
-                        </span>
-                      )}
+                    <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                      <span
+                        className={cn(
+                          'text-sm sm:text-base font-black font-mono tracking-wide uppercase',
+                          isRace ? 'text-red-400' : 'text-zinc-100'
+                        )}
+                      >
+                        {item.name}
+                      </span>
 
-                      {isExpandable && (
-                        <div className="size-8 flex items-center justify-center rounded-lg bg-zinc-800/60 hover:bg-zinc-700/60 transition-colors">
-                          <ChevronDown
-                            className={cn(
-                              'size-5 text-zinc-400 transition-transform duration-200',
-                              isExpanded && 'rotate-180'
-                            )}
-                          />
+                      {/* Completed: inline time + Checkered Flag */}
+                      {completed && (
+                        <div className="flex items-center gap-1.5 font-mono font-bold text-xs tabular-nums text-zinc-400">
+                          <span>{item.timeString}</span>
+                          <CheckeredFlagIcon className="size-3.5 text-zinc-400" />
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Collapsible Results Table */}
-                  {isExpandable && resultData && (
-                    <div
-                      className={cn(
-                        'overflow-hidden transition-all duration-300 ease-in-out',
-                        isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-                      )}
-                    >
-                      <div className="border-t border-zinc-800/60 bg-zinc-900/30">
-                        {resultData.type === 'qualifying' ? (
-                          <QualifyingResultsTable results={resultData.data} />
-                        ) : (
-                          <RaceResultsTable
-                            results={resultData.data}
-                            highlightPoints={resultData.type === 'sprint'}
-                          />
-                        )}
+                  {/* Right side: time (if NOT completed) or chevron (if expandable) */}
+                  <div className="flex items-center gap-3 shrink-0 ml-4">
+                    {!completed && (
+                      <span className="font-mono font-bold text-sm sm:text-base tabular-nums text-zinc-300">
+                        {item.timeString}
+                      </span>
+                    )}
+
+                    {isExpandable && (
+                      <div className="size-7 sm:size-8 flex items-center justify-center rounded-lg border border-white/10 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 transition-colors">
+                        <ChevronDown
+                          className={cn(
+                            'size-4 text-zinc-400 transition-transform duration-200',
+                            isExpanded && 'rotate-180 text-white'
+                          )}
+                        />
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              );
-            })
-          ) : (
-            <div className="py-12 text-center text-muted-foreground">
-              No schedule available for this race weekend yet.
-            </div>
-          )}
-        </div>
-      </Card>
+
+                {/* Collapsible Results Table */}
+                {isExpandable && resultData && (
+                  <div
+                    className={cn(
+                      'overflow-hidden transition-all duration-300 ease-in-out',
+                      isExpanded ? 'max-h-[2500px] opacity-100' : 'max-h-0 opacity-0'
+                    )}
+                  >
+                    <div className="border-t border-white/10 bg-zinc-950/60">
+                      {resultData.type === 'qualifying' ? (
+                        <QualifyingResultsTable results={resultData.data} />
+                      ) : (
+                        <RaceResultsTable
+                          results={resultData.data}
+                          highlightPoints={resultData.type === 'sprint'}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          <div className="py-12 text-center font-mono text-sm text-zinc-400">
+            No schedule available for this race weekend yet.
+          </div>
+        )}
+      </div>
     </div>
   );
 }
