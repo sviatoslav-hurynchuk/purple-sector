@@ -1,40 +1,57 @@
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-
 export function StandingsPageSkeleton() {
     return (
-        <div className="space-y-8 animate-pulse">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-border pb-6">
+        <div className="space-y-6 sm:space-y-8 animate-pulse" aria-hidden="true">
+            {/* ── Cockpit Header Skeleton ──────────────────────────────────── */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                    <div className="h-9 w-80 bg-muted rounded-md" />
-                    <div className="h-4 w-96 bg-muted rounded mt-2" />
+                    <div className="h-10 sm:h-12 w-80 sm:w-[480px] bg-zinc-800 rounded" />
+                    <div className="h-4 w-64 sm:w-96 bg-zinc-850 rounded mt-2" />
                 </div>
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="h-9 w-28 bg-muted rounded-md" />
-                    <div className="h-9 w-44 bg-muted rounded-md" />
+                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
+                    <div className="h-10 w-44 bg-zinc-800/60 rounded-full border border-white/5" />
+                    <div className="h-10 w-44 bg-zinc-800/60 rounded-xl border border-white/5" />
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {/* ── Telemetry Ribbon Skeleton (4-Metric Bar) ─────────────────── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="p-4 sm:p-5 flex flex-col justify-between gap-2.5 min-h-[96px]">
+                        <div className="h-3 w-24 bg-zinc-800 rounded" />
+                        <div className="h-7 w-32 bg-zinc-800 rounded" />
+                        <div className="h-2.5 w-20 bg-zinc-850 rounded" />
+                    </div>
+                ))}
+            </div>
+
+            {/* ── Standings Matrix Skeleton ─────────────────────────────────── */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-5 items-stretch">
                 {[0, 1].map((col) => (
-                    <Card key={col} className="border-border">
-                        <CardHeader>
-                            <div className="h-6 w-44 bg-muted rounded" />
-                            <div className="h-3.5 w-64 bg-muted rounded mt-1.5" />
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            {Array.from({ length: 10 }).map((_, i) => (
+                    <div
+                        key={col}
+                        className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col justify-between"
+                    >
+                        <div className="h-10 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between">
+                            <div className="h-4 w-48 bg-zinc-800 rounded" />
+                        </div>
+                        <div className="divide-y divide-white/5">
+                            {Array.from({ length: 12 }).map((_, i) => (
                                 <div
                                     key={i}
-                                    className="flex gap-4 px-4 py-3.5 border-t border-border first:border-t-0"
+                                    className="flex items-center justify-between py-2 sm:py-2.5 px-4 sm:px-5"
                                 >
-                                    <div className="h-4 w-8 bg-muted rounded" />
-                                    <div className="h-4 flex-1 bg-muted rounded" />
-                                    <div className="h-4 w-20 bg-muted rounded" />
-                                    <div className="h-4 w-12 bg-muted rounded" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-4 w-6 bg-zinc-800 rounded" />
+                                        <div className="h-4 w-32 sm:w-44 bg-zinc-800 rounded" />
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-4 w-12 bg-zinc-800 rounded" />
+                                        <div className="h-4 w-8 bg-zinc-850 rounded" />
+                                    </div>
                                 </div>
                             ))}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 ))}
             </div>
         </div>
