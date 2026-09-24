@@ -87,6 +87,9 @@ export function DriverStandingsCard({
                     <tbody className="divide-y divide-white/5">
                         {displayedStandings.map((item: DriverStanding) => {
                             const posNum = parseInt(item.position, 10);
+                            const posLabel = Number.isFinite(posNum)
+                                ? posNum.toString().padStart(2, '0')
+                                : '—';
                             const isLeader = posNum === 1;
                             const isPodium = posNum === 2 || posNum === 3;
                             const constructorId = item.Constructors[0]?.constructorId ?? '';
@@ -107,11 +110,11 @@ export function DriverStandingsCard({
                                             </span>
                                         ) : isPodium ? (
                                             <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 ring-1 ring-white/10 font-mono font-bold text-xs">
-                                                {posNum.toString().padStart(2, '0')}
+                                                {posLabel}
                                             </span>
                                         ) : (
                                             <span className="font-mono font-bold text-zinc-400 text-xs">
-                                                {posNum.toString().padStart(2, '0')}
+                                                {posLabel}
                                             </span>
                                         )}
                                     </td>

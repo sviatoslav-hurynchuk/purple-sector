@@ -11,7 +11,7 @@ import {
 import { getCircuitDetails } from '@/lib/circuit-details';
 import { getNextSessionForRace } from '@/lib/sessions';
 import { useCountdown } from '@/hooks/useCountdown';
-import { cn } from '@/lib/utils';
+import { cn, formatDateInTimezone } from '@/lib/utils';
 import { RaceResultsTable } from '@/components/f1/race-results-table';
 import { QualifyingResultsTable } from '@/components/f1/qualifying-results-table';
 import { ChevronDown, Calendar } from 'lucide-react';
@@ -182,7 +182,7 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
         {/* Metric 1: Weekend Status / Lights Out */}
         <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
           <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            {hasResults ? 'Classification' : 'Lights Out'}
+            {hasResults ? 'Classification' : nextSession ? 'Lights Out' : 'Status'}
           </span>
           <p className="text-xl sm:text-2xl font-black font-mono text-white">
             {hasResults ? (
@@ -190,18 +190,24 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
                 <CheckeredFlagIcon className="size-5 text-emerald-400" />
                 OFFICIAL
               </span>
-            ) : countdown.isReady && !countdown.isExpired ? (
-              <span>
-                {countdown.days}D {String(countdown.hours).padStart(2, '0')}H {String(countdown.minutes).padStart(2, '0')}M
-              </span>
+            ) : nextSession ? (
+              countdown.isReady && !countdown.isExpired ? (
+                <span>
+                  {countdown.days}D {String(countdown.hours).padStart(2, '0')}H {String(countdown.minutes).padStart(2, '0')}M
+                </span>
+              ) : (
+                <span>EVENT READY</span>
+              )
             ) : (
-              <span>EVENT READY</span>
+              <span>COMPLETE</span>
             )}
           </p>
           <span className="text-[11px] font-mono text-zinc-400 truncate">
             {hasResults && winner
               ? `P1: ${winner.Driver.code || winner.Driver.familyName} (${winner.Constructor.name})`
-              : `${nextSession?.name ?? 'Race'} • ${race.date}`}
+              : nextSession
+                ? `${nextSession.name} • ${formatDateInTimezone(nextSession.rawDate, activeTimeZone)}`
+                : 'Results unavailable'}
           </span>
         </div>
 

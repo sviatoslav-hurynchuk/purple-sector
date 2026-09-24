@@ -5,7 +5,7 @@ export function StandingsPageSkeleton() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
                     <div className="h-10 sm:h-12 w-80 sm:w-[480px] bg-zinc-800 rounded" />
-                    <div className="h-4 w-64 sm:w-96 bg-zinc-850 rounded mt-2" />
+                    <div className="h-4 w-64 sm:w-96 bg-zinc-800/60 rounded mt-2" />
                 </div>
                 <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
                     <div className="h-10 w-44 bg-zinc-800/60 rounded-full border border-white/5" />
@@ -19,7 +19,7 @@ export function StandingsPageSkeleton() {
                     <div key={i} className="p-4 sm:p-5 flex flex-col justify-between gap-2.5 min-h-[96px]">
                         <div className="h-3 w-24 bg-zinc-800 rounded" />
                         <div className="h-7 w-32 bg-zinc-800 rounded" />
-                        <div className="h-2.5 w-20 bg-zinc-850 rounded" />
+                        <div className="h-2.5 w-20 bg-zinc-800/60 rounded" />
                     </div>
                 ))}
             </div>
@@ -46,7 +46,7 @@ export function StandingsPageSkeleton() {
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <div className="h-4 w-12 bg-zinc-800 rounded" />
-                                        <div className="h-4 w-8 bg-zinc-850 rounded" />
+                                        <div className="h-4 w-8 bg-zinc-800/60 rounded" />
                                     </div>
                                 </div>
                             ))}
