@@ -32,7 +32,7 @@ export function RoundSelector({ currentSeason, currentRound, races }: RoundSelec
         disabled={isPending}
         value={currentRound ?? 'all'}
         onChange={(e) => handleRoundChange(e.target.value)}
-        className="appearance-none bg-zinc-900 border border-border hover:border-primary text-foreground text-sm font-semibold px-4 py-1.5 pr-8 rounded-full cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+        className="appearance-none bg-zinc-950/90 border border-white/10 hover:border-red-500/50 text-zinc-200 text-xs sm:text-sm font-mono font-bold px-3 sm:px-4 py-2 pr-8 rounded-xl cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50 min-h-[44px] shadow-sm"
       >
         <option value="all" className="bg-zinc-950 text-foreground py-1 font-mono">
           Full Season (Final / Current)

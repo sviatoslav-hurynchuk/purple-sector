@@ -21,7 +21,13 @@ export default function StandingsPage({ searchParams }: StandingsPageProps) {
     );
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8 pb-16">
+            {/* ── Top Dual F1 Racing Speed Stripes (Poster Header Hook) ─────── */}
+            <div className="space-y-1.5" aria-hidden="true">
+                <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
+                <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
+            </div>
+
             <Suspense fallback={<StandingsPageSkeleton />}>
                 <StandingsContent searchParams={searchParams} allYears={allYears} />
             </Suspense>
