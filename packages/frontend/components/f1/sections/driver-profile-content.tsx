@@ -100,82 +100,30 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* ── LEFT COLUMN: Vertical Hero Cockpit with Full-Body Driver ──── */}
         <div className="lg:col-span-5 flex flex-col">
-          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col justify-between h-full">
+          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col justify-between h-full min-h-[500px] sm:min-h-[540px] lg:min-h-[570px]">
             {/* Dynamic Top Livery Accent Strip */}
             <div className="h-[2px] w-full" style={{ backgroundColor: teamTheme.primary }} />
 
-            {/* Ambient Livery Glow */}
+            {/* Ambient Livery Lighting */}
             <div
-              className="absolute -top-20 -left-20 size-72 rounded-full opacity-20 blur-3xl pointer-events-none"
+              className="absolute -top-20 -right-20 size-72 rounded-full opacity-20 blur-3xl pointer-events-none"
               style={{ backgroundColor: teamTheme.primary }}
             />
 
-            {/* Top Identity Block */}
-            <div className="p-5 sm:p-6 lg:p-7 relative z-10 space-y-4">
-              {/* Nationality & Constructor Header Strip */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/60 backdrop-blur-sm">
-                  <CountryFlag countryName={driver.nationality} className="w-4 h-3 rounded-xs shrink-0" />
-                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
-                    {driver.nationality}
-                  </span>
-                </div>
-
-                {currentConstructorId && (
-                  <Link
-                    href={`/constructors/${currentConstructorId}`}
-                    className="group/team inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/60 backdrop-blur-sm hover:border-white/20 hover:bg-zinc-900/90 transition-all"
-                  >
-                    <div className="size-4.5 rounded flex items-center justify-center shrink-0 overflow-hidden">
-                      <TeamLogo constructorId={currentConstructorId} season={activeSeason} size={18} />
-                    </div>
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 group-hover/team:text-white transition-colors">
-                      {currentTeamName}
-                    </span>
-                  </Link>
-                )}
-              </div>
-
-              {/* Typographic Nameplate */}
-              <div>
-                <p className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest text-zinc-400">
-                  {driver.givenName}
-                </p>
-                <div className="flex items-baseline justify-between gap-3 mt-1">
-                  <h1 className="text-3xl sm:text-5xl lg:text-5xl xl:text-6xl font-black font-sans uppercase tracking-tight text-white leading-none">
-                    {driver.familyName}
-                  </h1>
-                  {driverNumber && (
-                    <span className="text-3xl sm:text-4xl font-black italic text-zinc-700 font-mono tracking-tighter select-none shrink-0">
-                      #{driverNumber}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Champion Badge (if applicable) */}
-              {worldChampionships > 0 && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 font-mono text-xs font-black tracking-wide shadow-sm">
-                  <Trophy className="size-3.5 fill-amber-400/20 text-amber-400 shrink-0" />
-                  <span>{worldChampionships}× WORLD CHAMPION</span>
-                </div>
-              )}
-            </div>
-
-            {/* Standing Driver Portrait (Full Body Display) */}
-            <div className="relative w-full h-[380px] sm:h-[440px] lg:h-[460px] flex items-end justify-center overflow-hidden">
-              {/* Subtle Livery Spotlight */}
+            {/* Standing Driver Portrait (Placed on the RIGHT side of the card, full body height) */}
+            <div className="absolute right-0 bottom-0 top-10 w-[50%] sm:w-[48%] lg:w-[50%] flex items-end justify-end pointer-events-none select-none overflow-hidden z-0">
+              {/* Subtle spotlight glow behind driver */}
               <div
-                className="absolute top-1/4 size-64 rounded-full opacity-15 blur-3xl pointer-events-none"
+                className="absolute bottom-10 right-4 size-56 rounded-full opacity-25 blur-3xl pointer-events-none"
                 style={{ backgroundColor: teamTheme.primary }}
               />
 
-              <div className="relative w-full h-full flex items-end justify-center">
+              <div className="relative w-full h-[95%] sm:h-full flex items-end justify-center sm:justify-end">
                 <DriverImage
                   src={photoUrl}
                   alt={`${driver.givenName} ${driver.familyName}`}
                   fill
-                  sizes="(max-width: 1024px) 100vw, 42vw"
+                  sizes="(max-width: 1024px) 50vw, 25vw"
                   className="object-contain object-bottom drop-shadow-2xl"
                   priority
                   unoptimized
@@ -186,55 +134,109 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
               <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent pointer-events-none z-10" />
             </div>
 
-            {/* Lower Bio & Details Grid (1px Monolithic Matrix) */}
-            <div className="grid grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60 relative z-10">
-              <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Date of Birth
-                </p>
-                <p className="text-sm font-mono font-bold text-white mt-1">
-                  {driver.dateOfBirth || '—'}
-                  {age !== null && (
-                    <span className="text-xs font-normal text-zinc-400 ml-1">({age} y/o)</span>
+            {/* Left Content Column (Nationality, Name, #Number, Bio 2x2 Matrix) */}
+            <div className="p-5 sm:p-6 lg:p-7 relative z-10 flex flex-col justify-between h-full space-y-6 max-w-[62%] sm:max-w-[58%] lg:max-w-[60%]">
+              <div className="space-y-4">
+                {/* Nationality & Constructor Header Strip */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/60 backdrop-blur-sm">
+                    <CountryFlag countryName={driver.nationality} className="w-4 h-3 rounded-xs shrink-0" />
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                      {driver.nationality}
+                    </span>
+                  </div>
+
+                  {currentConstructorId && (
+                    <Link
+                      href={`/constructors/${currentConstructorId}`}
+                      className="group/team inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/60 backdrop-blur-sm hover:border-white/20 hover:bg-zinc-900/90 transition-all"
+                    >
+                      <div className="size-4.5 rounded flex items-center justify-center shrink-0 overflow-hidden">
+                        <TeamLogo constructorId={currentConstructorId} season={activeSeason} size={18} />
+                      </div>
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 group-hover/team:text-white transition-colors">
+                        {currentTeamName}
+                      </span>
+                    </Link>
                   )}
-                </p>
+                </div>
+
+                {/* Typographic Nameplate */}
+                <div>
+                  <p className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest text-zinc-400">
+                    {driver.givenName}
+                  </p>
+                  <h1 className="text-3xl sm:text-4xl lg:text-4xl xl:text-5xl font-black font-sans uppercase tracking-tight text-white leading-none mt-1">
+                    {driver.familyName}
+                  </h1>
+                </div>
+
+                {/* Number & Champion Status (Moved to left under the name) */}
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  {driverNumber && (
+                    <span className="text-3xl sm:text-4xl font-black italic text-zinc-700 font-mono tracking-tighter select-none">
+                      #{driverNumber}
+                    </span>
+                  )}
+                  {worldChampionships > 0 && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 font-mono text-xs font-black tracking-wide shadow-sm">
+                      <Trophy className="size-3.5 fill-amber-400/20 text-amber-400 shrink-0" />
+                      <span>{worldChampionships}× WORLD CHAMPION</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Driver Code
-                </p>
-                <p className="text-sm font-mono font-bold text-white mt-1">
-                  {driver.code || '—'}
-                </p>
-              </div>
+              {/* Bio & Details 2x2 Grid (Moved UP into left space under the name) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60 rounded-2xl overflow-hidden shadow-xl mt-4">
+                <div className="p-3 border-b border-r border-white/10 bg-zinc-900/20">
+                  <p className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                    Date of Birth
+                  </p>
+                  <p className="text-xs sm:text-sm font-mono font-bold text-white mt-0.5">
+                    {driver.dateOfBirth || '—'}
+                    {age !== null && (
+                      <span className="text-xs font-normal text-zinc-400 ml-1">({age} y/o)</span>
+                    )}
+                  </p>
+                </div>
 
-              <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Constructor
-                </p>
-                <p className="text-sm font-sans font-bold text-white mt-1 truncate">
-                  {currentTeamName}
-                </p>
-              </div>
+                <div className="p-3 border-b border-r border-white/10 bg-zinc-900/20">
+                  <p className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                    Driver Code
+                  </p>
+                  <p className="text-xs sm:text-sm font-mono font-bold text-white mt-0.5">
+                    {driver.code || '—'}
+                  </p>
+                </div>
 
-              <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Biography
-                </p>
-                {driver.url ? (
-                  <a
-                    href={driver.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm font-mono font-semibold text-primary hover:underline mt-1"
-                  >
-                    <span>Wikipedia</span>
-                    <ExternalLink className="size-3 shrink-0" />
-                  </a>
-                ) : (
-                  <p className="text-sm font-mono text-zinc-500 mt-1">—</p>
-                )}
+                <div className="p-3 border-b border-r border-white/10 bg-zinc-900/20">
+                  <p className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                    Constructor
+                  </p>
+                  <p className="text-xs sm:text-sm font-sans font-bold text-white mt-0.5 truncate">
+                    {currentTeamName}
+                  </p>
+                </div>
+
+                <div className="p-3 border-b border-r border-white/10 bg-zinc-900/20">
+                  <p className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                    Biography
+                  </p>
+                  {driver.url ? (
+                    <a
+                      href={driver.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-mono font-semibold text-zinc-300 hover:text-white hover:underline mt-0.5"
+                    >
+                      <span>Wikipedia</span>
+                      <ExternalLink className="size-3 shrink-0" />
+                    </a>
+                  ) : (
+                    <p className="text-xs sm:text-sm font-mono text-zinc-500 mt-0.5">—</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -324,7 +326,7 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
               </div>
             </div>
 
-            {/* Optional Secondary Line (if special telemetry exists) */}
+            {/* Optional Secondary Line (Fastest laps, DNFs, Sprint Points) */}
             {(fastestLaps > 0 || dnfs > 0 || sprintPoints > 0) && (
               <div className="grid grid-cols-3 border-t border-l border-white/10 bg-zinc-900/10">
                 <div className="p-3 border-b border-r border-white/10 flex items-center justify-between">

@@ -8,34 +8,39 @@ export default function DriverProfileLoading() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left Column: Vertical Hero Cockpit Skeleton */}
         <div className="lg:col-span-5 flex flex-col">
-          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col justify-between h-full">
+          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col justify-between h-full min-h-[500px] sm:min-h-[540px] lg:min-h-[570px]">
             <div className="h-[2px] w-full bg-zinc-800/60" />
 
-            <div className="p-5 sm:p-6 lg:p-7 space-y-4">
-              <div className="flex items-center gap-2.5">
-                <div className="h-7 w-28 bg-zinc-800/80 rounded-xl" />
-                <div className="h-7 w-32 bg-zinc-800/60 rounded-xl" />
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <div className="h-4 w-20 bg-zinc-800/70 rounded" />
-                <div className="h-10 sm:h-12 w-48 sm:w-64 bg-zinc-800 rounded" />
-              </div>
+            {/* Standing Driver Portrait Skeleton on the Right */}
+            <div className="absolute right-4 bottom-0 w-[46%] h-[85%] flex items-end justify-center pointer-events-none">
+              <div className="w-full h-full max-h-[460px] bg-zinc-800/20 rounded-2xl" />
             </div>
 
-            {/* Standing Driver Portrait Skeleton */}
-            <div className="relative w-full h-[380px] sm:h-[440px] lg:h-[460px] bg-zinc-900/30 flex items-center justify-center">
-              <div className="w-40 h-72 bg-zinc-800/40 rounded-2xl" />
-            </div>
-
-            {/* Lower Bio Grid Skeleton */}
-            <div className="grid grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="p-4 border-b border-r border-white/10 bg-zinc-900/20 space-y-2">
-                  <div className="h-3 w-16 bg-zinc-800/80 rounded" />
-                  <div className="h-4 w-24 bg-zinc-700/80 rounded" />
+            {/* Left Content Column Skeleton */}
+            <div className="p-5 sm:p-6 lg:p-7 relative z-10 flex flex-col justify-between h-full space-y-6 max-w-[62%] sm:max-w-[58%] lg:max-w-[60%]">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-24 bg-zinc-800/80 rounded-xl" />
+                  <div className="h-7 w-28 bg-zinc-800/60 rounded-xl" />
                 </div>
-              ))}
+
+                <div className="space-y-2 pt-1">
+                  <div className="h-4 w-16 bg-zinc-800/70 rounded" />
+                  <div className="h-10 sm:h-12 w-44 sm:w-56 bg-zinc-800 rounded" />
+                </div>
+
+                <div className="h-9 w-20 bg-zinc-800/50 rounded-lg pt-1" />
+              </div>
+
+              {/* Bio Grid Skeleton (2x2 under name) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60 rounded-2xl overflow-hidden shadow-xl mt-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="p-3 border-b border-r border-white/10 bg-zinc-900/20 space-y-2">
+                    <div className="h-3 w-16 bg-zinc-800/80 rounded" />
+                    <div className="h-4 w-20 bg-zinc-700/80 rounded" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
