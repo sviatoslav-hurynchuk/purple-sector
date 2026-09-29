@@ -224,8 +224,6 @@ export async function ConstructorsContent({
             <span>{sortedConstructors.length} Constructors</span>
             <span className="text-zinc-600">•</span>
             <span>{uniqueDriverIds.size} Drivers</span>
-            <span className="text-zinc-600">•</span>
-            <span>Official FIA World Championship Grid</span>
           </p>
         </div>
 
@@ -256,11 +254,11 @@ export async function ConstructorsContent({
                     <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
                       <div
                         className={cn(
-                          'size-10 sm:size-11 rounded-2xl border flex items-center justify-center shrink-0 shadow-inner p-2',
+                          'size-10 sm:size-11 rounded-2xl border flex items-center justify-center shrink-0 p-0.5 sm:p-1 overflow-hidden',
                           isLight ? 'bg-black/10 border-black/15' : 'bg-black/20 border-white/20'
                         )}
                       >
-                        <TeamLogo constructorId={team.constructorId} season={year} size={26} />
+                        <TeamLogo constructorId={team.constructorId} season={year} size={36} />
                       </div>
 
                       <div className="min-w-0 space-y-0.5">
@@ -375,18 +373,9 @@ export async function ConstructorsContent({
 
                             {/* Driver Identity */}
                             <div className="relative z-10 space-y-0.5 max-w-[65%]">
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className="size-1.5 rounded-full shrink-0 shadow-xs"
-                                  style={{
-                                    backgroundColor: driverColor,
-                                    boxShadow: `0 0 6px ${driverColor}80`,
-                                  }}
-                                />
-                                <p className="text-[11px] font-mono font-semibold text-zinc-400 uppercase tracking-wider truncate">
-                                  {driver.givenName}
-                                </p>
-                              </div>
+                              <p className="text-[11px] font-mono font-semibold text-zinc-400 uppercase tracking-wider truncate">
+                                {driver.givenName}
+                              </p>
                               <h3 className="text-lg sm:text-2xl font-black font-sans text-white uppercase tracking-tight transition-colors drop-shadow-sm truncate group-hover/driver:text-zinc-100">
                                 {driver.familyName}
                               </h3>
@@ -402,7 +391,7 @@ export async function ConstructorsContent({
                               <CountryFlag countryName={driver.nationality} className="w-4 h-3 rounded-xs shrink-0" />
                               {dStanding ? (
                                 <span className="text-xs font-mono font-bold text-zinc-300">
-                                  P{dPosLabel} <span className="text-zinc-500 font-normal">({dStanding.points} pts)</span>
+                                  P{dPosLabel}
                                 </span>
                               ) : (
                                 <span className="text-[11px] font-mono text-zinc-400">

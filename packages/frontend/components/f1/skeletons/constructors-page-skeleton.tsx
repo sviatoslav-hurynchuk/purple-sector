@@ -30,7 +30,7 @@ export function ConstructorsPageSkeleton({ onlyGrid = false }: ConstructorsPageS
             {/* Header */}
             <div className="p-4 sm:p-5 border-b border-black/15 bg-zinc-800/80 flex items-center justify-between">
               <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
-                <div className="size-10 sm:size-11 rounded-2xl bg-zinc-700/60 p-2 shrink-0" />
+                <div className="size-10 sm:size-11 rounded-2xl bg-zinc-700/60 p-0.5 sm:p-1 shrink-0" />
                 <div className="space-y-1.5">
                   <div className="h-3 w-16 bg-zinc-700/80 rounded" />
                   <div className="h-5 w-36 sm:w-44 bg-zinc-700 rounded" />
