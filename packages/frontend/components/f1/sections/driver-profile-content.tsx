@@ -1,18 +1,21 @@
 import Link from 'next/link';
 import { DriverImage } from '@/components/f1/driver-image';
-import type { DriverProfile, DriverSeasonStanding, TeammatePairBattle } from '@/types/f1';
+import type { DriverProfile, DriverSeasonStanding } from '@/types/f1';
 import { CountryFlag } from '@/components/f1/country-flag';
+import { TeamLogo } from '@/components/f1/team-logo';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { getTeamTheme } from '@/lib/team-colors';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ExternalLink, Trophy, Swords, ChevronRight } from 'lucide-react';
-import { TeamBattleCard } from '@/components/f1/head-to-head/team-battle-card';
+import { cn } from '@/lib/utils';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Trophy,
+  ExternalLink,
+  Zap,
+} from 'lucide-react';
 
 interface DriverProfileContentProps {
   profile: DriverProfile;
-  headToHeadBattle?: TeammatePairBattle | null;
-  h2hSeason?: number;
 }
 
 function calculateAge(dateOfBirth: string): number | null {
@@ -24,162 +27,215 @@ function calculateAge(dateOfBirth: string): number | null {
   return new Date(ageMs).getUTCFullYear() - 1970;
 }
 
-function ordinal(n: number): string {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
-}
-
-/** A single stats row: label on left, value on right, with a bottom divider */
-function StatRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex items-baseline justify-between py-3 border-b border-zinc-800/70 last:border-0">
-      <span className="text-sm text-zinc-400 font-medium">{label}</span>
-      <span className="text-xl font-black font-mono tabular-nums text-white">{value}</span>
-    </div>
-  );
-}
-
-export function DriverProfileContent({
-  profile,
-  headToHeadBattle,
-  h2hSeason = 2024,
-}: DriverProfileContentProps) {
-  const { driver, careerStats, seasonHistory } = profile;
+export function DriverProfileContent({ profile }: DriverProfileContentProps) {
+  const { driver, careerStats, seasonHistory, officialStats } = profile;
   const age = calculateAge(driver.dateOfBirth);
 
-  // Current season = most recent entry in seasonHistory (already sorted desc)
+  // Current / latest season entry (already sorted descending)
   const currentSeason: DriverSeasonStanding | undefined = seasonHistory[0];
-  // Current team from latest season
-  const currentConstructorId = currentSeason?.constructors[0]?.constructorId;
-  const currentTeamName = currentSeason?.constructors[0]?.name ?? '—';
+  const currentConstructor = currentSeason?.constructors[0];
+  const currentConstructorId = currentConstructor?.constructorId;
+  const currentTeamName = currentConstructor?.name ?? '—';
   const teamTheme = getTeamTheme(currentConstructorId);
-  const isLightTeam = teamTheme.textColor === 'dark';
+
+  const activeSeason =
+    officialStats?.season?.year ?? currentSeason?.season ?? '2026';
 
   const photoUrl = getDriverPhotoUrl(
     driver.driverId,
     driver.givenName,
     driver.familyName,
-    profile.officialStats?.season?.year ?? currentSeason?.season ?? '2026',
+    activeSeason,
     currentConstructorId
   );
 
-  // Career points — computed from all seasons
-  const careerPoints = seasonHistory.reduce(
-    (sum, s) => sum + parseFloat(s.points || '0'),
-    0
-  );
+  // Current season calculations
+  const seasonPosRaw =
+    officialStats?.season?.position ?? currentSeason?.position ?? '—';
+  const seasonPosNum = parseInt(seasonPosRaw, 10);
+  const posLabel = Number.isFinite(seasonPosNum)
+    ? seasonPosNum.toString().padStart(2, '0')
+    : seasonPosRaw;
+
+  const seasonPoints =
+    officialStats?.season?.points ?? currentSeason?.points ?? '0';
+  const gpRaces =
+    officialStats?.season?.gpRaces ??
+    (currentSeason ? parseInt(currentSeason.round || '0', 10) : 0);
+  const gpWins =
+    officialStats?.season?.gpWins ??
+    (currentSeason ? parseInt(currentSeason.wins || '0', 10) : 0);
+  const gpPodiums = officialStats?.season?.gpPodiums ?? 0;
+  const gpPoles = officialStats?.season?.gpPoles ?? 0;
+  const gpTop10s = officialStats?.season?.gpTop10s ?? 0;
+  const fastestLaps = officialStats?.season?.fastestLaps ?? 0;
+  const dnfs = officialStats?.season?.dnfs ?? 0;
+  const sprintPoints = officialStats?.season?.sprintPoints ?? 0;
+
+  // Career calculations
+  const careerPoints =
+    officialStats?.career?.careerPoints ??
+    seasonHistory.reduce((sum, s) => sum + parseFloat(s.points || '0'), 0);
+  const grandsPrixEntered =
+    officialStats?.career?.grandsPrixEntered ?? careerStats.totalRaces;
+  const worldChampionships =
+    officialStats?.career?.worldChampionships ?? careerStats.championships;
+  const careerWins = careerStats.wins;
+  const careerPodiums = officialStats?.career?.podiums ?? careerStats.podiums;
+  const careerPoles =
+    officialStats?.career?.polePositions ?? careerStats.poles;
+
+  const driverNumber = driver.permanentNumber;
 
   return (
-    <div className="space-y-0">
-      {/* ── Back button ──────────────────────────────────────── */}
-      <div className="mb-6">
+    <div className="space-y-6 sm:space-y-8">
+      {/* ── Top Navigation Bar ───────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-4">
         <Link
           href="/drivers"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
         >
-          <ArrowLeft className="size-4" />
-          <span>All Drivers</span>
+          <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
+          <span>ALL DRIVERS</span>
         </Link>
+
+        <div className="flex items-center gap-2 text-xs font-mono font-bold text-zinc-400">
+          <span className="size-2 rounded-full" style={{ backgroundColor: teamTheme.primary }} />
+          <span>{activeSeason} DRIVER PROFILE</span>
+        </div>
       </div>
 
-      {/* ── HERO SECTION ─────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl border border-border mb-3">
-        {/* Team color background strip */}
+      {/* ── Section 1: Monolithic Hero Cockpit Shell ─────────────────────── */}
+      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative">
+        {/* Dynamic Top Livery Accent Strip */}
+        <div className="h-[2px] w-full" style={{ backgroundColor: teamTheme.primary }} />
+
+        {/* Ambient Livery Lighting */}
         <div
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(120deg, ${teamTheme.primary}CC 0%, ${teamTheme.primary}66 35%, transparent 65%)`,
-          }}
+          className="absolute -top-24 -left-24 size-96 rounded-full opacity-20 blur-3xl pointer-events-none"
+          style={{ backgroundColor: teamTheme.primary }}
         />
-        {/* Dark overlay to keep readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-black/5 to-black/50" />
 
-        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-0">
-          {/* Left: driver info */}
-          <div className="lg:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-between gap-6">
-            {/* Nationality row */}
-            <div className="flex items-center gap-3">
-              <CountryFlag countryName={driver.nationality} />
-              <span className="text-sm font-semibold uppercase tracking-widest text-white/70">
-                {driver.nationality}
-              </span>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 relative z-10">
+          {/* Left Column: Driver Identity & Bio Matrix */}
+          <div className="lg:col-span-7 p-5 sm:p-7 lg:p-9 flex flex-col justify-between space-y-6">
+            <div className="space-y-4">
+              {/* Header Badges: Nationality + Team Link */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/60 backdrop-blur-sm">
+                  <CountryFlag countryName={driver.nationality} className="w-4 h-3 rounded-xs shrink-0" />
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                    {driver.nationality}
+                  </span>
+                </div>
 
-            {/* Name block */}
-            <div>
-              <p className="text-sm sm:text-lg font-medium uppercase tracking-widest text-white/60 mb-1">
-                {driver.givenName}
-              </p>
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-none">
-                {driver.familyName}
-              </h1>
-
-              {/* Team badge */}
-              <div className="flex flex-wrap items-center gap-2 mt-4">
-                <span
-                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border"
-                  style={{
-                    backgroundColor: teamTheme.primary,
-                    color: isLightTeam ? '#000' : '#fff',
-                    borderColor: isLightTeam ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)',
-                  }}
-                >
-                  {currentTeamName}
-                </span>
-                {driver.code && (
-                  <Badge variant="outline" className="font-mono text-sm font-bold border-white/30 text-white/80">
-                    {driver.code}
-                  </Badge>
+                {currentConstructorId && (
+                  <Link
+                    href={`/constructors/${currentConstructorId}`}
+                    className="group/team inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/60 backdrop-blur-sm hover:border-white/20 hover:bg-zinc-900/90 transition-all"
+                  >
+                    <div className="size-4.5 rounded flex items-center justify-center shrink-0 overflow-hidden">
+                      <TeamLogo constructorId={currentConstructorId} season={activeSeason} size={18} />
+                    </div>
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 group-hover/team:text-white transition-colors">
+                      {currentTeamName}
+                    </span>
+                    <ChevronRight className="size-3 text-zinc-500 group-hover/team:translate-x-0.5 group-hover/team:text-white transition-all" />
+                  </Link>
                 )}
-                {driver.permanentNumber && (
-                  <Badge className="bg-white/10 text-white font-mono text-sm font-bold border-0 backdrop-blur">
-                    #{driver.permanentNumber}
-                  </Badge>
+              </div>
+
+              {/* Typographic Nameplate */}
+              <div>
+                <p className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest text-zinc-400">
+                  {driver.givenName}
+                </p>
+                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black font-sans uppercase tracking-tight text-white leading-none mt-1">
+                  {driver.familyName}
+                </h1>
+              </div>
+
+              {/* Badges Row: Permanent Number + Code + World Champion Pill */}
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                {driverNumber && (
+                  <span className="text-3xl sm:text-4xl font-black italic text-zinc-700 font-mono tracking-tighter select-none">
+                    #{driverNumber}
+                  </span>
+                )}
+                {driver.code && (
+                  <span className="px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 font-mono text-xs font-black uppercase tracking-wider text-zinc-200">
+                    {driver.code}
+                  </span>
+                )}
+                {worldChampionships > 0 && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 font-mono text-xs font-black tracking-wide shadow-sm">
+                    <Trophy className="size-3.5 fill-amber-400/20 text-amber-400 shrink-0" />
+                    <span>{worldChampionships}× WORLD CHAMPION</span>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Bio info row */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-white/10 pt-5">
-              {driver.dateOfBirth && (
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-white/40 font-medium">Date of Birth</p>
-                  <p className="font-mono font-semibold text-white mt-1 text-sm">
-                    {driver.dateOfBirth}
-                    {age !== null && <span className="text-white/50 ml-1">({age})</span>}
+            {/* Seamless Architectural Bio Matrix (1px Contiguous Grid) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60 rounded-2xl overflow-hidden shadow-xl">
+              {/* Cell 1: Date of Birth */}
+              <div className="p-3 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors">
+                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                  Date of Birth
+                </p>
+                <p className="text-sm font-mono font-bold text-white mt-1">
+                  {driver.dateOfBirth || '—'}
+                  {age !== null && (
+                    <span className="text-xs font-normal text-zinc-400 ml-1">({age} y/o)</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Cell 2: Primary Constructor */}
+              <div className="p-3 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors">
+                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                  Constructor
+                </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: teamTheme.primary }} />
+                  <p className="text-sm font-sans font-bold text-white truncate">
+                    {currentTeamName}
                   </p>
                 </div>
-              )}
-              {driver.url && (
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-white/40 font-medium">Wikipedia</p>
+              </div>
+
+              {/* Cell 3: Biography */}
+              <div className="p-3 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors col-span-2 sm:col-span-1">
+                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                  Biography
+                </p>
+                {driver.url ? (
                   <a
                     href={driver.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 font-semibold text-primary hover:underline mt-1 text-sm"
+                    className="inline-flex items-center gap-1 text-sm font-mono font-semibold text-primary hover:underline mt-1 truncate"
                   >
-                    Biography <ExternalLink className="size-3" />
+                    <span>Wikipedia</span>
+                    <ExternalLink className="size-3 shrink-0" />
                   </a>
-                </div>
-              )}
-              {careerStats.championships > 0 && (
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-white/40 font-medium">Championships</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="font-mono font-black text-amber-400 text-2xl">
-                      {careerStats.championships}×
-                    </span>
-                    <Trophy className="size-6 text-amber-400 fill-amber-400/20" />
-                  </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-sm font-mono text-zinc-500 mt-1">—</p>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="lg:col-span-5 relative h-80 sm:h-96 lg:h-full min-h-[360px] flex items-start justify-center lg:justify-end overflow-hidden">
-            <div className="relative w-full h-[250%] top-2 sm:top-4 flex items-start">
+          {/* Right Column: Driver Cutout Area & Telemetry Ribbon */}
+          <div className="lg:col-span-5 relative overflow-hidden min-h-[360px] sm:min-h-[440px] lg:min-h-[480px] flex items-end justify-center lg:justify-end border-t lg:border-t-0 lg:border-l border-white/10 bg-zinc-950/40">
+            {/* Ambient Cutout Glow */}
+            <div
+              className="absolute -top-10 -right-10 size-64 rounded-full opacity-20 blur-3xl pointer-events-none"
+              style={{ backgroundColor: teamTheme.primary }}
+            />
+
+            {/* Inward Facing Authentic Driver Photo */}
+            <div className="relative w-full h-[260%] sm:h-[280%] top-2 sm:top-4 flex items-start justify-center">
               <DriverImage
                 src={photoUrl}
                 alt={`${driver.givenName} ${driver.familyName}`}
@@ -190,223 +246,403 @@ export function DriverProfileContent({
                 unoptimized
               />
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* ── STATISTICS SECTION ───────────────────────────────── */}
-      <div className="mt-8">
-        {/* Section header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-black uppercase tracking-widest text-foreground">
-              Statistics
-            </h2>
-            <div className="h-0.5 mt-2 w-24" style={{ backgroundColor: teamTheme.primary }} />
-          </div>
-        </div>
+            {/* Base Fade Gradient */}
+            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-transparent pointer-events-none z-10" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7">
-            <h3 className="text-xl font-black uppercase tracking-widest text-foreground mb-4 flex items-center gap-2">
-              <span>{profile.officialStats?.season?.year ?? currentSeason?.season ?? '2026'} Season</span>
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
-              <div>
-                <StatRow
-                  label="Championship Position"
-                  value={
-                    profile.officialStats?.season?.position ??
-                    (currentSeason?.position
-                      ? isNaN(parseInt(currentSeason.position, 10))
-                        ? currentSeason.position
-                        : ordinal(parseInt(currentSeason.position, 10))
-                      : '—')
-                  }
-                />
-                <StatRow
-                  label="Season Points"
-                  value={profile.officialStats?.season?.points ?? currentSeason?.points ?? '0'}
-                />
-                <StatRow
-                  label="Grand Prix Races"
-                  value={profile.officialStats?.season?.gpRaces ?? '—'}
-                />
-                <StatRow
-                  label="Grand Prix Wins"
-                  value={profile.officialStats?.season?.gpWins ?? currentSeason?.wins ?? 0}
-                />
+            {/* Integrated Bottom Telemetry Ribbon */}
+            <div className="absolute bottom-0 inset-x-0 h-12 border-t border-white/10 bg-zinc-950/90 backdrop-blur-md px-5 flex items-center justify-between z-20">
+              <div className="flex items-center gap-2 font-mono text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                <span>{activeSeason} STANDING:</span>
+                <span className="text-white font-black">P{posLabel}</span>
               </div>
-              <div>
-                <StatRow
-                  label="Grand Prix Podiums"
-                  value={profile.officialStats?.season?.gpPodiums ?? 0}
-                />
-                <StatRow
-                  label="Pole Positions"
-                  value={profile.officialStats?.season?.gpPoles ?? 0}
-                />
-                <StatRow
-                  label="Top 10 Finishes"
-                  value={profile.officialStats?.season?.gpTop10s ?? 0}
-                />
-                {(profile.officialStats?.season?.sprintPoints ?? 0) > 0 && (
-                  <StatRow
-                    label="Sprint Points"
-                    value={profile.officialStats?.season?.sprintPoints ?? 0}
-                  />
-                )}
+              <div className="font-mono text-sm font-black text-amber-400 tracking-tight">
+                {seasonPoints} <span className="text-[10px] text-zinc-500 font-bold uppercase">PTS</span>
               </div>
             </div>
           </div>
-
-          {/* Right: Career stats card */}
-          <div className="lg:col-span-5">
-            <Card className="border-border bg-zinc-900/80 h-full">
-              <CardHeader className="pb-2 pt-5 px-5">
-                <h3 className="text-xl font-black uppercase tracking-widest text-foreground">
-                  Career Stats
-                </h3>
-                <div className="h-0.5 mt-1 bg-border" />
-              </CardHeader>
-              <CardContent className="px-5 pb-5 pt-0">
-                <StatRow
-                  label="Grands Prix Entered"
-                  value={profile.officialStats?.career.grandsPrixEntered ?? careerStats.totalRaces}
-                />
-                <StatRow
-                  label="Career Points"
-                  value={profile.officialStats?.career.careerPoints ?? careerPoints}
-                />
-                {profile.officialStats?.career.highestRaceFinish && (
-                  <StatRow label="Highest Race Finish" value={profile.officialStats.career.highestRaceFinish} />
-                )}
-                {(profile.officialStats?.career.worldChampionships ?? careerStats.championships) > 0 && (
-                  <StatRow
-                    label="World Championships"
-                    value={profile.officialStats?.career.worldChampionships ?? careerStats.championships}
-                  />
-                )}
-                <StatRow
-                  label="Race Wins"
-                  value={careerStats.wins}
-                />
-                <StatRow
-                  label="Podiums"
-                  value={profile.officialStats?.career.podiums ?? careerStats.podiums}
-                />
-                <StatRow
-                  label="Pole Positions"
-                  value={profile.officialStats?.career.polePositions ?? careerStats.poles}
-                />
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
 
-      {/* ── TEAMMATE HEAD-TO-HEAD DUEL ────────────────────────── */}
-      {headToHeadBattle && (
-        <div className="mt-10 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Swords className="h-5 w-5 text-purple-400" />
-              <h2 className="text-xl font-black uppercase tracking-widest text-foreground">
-                Teammate Head-to-Head Duel ({h2hSeason})
+      {/* ── Section 2: Monolithic Telemetry & Performance Matrix ──────────── */}
+      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
+        {/* Section Header */}
+        <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-6 rounded-full shrink-0" style={{ backgroundColor: teamTheme.primary }} />
+            <div>
+              <h2 className="text-base sm:text-lg font-black font-sans uppercase tracking-tight text-white">
+                PERFORMANCE METRICS &amp; CAREER TELEMETRY
               </h2>
+              <p className="text-xs font-mono text-zinc-400">
+                Official campaign telemetry combined with all-time historical benchmarks
+              </p>
             </div>
-            <Link
-              href={`/head-to-head?season=${h2hSeason}`}
-              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
-            >
-              <span>View Full Grid</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
 
-          <TeamBattleCard
-            battles={[headToHeadBattle]}
-            season={h2hSeason}
-            discipline="all"
-          />
+          <div className="flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 font-mono text-xs font-bold text-zinc-300">
+            <span className="size-2 rounded-full" style={{ backgroundColor: teamTheme.primary }} />
+            <span>{currentTeamName} {driverNumber ? `• #${driverNumber}` : ''}</span>
+          </div>
         </div>
-      )}
 
-      {/* ── SEASON HISTORY TABLE ─────────────────────────────── */}
-      <div className="mt-10">
-        <div className="mb-4">
-          <h2 className="text-2xl font-black uppercase tracking-widest text-foreground">
-            Season History
-          </h2>
-          <div className="h-0.5 mt-2 bg-border" />
+        {/* ── Cluster A: Current Season Telemetry ── */}
+        <div className="px-5 py-2.5 bg-zinc-900/60 border-b border-white/10 flex items-center justify-between">
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+            <Zap className="size-3.5 text-amber-400" />
+            {activeSeason} Season Championship Record
+          </span>
+          <span className="text-xs font-mono text-zinc-400">
+            {gpRaces > 0 ? `${gpRaces} Grands Prix Contested` : 'Season active'}
+          </span>
+        </div>
+
+        {/* Row 1: Primary Season Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 border-b border-white/10 border-l border-white/10 bg-zinc-950/60">
+          {/* 1. Standings Position */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Standing Pos
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                P{posLabel}
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                {seasonPosNum === 1 ? 'Championship Leader' : 'World Classification'}
+              </p>
+            </div>
+          </div>
+
+          {/* 2. Season Points */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Points
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-amber-400">
+                {seasonPoints}{' '}
+                <span className="text-xs text-zinc-400 font-normal">pts</span>
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                {sprintPoints > 0 ? `incl. +${sprintPoints} sprint` : 'Total accumulated'}
+              </p>
+            </div>
+          </div>
+
+          {/* 3. Grand Prix Wins */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Grand Prix Wins
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                {gpWins}
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                {gpRaces > 0 ? `${((gpWins / gpRaces) * 100).toFixed(0)}% win rate` : 'Victories'}
+              </p>
+            </div>
+          </div>
+
+          {/* 4. Podiums */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Podiums
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                {gpPodiums}
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">Top-3 finishes</p>
+            </div>
+          </div>
+
+          {/* 5. Pole Positions */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Pole Positions
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                {gpPoles}
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">P1 in qualifying</p>
+            </div>
+          </div>
+
+          {/* 6. Top 10 Finishes */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Top 10 Finishes
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                {gpTop10s}
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">Points finishes</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: Secondary Season Telemetry (Fastest laps, DNFs, etc.) */}
+        {(fastestLaps > 0 || dnfs > 0 || sprintPoints > 0) && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 border-b border-white/10 border-l border-white/10 bg-zinc-900/10">
+            <div className="p-3 sm:p-3.5 border-b border-r border-white/10 bg-zinc-900/15 hover:bg-zinc-900/30 transition-colors flex items-center justify-between">
+              <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                Fastest Laps
+              </span>
+              <span className="text-sm font-black font-mono text-amber-400">
+                {fastestLaps}x
+              </span>
+            </div>
+
+            <div className="p-3 sm:p-3.5 border-b border-r border-white/10 bg-zinc-900/15 hover:bg-zinc-900/30 transition-colors flex items-center justify-between">
+              <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                Retirements (DNF)
+              </span>
+              <span className="text-sm font-black font-mono text-zinc-300">
+                {dnfs}
+              </span>
+            </div>
+
+            <div className="p-3 sm:p-3.5 border-b border-r border-white/10 bg-zinc-900/15 hover:bg-zinc-900/30 transition-colors flex items-center justify-between col-span-2 sm:col-span-1">
+              <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                Sprint Points
+              </span>
+              <span className="text-sm font-black font-mono text-emerald-400">
+                +{sprintPoints} pts
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Cluster B: All-Time Career Historic Milestones ── */}
+        <div className="px-5 py-2.5 bg-zinc-900/60 border-b border-white/10 flex items-center justify-between">
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+            <Trophy className="size-3.5 text-amber-400" />
+            All-Time Career Historic Milestones
+          </span>
+          <span className="text-xs font-mono text-zinc-400">
+            {grandsPrixEntered} Grands Prix Entered
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 border-l border-white/10 bg-zinc-950/60">
+          {/* 1. World Championships */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              World Titles
+            </p>
+            <div className="pt-2">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xl sm:text-2xl font-black font-mono text-amber-400">
+                  {worldChampionships}×
+                </p>
+                {worldChampionships > 0 && (
+                  <Trophy className="size-4.5 text-amber-400 fill-amber-400/20" />
+                )}
+              </div>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                {worldChampionships > 0 ? 'F1 World Champion' : 'Championships'}
+              </p>
+            </div>
+          </div>
+
+          {/* 2. Total Career Starts */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Career Starts
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                {grandsPrixEntered}
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">Grands Prix entered</p>
+            </div>
+          </div>
+
+          {/* 3. Career Points */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Career Points
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                {careerPoints.toLocaleString('en-US')}{' '}
+                <span className="text-xs text-zinc-400 font-normal">pts</span>
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">All-time total</p>
+            </div>
+          </div>
+
+          {/* 4. Career Wins */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Career Wins
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                {careerWins}
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                {grandsPrixEntered > 0
+                  ? `${((careerWins / grandsPrixEntered) * 100).toFixed(1)}% victory rate`
+                  : 'Victories'}
+              </p>
+            </div>
+          </div>
+
+          {/* 5. Career Podiums */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Career Podiums
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                {careerPodiums}
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">Top-3 podium finishes</p>
+            </div>
+          </div>
+
+          {/* 6. Career Poles */}
+          <div className="p-3.5 sm:p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+            <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Career Poles
+            </p>
+            <div className="pt-2">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                {careerPoles}
+              </p>
+              <p className="text-xs font-mono text-zinc-400 mt-0.5">Qualifying poles</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 3: Monolithic Season Trajectory & Championship History ─ */}
+      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-6 rounded-full shrink-0 bg-amber-400" />
+            <div>
+              <h2 className="text-base sm:text-lg font-black font-sans uppercase tracking-tight text-white">
+                CHAMPIONSHIP TRAJECTORY
+              </h2>
+              <p className="text-xs font-mono text-zinc-400">
+                Complete progression across {seasonHistory.length} Formula 1 championship seasons
+              </p>
+            </div>
+          </div>
+
+          <span className="text-xs font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 text-zinc-300">
+            {seasonHistory.length} SEASONS
+          </span>
         </div>
 
         {seasonHistory.length > 0 ? (
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs font-mono">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-widest text-muted-foreground font-bold w-20">
-                    Season
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-widest text-muted-foreground font-bold">
-                    Team
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs uppercase tracking-widest text-muted-foreground font-bold w-24">
-                    Position
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs uppercase tracking-widest text-muted-foreground font-bold">
-                    Points
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs uppercase tracking-widest text-muted-foreground font-bold w-16">
-                    Wins
-                  </th>
+                <tr className="border-b border-white/10 bg-zinc-900/80 text-zinc-300 text-xs uppercase tracking-wider font-bold">
+                  <th className="py-3 px-4 w-28">Season</th>
+                  <th className="py-3 px-4">Constructor Team</th>
+                  <th className="py-3 px-4 text-center w-36">Standing</th>
+                  <th className="py-3 px-4 text-right w-28">Points</th>
+                  <th className="py-3 px-4 text-right w-20">Wins</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-white/5">
                 {seasonHistory.map((sh, idx) => {
                   const isChampion = sh.position === '1';
                   const pos = parseInt(sh.position, 10);
                   const constructorId = sh.constructors[0]?.constructorId;
                   const rowTheme = getTeamTheme(constructorId);
+                  const isCurrentRow = sh.season === activeSeason;
 
                   return (
                     <tr
                       key={`${sh.season}-${idx}`}
-                      className="border-b border-zinc-800/50 last:border-0 hover:bg-zinc-800/30 transition-colors group"
+                      className={cn(
+                        'hover:bg-zinc-900/40 transition-colors group',
+                        isCurrentRow && 'bg-white/[0.02]'
+                      )}
                     >
-                      {/* Team color indicator + season */}
-                      <td className="px-4 py-3 font-mono font-bold tabular-nums">
-                        <div className="flex items-center gap-2">
+                      {/* Season Year + Team Indicator */}
+                      <td className="py-3.5 px-4 font-bold tabular-nums">
+                        <div className="flex items-center gap-2.5">
                           <span
-                            className="inline-block w-1 h-5 rounded-full flex-shrink-0"
+                            className="inline-block w-1.5 h-4.5 rounded-full shrink-0 shadow-xs"
                             style={{ backgroundColor: rowTheme.primary }}
                           />
                           <Link
                             href={`/standings?season=${sh.season}`}
-                            className="hover:text-primary transition-colors"
+                            className="text-white hover:text-primary transition-colors text-sm font-bold"
                           >
                             {sh.season}
                           </Link>
+                          {isCurrentRow && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-zinc-300 uppercase">
+                              Active
+                            </span>
+                          )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground font-semibold">
-                        {sh.constructors.map((c) => c.name).join(', ') || '—'}
-                      </td>
-                      <td className="px-4 py-3 text-center font-mono font-bold tabular-nums">
-                        {isChampion ? (
-                          <span className="inline-flex items-center justify-center gap-1 text-amber-400 font-extrabold">
-                            <Trophy className="size-3.5" />1
-                          </span>
+
+                      {/* Constructor Team with Logo */}
+                      <td className="py-3.5 px-4 font-sans font-bold">
+                        {constructorId ? (
+                          <Link
+                            href={`/constructors/${constructorId}`}
+                            className="inline-flex items-center gap-2 text-zinc-300 hover:text-white transition-colors group/c"
+                          >
+                            <div className="size-4.5 rounded flex items-center justify-center shrink-0 overflow-hidden">
+                              <TeamLogo constructorId={constructorId} season={sh.season} size={18} />
+                            </div>
+                            <span className="truncate">
+                              {sh.constructors.map((c) => c.name).join(', ') || '—'}
+                            </span>
+                          </Link>
                         ) : (
-                          <span className={pos <= 3 ? 'text-primary' : ''}>{sh.position}</span>
+                          <span className="text-zinc-500">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono font-bold tabular-nums text-foreground">
-                        {sh.points}
+
+                      {/* Championship Finish Standing */}
+                      <td className="py-3.5 px-4 text-center tabular-nums">
+                        {isChampion ? (
+                          <span className="inline-flex items-center justify-center gap-1.5 px-2.5 py-0.5 rounded-md font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs shadow-xs">
+                            <Trophy className="size-3 text-amber-400 shrink-0" />
+                            CHAMPION
+                          </span>
+                        ) : Number.isFinite(pos) && (pos === 2 || pos === 3) ? (
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md font-bold bg-zinc-800 text-white border border-white/20 text-xs">
+                            P{pos.toString().padStart(2, '0')}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 font-bold text-xs">
+                            {Number.isFinite(pos) ? `P${pos.toString().padStart(2, '0')}` : sh.position || '—'}
+                          </span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
-                        {sh.wins}
+
+                      {/* Season Points */}
+                      <td className="py-3.5 px-4 text-right font-bold tabular-nums text-white text-sm">
+                        {sh.points}{' '}
+                        <span className="text-[10px] text-zinc-400 font-normal">pts</span>
+                      </td>
+
+                      {/* Season Wins */}
+                      <td className="py-3.5 px-4 text-right tabular-nums">
+                        {parseInt(sh.wins || '0', 10) > 0 ? (
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs">
+                            {sh.wins}W
+                          </span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -415,7 +651,7 @@ export function DriverProfileContent({
             </table>
           </div>
         ) : (
-          <div className="py-12 text-center text-muted-foreground">
+          <div className="py-12 text-center text-sm font-mono text-zinc-500">
             No championship history available for this driver.
           </div>
         )}
