@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import type { TeammatePairBattle } from '@/types/f1';
 import { DriverImage } from '@/components/f1/driver-image';
@@ -9,12 +9,6 @@ import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { getTeamTheme } from '@/lib/team-colors';
 import { RadarChart } from './radar-chart';
 import { RoundTimeline } from './round-timeline';
-import {
-  Swords,
-  ChevronRight,
-  Clock,
-  Flag,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ArenaFaceoffHeroProps {
@@ -28,25 +22,20 @@ export function ArenaFaceoffHero({
   season,
   className = '',
 }: ArenaFaceoffHeroProps) {
-  const [selectedBattleId, setSelectedBattleId] = useState<string>(
-    battles.find((b) => b.isPrimary)?.id || battles[0]?.id || ''
-  );
+  const primaryId = battles.find((b) => b.isPrimary)?.id || battles[0]?.id || '';
+  const [selectedBattleId, setSelectedBattleId] = useState<string>(primaryId);
   const [activeTab, setActiveTab] = useState<'radar' | 'timeline' | 'stats'>('radar');
 
-  // Synchronize selected battle if absent from the new battles array
-  useEffect(() => {
-    if (battles.length === 0) return;
-    const exists = battles.some((b) => b.id === selectedBattleId);
-    if (!exists) {
-      setSelectedBattleId(battles.find((b) => b.isPrimary)?.id || battles[0]?.id || '');
-    }
-  }, [battles, selectedBattleId]);
+  // Synchronize selected battle if absent from the new battles array without cascading render
+  const resolvedBattleId = battles.some((b) => b.id === selectedBattleId)
+    ? selectedBattleId
+    : primaryId;
 
   const activeBattle =
-    battles.find((b) => b.id === selectedBattleId) || battles[0];
+    battles.find((b) => b.id === resolvedBattleId) || battles[0];
   if (!activeBattle) return null;
 
-  const { constructorId, constructorName, driver1, driver2, stats, rounds } =
+  const { constructorId, driver1, driver2, stats, rounds } =
     activeBattle;
   const theme = getTeamTheme(constructorId);
 
@@ -107,7 +96,6 @@ export function ArenaFaceoffHero({
   const pD2 = stats.points.d2Points;
   const pTotal = Math.max(1, pD1 + pD2);
   const pD1Pct = Math.round((pD1 / pTotal) * 100);
-  const pD2Pct = 100 - pD1Pct;
 
   // Proportional bar width calculations with graceful clamping so bars never collapse to 0%
   const calcBarSplit = (val1: number, val2: number) => {
@@ -123,17 +111,31 @@ export function ArenaFaceoffHero({
   const qBarSplit = calcBarSplit(qD1, qD2);
   const rBarSplit = calcBarSplit(rD1, rD2);
   const pBarSplit = calcBarSplit(pD1, pD2);
-
-  const d1Color = theme.primary;
-  const d2Color =
+  let d1Color = theme.primary;
+  let d2Color =
     theme.secondary ||
     (theme.textColor === 'dark' ? '#27272A' : '#E2E8F0');
-  const d1TextColor =
+  let d1TextColor =
     theme.textColor === 'dark' ? 'text-zinc-950' : 'text-white';
-  const d2TextColor =
+  let d2TextColor =
     (theme.secondaryTextColor ?? 'light') === 'dark'
       ? 'text-zinc-950'
       : 'text-white';
+
+  // For Ferrari: Charles Leclerc gets Rosso Corsa (#E8002D), Lewis Hamilton gets Giallo Modena (#FFF200)
+  if (constructorId === 'ferrari') {
+    const isD1Leclerc = driver1.driverId === 'leclerc';
+    const isD2Leclerc = driver2.driverId === 'leclerc';
+    if (isD2Leclerc || (!isD1Leclerc && driver1.driverId === 'hamilton')) {
+      const tempColor = d1Color;
+      d1Color = d2Color;
+      d2Color = tempColor;
+
+      const tempTextColor = d1TextColor;
+      d1TextColor = d2TextColor;
+      d2TextColor = tempTextColor;
+    }
+  }
 
   return (
     <div
@@ -537,7 +539,7 @@ export function ArenaFaceoffHero({
                       onClick={() => setSelectedBattleId(b.id)}
                       className={cn(
                         'px-2 py-0.5 rounded text-xs transition-colors cursor-pointer',
-                        b.id === selectedBattleId
+                        b.id === resolvedBattleId
                           ? 'bg-primary text-primary-foreground font-bold'
                           : 'text-zinc-400 hover:text-white'
                       )}
@@ -598,6 +600,8 @@ export function ArenaFaceoffHero({
                   driver1={driver1}
                   driver2={driver2}
                   constructorId={constructorId}
+                  d1Color={d1Color}
+                  d2Color={d2Color}
                   size={285}
                 />
               </div>
@@ -612,7 +616,7 @@ export function ArenaFaceoffHero({
                     <div className="pt-1.5 lg:pt-1">
                       <p className="text-base sm:text-lg lg:text-base xl:text-lg font-black font-mono text-white">
                         {deltaFormatted !== '0.000s' ? (
-                          <span style={{ color: theme.primary }}>
+                          <span style={{ color: d1Faster ? d1Color : d2Color }}>
                             {d1Faster ? driver1.code : driver2.code} -{deltaFormatted}
                           </span>
                         ) : (
@@ -632,12 +636,12 @@ export function ArenaFaceoffHero({
                       <p className="text-base sm:text-lg lg:text-base xl:text-lg font-black font-mono text-white">
                         {pD1 >= pD2 ? (
                           <>
-                            <span style={{ color: theme.primary }}>{driver1.code}</span>{' '}
+                            <span style={{ color: d1Color }}>{driver1.code}</span>{' '}
                             <span className="text-xs text-zinc-300 font-normal">({d1PtsShare}%)</span>
                           </>
                         ) : (
                           <>
-                            <span className="text-zinc-200">{driver2.code}</span>{' '}
+                            <span style={{ color: d2Color }}>{driver2.code}</span>{' '}
                             <span className="text-xs text-zinc-300 font-normal">({d2PtsShare}%)</span>
                           </>
                         )}
@@ -664,7 +668,7 @@ export function ArenaFaceoffHero({
                         </span>
                       </div>
                       <p className="text-xs font-mono text-zinc-400 mt-0.5">
-                        <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                        <span style={{ color: d1Color }} className="font-bold">{driver1.code}</span> vs <span style={{ color: d2Color }} className="font-bold">{driver2.code}</span>
                       </p>
                     </div>
                   </div>
@@ -685,7 +689,7 @@ export function ArenaFaceoffHero({
                         </span>
                       </div>
                       <p className="text-xs font-mono text-zinc-400 mt-0.5">
-                        <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                        <span style={{ color: d1Color }} className="font-bold">{driver1.code}</span> vs <span style={{ color: d2Color }} className="font-bold">{driver2.code}</span>
                       </p>
                     </div>
                   </div>
@@ -706,7 +710,7 @@ export function ArenaFaceoffHero({
                         </span>
                       </div>
                       <p className="text-xs font-mono text-zinc-400 mt-0.5">
-                        <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                        <span style={{ color: d1Color }} className="font-bold">{driver1.code}</span> vs <span style={{ color: d2Color }} className="font-bold">{driver2.code}</span>
                       </p>
                     </div>
                   </div>
@@ -727,7 +731,7 @@ export function ArenaFaceoffHero({
                         </span>
                       </div>
                       <p className="text-xs font-mono text-zinc-400 mt-0.5">
-                        <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                        <span style={{ color: d1Color }} className="font-bold">{driver1.code}</span> vs <span style={{ color: d2Color }} className="font-bold">{driver2.code}</span>
                       </p>
                     </div>
                   </div>
@@ -764,7 +768,7 @@ export function ArenaFaceoffHero({
                     </span>
                   </div>
                   <p className="text-xs font-mono text-zinc-400">
-                    <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                    <span style={{ color: d1Color }} className="font-bold">{driver1.code}</span> vs <span style={{ color: d2Color }} className="font-bold">{driver2.code}</span>
                   </p>
                 </div>
               </div>
@@ -782,7 +786,7 @@ export function ArenaFaceoffHero({
                     </span>
                   </div>
                   <p className="text-xs font-mono text-zinc-400">
-                    <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                    <span style={{ color: d1Color }} className="font-bold">{driver1.code}</span> vs <span style={{ color: d2Color }} className="font-bold">{driver2.code}</span>
                   </p>
                 </div>
               </div>
@@ -800,7 +804,7 @@ export function ArenaFaceoffHero({
                     </span>
                   </div>
                   <p className="text-xs font-mono text-zinc-400">
-                    <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                    <span style={{ color: d1Color }} className="font-bold">{driver1.code}</span> vs <span style={{ color: d2Color }} className="font-bold">{driver2.code}</span>
                   </p>
                 </div>
               </div>
@@ -818,7 +822,7 @@ export function ArenaFaceoffHero({
                     </span>
                   </div>
                   <p className="text-xs font-mono text-zinc-400">
-                    <span style={{ color: theme.primary }} className="font-bold">{driver1.code}</span> vs <span className="text-zinc-200 font-bold">{driver2.code}</span>
+                    <span style={{ color: d1Color }} className="font-bold">{driver1.code}</span> vs <span style={{ color: d2Color }} className="font-bold">{driver2.code}</span>
                   </p>
                 </div>
               </div>

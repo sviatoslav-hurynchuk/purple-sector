@@ -11,6 +11,8 @@ interface RadarChartProps {
   constructorId: string;
   className?: string;
   size?: number;
+  d1Color?: string;
+  d2Color?: string;
 }
 
 interface AxisDefinition {
@@ -29,13 +31,18 @@ export function RadarChart({
   constructorId,
   className = '',
   size = 360,
+  d1Color: customD1Color,
+  d2Color: customD2Color,
 }: RadarChartProps) {
   const [hoveredAxis, setHoveredAxis] = useState<number | null>(null);
 
   const teamTheme = getTeamTheme(constructorId);
-  const d1Color = teamTheme.primary;
+  const d1Color = customD1Color ?? teamTheme.primary;
   // Use high-contrast complementary or bright cyan/violet for Driver 2
-  const d2Color = '#94a3b8'; // Slate-400 for clear distinction
+  const d2Color =
+    customD2Color ??
+    teamTheme.secondary ??
+    (teamTheme.textColor === 'dark' ? '#27272A' : '#94a3b8');
 
   const axes: AxisDefinition[] = useMemo(() => {
     // 1. Qualifying H2H
@@ -172,10 +179,10 @@ export function RadarChart({
         <span className="text-zinc-600">vs</span>
         <div className="flex items-center gap-2">
           <span
-            className="w-3 h-3 rounded-full bg-slate-400 ring-2 ring-white/20"
-            style={{ boxShadow: `0 0 8px #94a3b880` }}
+            className="w-3 h-3 rounded-full ring-2 ring-white/20"
+            style={{ backgroundColor: d2Color, boxShadow: `0 0 8px ${d2Color}80` }}
           />
-          <span className="font-bold text-slate-300 tracking-wide">{driver2.code}</span>
+          <span className="font-bold text-zinc-200 tracking-wide">{driver2.code}</span>
         </div>
       </div>
 
@@ -337,8 +344,11 @@ export function RadarChart({
                 {driver1.code}: {axes[hoveredAxis].d1Raw}
               </span>
               <span className="text-zinc-600">vs</span>
-              <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
+              <span className="font-bold text-zinc-200 flex items-center gap-1.5">
+                <span
+                  className="w-2 h-2 rounded-full inline-block"
+                  style={{ backgroundColor: d2Color }}
+                />
                 {driver2.code}: {axes[hoveredAxis].d2Raw}
               </span>
             </div>
