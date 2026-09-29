@@ -17,7 +17,7 @@ export default function DriverProfileLoading() {
             </div>
 
             {/* Left Content Column Skeleton */}
-            <div className="p-5 sm:p-6 lg:p-7 relative z-10 flex flex-col justify-between h-full space-y-6 max-w-[62%] sm:max-w-[58%] lg:max-w-[60%]">
+            <div className="p-5 sm:p-6 lg:p-7 relative z-10 flex flex-col justify-between h-full space-y-5 max-w-[62%] sm:max-w-[58%] lg:max-w-[60%]">
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="h-7 w-24 bg-zinc-800/80 rounded-xl" />
@@ -32,47 +32,58 @@ export default function DriverProfileLoading() {
                 <div className="h-9 w-20 bg-zinc-800/50 rounded-lg pt-1" />
               </div>
 
-              {/* Bio Grid Skeleton (2x2 under name) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60 rounded-2xl overflow-hidden shadow-xl mt-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="p-3 border-b border-r border-white/10 bg-zinc-900/20 space-y-2">
-                    <div className="h-3 w-16 bg-zinc-800/80 rounded" />
-                    <div className="h-4 w-20 bg-zinc-700/80 rounded" />
+              {/* Compact Season Telemetry & Bio Skeleton */}
+              <div className="space-y-2.5 pt-2">
+                <div className="rounded-2xl border border-white/10 bg-zinc-900/60 overflow-hidden shadow-xl">
+                  {/* Header */}
+                  <div className="px-3.5 py-2 border-b border-white/10 bg-zinc-900/80 flex items-center justify-between">
+                    <div className="h-4 w-24 bg-zinc-800 rounded" />
+                    <div className="h-4 w-10 bg-zinc-800/80 rounded" />
                   </div>
-                ))}
+
+                  {/* 2-col KPI */}
+                  <div className="grid grid-cols-2 divide-x divide-white/10 p-3 bg-zinc-950/40">
+                    <div className="space-y-1 pr-3">
+                      <div className="h-3 w-14 bg-zinc-800/80 rounded" />
+                      <div className="h-6 w-12 bg-zinc-700 rounded" />
+                    </div>
+                    <div className="space-y-1 pl-3">
+                      <div className="h-3 w-12 bg-zinc-800/80 rounded" />
+                      <div className="h-6 w-14 bg-zinc-700 rounded" />
+                    </div>
+                  </div>
+
+                  {/* 3-col KPI */}
+                  <div className="grid grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="p-2 border-b border-r border-white/10 bg-zinc-900/20 space-y-1 text-center flex flex-col items-center">
+                        <div className="h-2.5 w-10 bg-zinc-800/80 rounded" />
+                        <div className="h-5 w-8 bg-zinc-700 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bio Meta Footer */}
+                <div className="flex items-center justify-between px-1">
+                  <div className="h-3 w-28 bg-zinc-800/60 rounded" />
+                  <div className="h-3 w-16 bg-zinc-800/60 rounded" />
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Separated Season & Career Stats Skeletons */}
-        <div className="lg:col-span-7 flex flex-col gap-6 justify-between">
-          {/* Card 1: Season Performance Skeleton */}
-          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex-1 flex flex-col">
-            <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
-              <div className="h-5 w-48 bg-zinc-800 rounded" />
-              <div className="h-6 w-28 bg-zinc-800/70 rounded-xl" />
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60 flex-1">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="p-5 border-b border-r border-white/10 bg-zinc-900/20 space-y-3">
-                  <div className="h-3 w-20 bg-zinc-800/80 rounded" />
-                  <div className="h-8 w-16 bg-zinc-700 rounded" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 2: Career Statistics Skeleton */}
-          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex-1 flex flex-col">
+        {/* Right Column: All-Time Career Benchmarks Skeleton (3x3 Grid) */}
+        <div className="lg:col-span-7 flex flex-col">
+          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex-1 flex flex-col justify-between">
             <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
               <div className="h-5 w-48 bg-zinc-800 rounded" />
               <div className="h-6 w-24 bg-zinc-800/70 rounded-xl" />
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60 flex-1">
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: 9 }).map((_, i) => (
                 <div key={i} className="p-5 border-b border-r border-white/10 bg-zinc-900/20 space-y-3">
                   <div className="h-3 w-20 bg-zinc-800/80 rounded" />
                   <div className="h-8 w-16 bg-zinc-700 rounded" />

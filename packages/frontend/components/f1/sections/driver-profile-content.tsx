@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   Trophy,
   ExternalLink,
-  Zap,
 } from 'lucide-react';
 
 interface DriverProfileContentProps {
@@ -81,6 +80,16 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
   const careerPoles =
     officialStats?.career?.polePositions ?? careerStats.poles;
 
+  const startsSafe = Math.max(grandsPrixEntered, 1);
+  const winRate = ((careerWins / startsSafe) * 100).toFixed(1);
+  const podiumRate = ((careerPodiums / startsSafe) * 100).toFixed(1);
+  const pointsPerRace = (careerPoints / startsSafe).toFixed(1);
+
+  // Show trajectory only if multi-season history exists (avoid redundant 1-row table for active season)
+  const isSingleActiveSeason =
+    seasonHistory.length === 1 && seasonHistory[0].season === activeSeason;
+  const hasMultiSeasonHistory = seasonHistory.length > 0 && !isSingleActiveSeason;
+
   const driverNumber = driver.permanentNumber;
 
   return (
@@ -134,8 +143,8 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
               <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent pointer-events-none z-10" />
             </div>
 
-            {/* Left Content Column (Nationality, Name, #Number, Bio 2x2 Matrix) */}
-            <div className="p-5 sm:p-6 lg:p-7 relative z-10 flex flex-col justify-between h-full space-y-6 max-w-[62%] sm:max-w-[58%] lg:max-w-[60%]">
+            {/* Left Content Column (Nationality, Name, #Number, Compact Season & Bio Block) */}
+            <div className="p-5 sm:p-6 lg:p-7 relative z-10 flex flex-col justify-between h-full space-y-5 max-w-[62%] sm:max-w-[58%] lg:max-w-[60%]">
               <div className="space-y-4">
                 {/* Nationality & Constructor Header Strip */}
                 <div className="flex flex-wrap items-center gap-2">
@@ -171,7 +180,7 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                   </h1>
                 </div>
 
-                {/* Number & Champion Status (Moved to left under the name) */}
+                {/* Number & Champion Status */}
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   {driverNumber && (
                     <span className="text-3xl sm:text-4xl font-black italic text-zinc-700 font-mono tracking-tighter select-none">
@@ -187,54 +196,125 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                 </div>
               </div>
 
-              {/* Bio & Details 2x2 Grid (Moved UP into left space under the name) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60 rounded-2xl overflow-hidden shadow-xl mt-4">
-                <div className="p-3 border-b border-r border-white/10 bg-zinc-900/20">
-                  <p className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                    Date of Birth
-                  </p>
-                  <p className="text-xs sm:text-sm font-mono font-bold text-white mt-0.5">
-                    {driver.dateOfBirth || '—'}
-                    {age !== null && (
-                      <span className="text-xs font-normal text-zinc-400 ml-1">({age} y/o)</span>
+              {/* Compact Season Telemetry & Bio Pack */}
+              <div className="space-y-2.5 pt-2">
+                {/* Season Performance Container */}
+                <div className="rounded-2xl border border-white/10 bg-zinc-900/60 backdrop-blur-md overflow-hidden shadow-xl">
+                  {/* Season Header Bar */}
+                  <div className="px-3.5 py-2 border-b border-white/10 bg-zinc-900/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-1.5 h-3.5 rounded-full shrink-0"
+                        style={{ backgroundColor: teamTheme.primary }}
+                      />
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                        {activeSeason} Season
+                      </span>
+                    </div>
+                    {posLabel !== '—' && (
+                      <span className="text-xs font-mono font-bold text-white px-2 py-0.5 rounded bg-white/10">
+                        P{posLabel}
+                      </span>
                     )}
-                  </p>
+                  </div>
+
+                  {/* Primary Standing & Points Row */}
+                  <div className="grid grid-cols-2 divide-x divide-white/10 p-3 bg-zinc-950/40">
+                    <div className="pr-3">
+                      <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                        Standing
+                      </p>
+                      <p className="text-xl sm:text-2xl font-black font-mono text-white mt-0.5">
+                        {posLabel !== '—' ? `P${posLabel}` : '—'}
+                      </p>
+                    </div>
+                    <div className="pl-3">
+                      <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                        Points
+                      </p>
+                      <p className="text-xl sm:text-2xl font-black font-mono text-amber-400 mt-0.5">
+                        {seasonPoints}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Secondary KPI Row: Wins, Podiums, Poles */}
+                  <div className="grid grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60 text-center">
+                    <div className="p-2 border-b border-r border-white/10 bg-zinc-900/20">
+                      <p className="text-[9px] sm:text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                        Wins
+                      </p>
+                      <p className="text-base sm:text-lg font-black font-mono text-white mt-0.5">
+                        {gpWins}
+                      </p>
+                    </div>
+                    <div className="p-2 border-b border-r border-white/10 bg-zinc-900/20">
+                      <p className="text-[9px] sm:text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                        Podiums
+                      </p>
+                      <p className="text-base sm:text-lg font-black font-mono text-white mt-0.5">
+                        {gpPodiums}
+                      </p>
+                    </div>
+                    <div className="p-2 border-b border-r border-white/10 bg-zinc-900/20">
+                      <p className="text-[9px] sm:text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                        Poles
+                      </p>
+                      <p className="text-base sm:text-lg font-black font-mono text-white mt-0.5">
+                        {gpPoles}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Optional Micro Telemetry: Top 10s, Fastest Laps, Sprint PTS, DNFs */}
+                  {(gpTop10s > 0 || fastestLaps > 0 || sprintPoints > 0 || dnfs > 0) && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/10 bg-zinc-900/20 text-xs">
+                      {gpTop10s > 0 && (
+                        <div className="p-1.5 border-b border-r border-white/10 flex items-center justify-between px-2.5">
+                          <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase">Top 10s</span>
+                          <span className="text-xs font-mono font-bold text-zinc-200">{gpTop10s}</span>
+                        </div>
+                      )}
+                      {fastestLaps > 0 && (
+                        <div className="p-1.5 border-b border-r border-white/10 flex items-center justify-between px-2.5">
+                          <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase">Fastest</span>
+                          <span className="text-xs font-mono font-bold text-amber-400">{fastestLaps}x</span>
+                        </div>
+                      )}
+                      {sprintPoints > 0 && (
+                        <div className="p-1.5 border-b border-r border-white/10 flex items-center justify-between px-2.5">
+                          <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase">Sprint PTS</span>
+                          <span className="text-xs font-mono font-bold text-emerald-400">+{sprintPoints}</span>
+                        </div>
+                      )}
+                      {dnfs > 0 && (
+                        <div className="p-1.5 border-b border-r border-white/10 flex items-center justify-between px-2.5">
+                          <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase">DNFs</span>
+                          <span className="text-xs font-mono font-bold text-rose-400">{dnfs}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="p-3 border-b border-r border-white/10 bg-zinc-900/20">
-                  <p className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                    Driver Code
-                  </p>
-                  <p className="text-xs sm:text-sm font-mono font-bold text-white mt-0.5">
-                    {driver.code || '—'}
-                  </p>
-                </div>
-
-                <div className="p-3 border-b border-r border-white/10 bg-zinc-900/20">
-                  <p className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                    Constructor
-                  </p>
-                  <p className="text-xs sm:text-sm font-sans font-bold text-white mt-0.5 truncate">
-                    {currentTeamName}
-                  </p>
-                </div>
-
-                <div className="p-3 border-b border-r border-white/10 bg-zinc-900/20">
-                  <p className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                    Biography
-                  </p>
-                  {driver.url ? (
+                {/* Driver Bio Meta Footer */}
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-mono text-zinc-400">
+                  {driver.dateOfBirth && (
+                    <span className="text-zinc-300">
+                      Born {driver.dateOfBirth}
+                      {age !== null && <span className="text-zinc-400 ml-1">({age} y/o)</span>}
+                    </span>
+                  )}
+                  {driver.url && (
                     <a
                       href={driver.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-mono font-semibold text-zinc-300 hover:text-white hover:underline mt-0.5"
+                      className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
                     >
                       <span>Wikipedia</span>
                       <ExternalLink className="size-3 shrink-0" />
                     </a>
-                  ) : (
-                    <p className="text-xs sm:text-sm font-mono text-zinc-500 mt-0.5">—</p>
                   )}
                 </div>
               </div>
@@ -242,111 +322,9 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
           </div>
         </div>
 
-        {/* ── RIGHT COLUMN: Separated Season & Career Statistics ──────────── */}
-        <div className="lg:col-span-7 flex flex-col gap-6 justify-between">
-          {/* Card 1: Current Season Performance */}
-          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex-1 flex flex-col">
-            {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-1.5 h-5 rounded-full shrink-0" style={{ backgroundColor: teamTheme.primary }} />
-                <h2 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white flex items-center gap-2">
-                  <Zap className="size-4 text-amber-400 shrink-0" />
-                  <span>{activeSeason} Season Performance</span>
-                </h2>
-              </div>
-
-              <div className="font-mono text-xs font-bold text-zinc-300 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80">
-                <span>P{posLabel}</span>
-                <span className="text-zinc-600 mx-1.5">•</span>
-                <span className="text-amber-400">{seasonPoints} PTS</span>
-              </div>
-            </div>
-
-            {/* 6-Grid Matrix for Season */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60 flex-1">
-              {/* Standings Position */}
-              <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Championship Pos
-                </p>
-                <p className="text-2xl sm:text-3xl font-black font-mono text-white mt-2">
-                  P{posLabel}
-                </p>
-              </div>
-
-              {/* Season Points */}
-              <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Points
-                </p>
-                <p className="text-2xl sm:text-3xl font-black font-mono text-amber-400 mt-2">
-                  {seasonPoints}
-                </p>
-              </div>
-
-              {/* Grand Prix Wins */}
-              <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Grand Prix Wins
-                </p>
-                <p className="text-2xl sm:text-3xl font-black font-mono text-white mt-2">
-                  {gpWins}
-                </p>
-              </div>
-
-              {/* Podiums */}
-              <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Podiums
-                </p>
-                <p className="text-2xl sm:text-3xl font-black font-mono text-white mt-2">
-                  {gpPodiums}
-                </p>
-              </div>
-
-              {/* Pole Positions */}
-              <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Pole Positions
-                </p>
-                <p className="text-2xl sm:text-3xl font-black font-mono text-white mt-2">
-                  {gpPoles}
-                </p>
-              </div>
-
-              {/* Top 10 Finishes */}
-              <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
-                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                  Top 10 Finishes
-                </p>
-                <p className="text-2xl sm:text-3xl font-black font-mono text-white mt-2">
-                  {gpTop10s}
-                </p>
-              </div>
-            </div>
-
-            {/* Optional Secondary Line (Fastest laps, DNFs, Sprint Points) */}
-            {(fastestLaps > 0 || dnfs > 0 || sprintPoints > 0) && (
-              <div className="grid grid-cols-3 border-t border-l border-white/10 bg-zinc-900/10">
-                <div className="p-3 border-b border-r border-white/10 flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-zinc-400 uppercase">Fastest Laps</span>
-                  <span className="text-sm font-mono font-black text-amber-400">{fastestLaps}x</span>
-                </div>
-                <div className="p-3 border-b border-r border-white/10 flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-zinc-400 uppercase">Retirements</span>
-                  <span className="text-sm font-mono font-black text-zinc-300">{dnfs}</span>
-                </div>
-                <div className="p-3 border-b border-r border-white/10 flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-zinc-400 uppercase">Sprint PTS</span>
-                  <span className="text-sm font-mono font-black text-emerald-400">+{sprintPoints}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Card 2: All-Time Career Statistics */}
-          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex-1 flex flex-col">
+        {/* ── RIGHT COLUMN: All-Time Career Benchmarks ─────────────────────── */}
+        <div className="lg:col-span-7 flex flex-col">
+          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex-1 flex flex-col justify-between">
             {/* Header */}
             <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -362,7 +340,7 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
               </div>
             </div>
 
-            {/* 6-Grid Matrix for Career */}
+            {/* 3x3 Monolithic Matrix for Career Benchmarks */}
             <div className="grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60 flex-1">
               {/* World Championships */}
               <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
@@ -428,28 +406,58 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                   {careerPoles}
                 </p>
               </div>
+
+              {/* Win Rate */}
+              <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                  Win Rate
+                </p>
+                <p className="text-2xl sm:text-3xl font-black font-mono text-zinc-200 mt-2">
+                  {winRate}%
+                </p>
+              </div>
+
+              {/* Podium Rate */}
+              <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                  Podium Rate
+                </p>
+                <p className="text-2xl sm:text-3xl font-black font-mono text-zinc-200 mt-2">
+                  {podiumRate}%
+                </p>
+              </div>
+
+              {/* Points per Race */}
+              <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
+                <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                  Pts / Race
+                </p>
+                <p className="text-2xl sm:text-3xl font-black font-mono text-zinc-200 mt-2">
+                  {pointsPerRace}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Section 3: Monolithic Season Trajectory & Championship History ─ */}
-      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-1.5 h-5 rounded-full shrink-0 bg-amber-400" />
-            <h2 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white">
-              CHAMPIONSHIP TRAJECTORY
-            </h2>
+      {/* ── Section 2: Monolithic Season Trajectory & Championship History (Multi-Season only) ─ */}
+      {hasMultiSeasonHistory && (
+        <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
+          {/* Header */}
+          <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-5 rounded-full shrink-0 bg-amber-400" />
+              <h2 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white">
+                CHAMPIONSHIP TRAJECTORY
+              </h2>
+            </div>
+
+            <span className="text-xs font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 text-zinc-300">
+              {seasonHistory.length} SEASONS
+            </span>
           </div>
 
-          <span className="text-xs font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 text-zinc-300">
-            {seasonHistory.length} SEASONS
-          </span>
-        </div>
-
-        {seasonHistory.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs font-mono">
               <thead>
@@ -557,12 +565,8 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
               </tbody>
             </table>
           </div>
-        ) : (
-          <div className="py-12 text-center text-sm font-mono text-zinc-500">
-            No championship history available for this driver.
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
