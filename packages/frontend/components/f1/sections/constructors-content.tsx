@@ -254,11 +254,15 @@ export async function ConstructorsContent({
                     <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
                       <div
                         className={cn(
-                          'size-10 sm:size-11 rounded-2xl border flex items-center justify-center shrink-0 p-0.5 sm:p-1 overflow-hidden',
+                          'size-10 sm:size-11 rounded-lg border flex items-center justify-center shrink-0 overflow-hidden',
                           isLight ? 'bg-black/10 border-black/15' : 'bg-black/20 border-white/20'
                         )}
                       >
-                        <TeamLogo constructorId={team.constructorId} season={year} size={36} />
+                        <TeamLogo
+                          constructorId={team.constructorId}
+                          season={year}
+                          className="!w-full !h-full rounded-none shadow-none p-1.5"
+                        />
                       </div>
 
                       <div className="min-w-0 space-y-0.5">
