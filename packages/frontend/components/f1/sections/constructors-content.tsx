@@ -324,30 +324,28 @@ export async function ConstructorsContent({
             {teamEntries.map(({ team, theme, standing, primaryDrivers }) => {
               const posNum = standing ? parseInt(standing.position, 10) : NaN;
               const posLabel = Number.isFinite(posNum) ? posNum.toString().padStart(2, '0') : '—';
-              const isLeader = posNum === 1;
-              const isPodium = posNum === 2 || posNum === 3;
 
               return (
                 <div
                   key={team.constructorId}
-                  className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col hover:border-white/20 transition-all duration-300 group"
+                  className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col hover:border-white/20 transition-all duration-300 group"
                 >
-                  {/* Top Livery Accent Stripe */}
-                  <div className="h-1 w-full" style={{ backgroundColor: theme.primary }} />
-
-                  {/* Dynamic Ambient Team Glow */}
-                  <div
-                    className="absolute top-0 inset-x-0 h-40 opacity-15 blur-3xl pointer-events-none"
-                    style={{ backgroundColor: theme.primary }}
-                  />
-
-                  {/* Clickable Team Cockpit Header */}
+                  {/* ── Cockpit Header ────────────────────────────────────────── */}
                   <Link
                     href={`/constructors/${team.constructorId}`}
-                    className="border-b border-white/10 bg-zinc-900/40 p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors hover:bg-zinc-900/70 relative z-10 group/header"
+                    className="p-4 sm:p-5 flex items-center justify-between border-b border-white/10 bg-zinc-900/40 transition-colors group-hover:bg-zinc-900/70"
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="size-10 sm:size-11 rounded-2xl bg-zinc-900/90 border border-white/10 p-2 flex items-center justify-center shrink-0 shadow-inner">
+                    <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                      {/* Vertical Team Livery Accent Bar */}
+                      <div
+                        className="w-1.5 h-8 sm:h-9 rounded-full shrink-0 transition-all duration-300"
+                        style={{
+                          backgroundColor: theme.primary,
+                          boxShadow: `0 0 12px ${theme.primary}80`,
+                        }}
+                      />
+
+                      <div className="size-10 sm:size-11 rounded-2xl bg-zinc-900 border border-white/10 p-2 flex items-center justify-center shrink-0 shadow-inner">
                         <TeamLogo constructorId={team.constructorId} season={year} size={26} />
                       </div>
 
@@ -358,49 +356,45 @@ export async function ConstructorsContent({
                             {team.nationality}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-lg sm:text-2xl font-black font-sans uppercase tracking-tight text-white group-hover/header:text-red-500 transition-colors truncate">
+                        <div className="flex items-center gap-1.5">
+                          <h2 className="text-xl sm:text-2xl font-black font-sans uppercase tracking-tight text-white group-hover:text-zinc-200 transition-colors truncate">
                             {team.name}
                           </h2>
-                          <ChevronRight className="size-4 sm:size-5 text-zinc-500 group-hover/header:translate-x-0.5 group-hover/header:text-white transition-all shrink-0" />
+                          <ChevronRight className="size-4 sm:size-5 text-zinc-500 group-hover:translate-x-0.5 group-hover:text-white transition-all shrink-0" />
                         </div>
                       </div>
                     </div>
 
-                    {standing ? (
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-zinc-950/80 shrink-0">
-                        <span
-                          className={cn(
-                            'font-mono text-sm',
-                            isLeader
-                              ? 'font-black text-amber-300'
-                              : isPodium
-                                ? 'font-bold text-zinc-200'
-                                : 'font-bold text-zinc-400'
-                          )}
-                        >
-                          P{posLabel}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {standing ? (
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-zinc-900/60 font-mono text-sm shrink-0">
+                          <span
+                            className={cn(
+                              standing.position === '1'
+                                ? 'font-black text-amber-300'
+                                : standing.position === '2' || standing.position === '3'
+                                  ? 'font-bold text-zinc-200'
+                                  : 'font-bold text-zinc-400'
+                            )}
+                          >
+                            P{posLabel}
+                          </span>
+                          <span className="text-zinc-600 font-mono text-xs">•</span>
+                          <span className="font-mono font-bold text-white">
+                            {standing.points} <span className="text-[10px] text-zinc-400 font-normal">pts</span>
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-wider shrink-0 px-3 py-1.5 rounded-xl border border-white/5 bg-zinc-900/40">
+                          GRID ENTRY
                         </span>
-                        <span className="text-zinc-600 font-mono text-xs">•</span>
-                        <span className="font-mono font-bold text-white text-sm">
-                          {standing.points} <span className="text-[10px] text-zinc-400 font-normal">pts</span>
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-wider shrink-0">
-                        GRID ENTRY
-                      </span>
-                    )}
+                      )}
+                    </div>
                   </Link>
 
-                  {/* Dual Driver Cockpit Split Cells */}
+                  {/* ── Driver Showcase (Split 2-column arena with authentic cutouts) ── */}
                   {primaryDrivers.length > 0 ? (
-                    <div
-                      className="grid grid-cols-2 divide-x divide-white/10 flex-1 relative z-10 bg-zinc-950/60"
-                      style={{
-                        background: `linear-gradient(180deg, ${theme.primary}12 0%, ${theme.primary}04 40%, rgba(9,9,11,0.96) 100%)`,
-                      }}
-                    >
+                    <div className="grid grid-cols-2 divide-x divide-white/10 flex-1 relative bg-zinc-950">
                       {primaryDrivers.map((item) => {
                         const { driver, standing: dStanding, photoUrl } = item;
                         const driverNumber = dStanding?.Driver?.permanentNumber ?? driver.permanentNumber;
@@ -411,30 +405,29 @@ export async function ConstructorsContent({
                           <Link
                             key={driver.driverId}
                             href={`/drivers/${driver.driverId}`}
-                            className="group/driver relative overflow-hidden min-h-[190px] sm:min-h-[220px] flex flex-col justify-between p-4 sm:p-5 hover:bg-zinc-900/40 transition-colors"
+                            className="group/driver relative overflow-hidden min-h-[185px] sm:min-h-[210px] flex flex-col justify-between p-4 sm:p-5 hover:bg-zinc-900/30 transition-colors"
                           >
                             {/* Driver Identity */}
-                            <div className="relative z-10 space-y-0.5 max-w-[65%] sm:max-w-[60%]">
+                            <div className="relative z-10 space-y-0.5 max-w-[65%]">
                               <p className="text-[11px] font-mono font-semibold text-zinc-400 uppercase tracking-wider truncate">
                                 {driver.givenName}
                               </p>
-                              <h3 className="text-base sm:text-xl font-black font-sans text-white uppercase tracking-tight group-hover/driver:text-red-500 transition-colors truncate">
+                              <h3 className="text-lg sm:text-2xl font-black font-sans text-white uppercase tracking-tight transition-colors drop-shadow-sm truncate group-hover/driver:text-zinc-200">
                                 {driver.familyName}
                               </h3>
                               {driverNumber && (
-                                <p className="text-2xl sm:text-3xl font-black italic text-white/25 font-mono tracking-tighter">
+                                <p className="text-2xl sm:text-3xl font-black italic text-zinc-700/80 font-mono tracking-tighter">
                                   #{driverNumber}
                                 </p>
                               )}
                             </div>
 
                             {/* Bottom Metadata */}
-                            <div className="relative z-10 mt-auto pt-4 flex flex-wrap items-center gap-2">
+                            <div className="relative z-10 mt-auto pt-2 flex items-center gap-2">
                               <CountryFlag countryName={driver.nationality} className="w-4 h-3 rounded-xs shrink-0" />
                               {dStanding ? (
                                 <span className="text-xs font-mono font-bold text-zinc-300">
-                                  P{dPosLabel}{' '}
-                                  <span className="text-zinc-500 font-normal">({dStanding.points} pts)</span>
+                                  P{dPosLabel} <span className="text-zinc-500 font-normal">({dStanding.points} pts)</span>
                                 </span>
                               ) : (
                                 <span className="text-[11px] font-mono text-zinc-400">
@@ -443,19 +436,19 @@ export async function ConstructorsContent({
                               )}
                             </div>
 
-                            {/* Inward Facing Driver Cutout */}
-                            <div className="absolute top-2 -right-3 sm:right-0 h-[190%] w-[70%] sm:w-[65%] pointer-events-none select-none z-0">
+                            {/* Authentic Driver Cutout Photo */}
+                            <div className="absolute top-1 -right-3 sm:-right-1 h-[250%] sm:h-[270%] w-[80%] sm:w-[74%] pointer-events-none select-none">
                               <DriverImage
                                 src={photoUrl}
                                 alt={`${driver.givenName} ${driver.familyName}`}
                                 fill
                                 sizes="(max-width: 640px) 250px, 300px"
-                                className="object-contain object-top transition-transform duration-300 group-hover/driver:scale-105 origin-top drop-shadow-xl"
+                                className="object-contain object-top transition-transform duration-300 group-hover/driver:scale-105 origin-top drop-shadow-lg"
                               />
                             </div>
 
-                            {/* Base Fade Gradient */}
-                            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-transparent pointer-events-none z-5" />
+                            {/* Base fade */}
+                            <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-zinc-950 to-transparent pointer-events-none z-5" />
                           </Link>
                         );
                       })}
