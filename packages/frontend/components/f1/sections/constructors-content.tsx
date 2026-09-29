@@ -1,65 +1,77 @@
+import React from 'react';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Trophy, Shield, Users } from 'lucide-react';
 import { DriverImage } from '@/components/f1/driver-image';
 import { getSeasonConstructors, getDriverStandings, getConstructorStandings } from '@/lib/api';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { CountryFlag } from '@/components/f1/country-flag';
+import { TeamLogo } from '@/components/f1/team-logo';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { getTeamTheme } from '@/lib/team-colors';
-import { parseYear, getMaxYear } from '@/lib/utils';
+import { parseYear, getMaxYear, cn } from '@/lib/utils';
 import { PreloadedContent } from '@/components/f1/preloaded-content';
-import type { Constructor, DriverStanding, ConstructorStanding, Driver } from '@/types/f1';
+import { ConstructorsPageSkeleton } from '@/components/f1/skeletons/constructors-page-skeleton';
+import type { DriverStanding, ConstructorStanding } from '@/types/f1';
 
 interface ConstructorsContentProps {
   searchParams: Promise<{ season?: string }>;
   allYears: number[];
 }
 
-/** 2026 Known Driver Pairings fallback when standings are not yet populated */
-const SEASON_2026_LINEUP: Record<string, Array<{ driverId: string; givenName: string; familyName: string; permanentNumber?: string }>> = {
+/** 2026 Known Driver Pairings fallback when official season standings are not yet populated */
+const SEASON_2026_LINEUP: Record<
+  string,
+  Array<{
+    driverId: string;
+    givenName: string;
+    familyName: string;
+    permanentNumber?: string;
+    nationality: string;
+  }>
+> = {
   mercedes: [
-    { driverId: 'russell', givenName: 'George', familyName: 'Russell', permanentNumber: '63' },
-    { driverId: 'antonelli', givenName: 'Andrea Kimi', familyName: 'Antonelli', permanentNumber: '12' },
+    { driverId: 'russell', givenName: 'George', familyName: 'Russell', permanentNumber: '63', nationality: 'British' },
+    { driverId: 'antonelli', givenName: 'Andrea Kimi', familyName: 'Antonelli', permanentNumber: '12', nationality: 'Italian' },
   ],
   ferrari: [
-    { driverId: 'leclerc', givenName: 'Charles', familyName: 'Leclerc', permanentNumber: '16' },
-    { driverId: 'hamilton', givenName: 'Lewis', familyName: 'Hamilton', permanentNumber: '44' },
+    { driverId: 'leclerc', givenName: 'Charles', familyName: 'Leclerc', permanentNumber: '16', nationality: 'Monegasque' },
+    { driverId: 'hamilton', givenName: 'Lewis', familyName: 'Hamilton', permanentNumber: '44', nationality: 'British' },
   ],
   mclaren: [
-    { driverId: 'norris', givenName: 'Lando', familyName: 'Norris', permanentNumber: '4' },
-    { driverId: 'piastri', givenName: 'Oscar', familyName: 'Piastri', permanentNumber: '81' },
+    { driverId: 'norris', givenName: 'Lando', familyName: 'Norris', permanentNumber: '4', nationality: 'British' },
+    { driverId: 'piastri', givenName: 'Oscar', familyName: 'Piastri', permanentNumber: '81', nationality: 'Australian' },
   ],
   red_bull: [
-    { driverId: 'max_verstappen', givenName: 'Max', familyName: 'Verstappen', permanentNumber: '1' },
-    { driverId: 'hadjar', givenName: 'Isack', familyName: 'Hadjar', permanentNumber: '6' },
+    { driverId: 'max_verstappen', givenName: 'Max', familyName: 'Verstappen', permanentNumber: '1', nationality: 'Dutch' },
+    { driverId: 'hadjar', givenName: 'Isack', familyName: 'Hadjar', permanentNumber: '6', nationality: 'French' },
   ],
   williams: [
-    { driverId: 'sainz', givenName: 'Carlos', familyName: 'Sainz', permanentNumber: '55' },
-    { driverId: 'albon', givenName: 'Alexander', familyName: 'Albon', permanentNumber: '23' },
+    { driverId: 'sainz', givenName: 'Carlos', familyName: 'Sainz', permanentNumber: '55', nationality: 'Spanish' },
+    { driverId: 'albon', givenName: 'Alexander', familyName: 'Albon', permanentNumber: '23', nationality: 'Thai' },
   ],
   aston_martin: [
-    { driverId: 'alonso', givenName: 'Fernando', familyName: 'Alonso', permanentNumber: '14' },
-    { driverId: 'stroll', givenName: 'Lance', familyName: 'Stroll', permanentNumber: '18' },
+    { driverId: 'alonso', givenName: 'Fernando', familyName: 'Alonso', permanentNumber: '14', nationality: 'Spanish' },
+    { driverId: 'stroll', givenName: 'Lance', familyName: 'Stroll', permanentNumber: '18', nationality: 'Canadian' },
   ],
   alpine: [
-    { driverId: 'gasly', givenName: 'Pierre', familyName: 'Gasly', permanentNumber: '10' },
-    { driverId: 'colapinto', givenName: 'Franco', familyName: 'Colapinto', permanentNumber: '43' },
+    { driverId: 'gasly', givenName: 'Pierre', familyName: 'Gasly', permanentNumber: '10', nationality: 'French' },
+    { driverId: 'colapinto', givenName: 'Franco', familyName: 'Colapinto', permanentNumber: '43', nationality: 'Argentine' },
   ],
   haas: [
-    { driverId: 'bearman', givenName: 'Oliver', familyName: 'Bearman', permanentNumber: '87' },
-    { driverId: 'ocon', givenName: 'Esteban', familyName: 'Ocon', permanentNumber: '31' },
+    { driverId: 'bearman', givenName: 'Oliver', familyName: 'Bearman', permanentNumber: '87', nationality: 'British' },
+    { driverId: 'ocon', givenName: 'Esteban', familyName: 'Ocon', permanentNumber: '31', nationality: 'French' },
   ],
   rb: [
-    { driverId: 'lawson', givenName: 'Liam', familyName: 'Lawson', permanentNumber: '30' },
-    { driverId: 'arvid_lindblad', givenName: 'Arvid', familyName: 'Lindblad', permanentNumber: '41' },
+    { driverId: 'lawson', givenName: 'Liam', familyName: 'Lawson', permanentNumber: '30', nationality: 'New Zealander' },
+    { driverId: 'arvid_lindblad', givenName: 'Arvid', familyName: 'Lindblad', permanentNumber: '41', nationality: 'British' },
   ],
   cadillac: [
-    { driverId: 'bottas', givenName: 'Valtteri', familyName: 'Bottas', permanentNumber: '77' },
-    { driverId: 'perez', givenName: 'Sergio', familyName: 'Perez', permanentNumber: '11' },
+    { driverId: 'bottas', givenName: 'Valtteri', familyName: 'Bottas', permanentNumber: '77', nationality: 'Finnish' },
+    { driverId: 'perez', givenName: 'Sergio', familyName: 'Perez', permanentNumber: '11', nationality: 'Mexican' },
   ],
   audi: [
-    { driverId: 'hulkenberg', givenName: 'Nico', familyName: 'Hülkenberg', permanentNumber: '27' },
-    { driverId: 'bortoleto', givenName: 'Gabriel', familyName: 'Bortoleto', permanentNumber: '5' },
+    { driverId: 'hulkenberg', givenName: 'Nico', familyName: 'Hülkenberg', permanentNumber: '27', nationality: 'German' },
+    { driverId: 'bortoleto', givenName: 'Gabriel', familyName: 'Bortoleto', permanentNumber: '5', nationality: 'Brazilian' },
   ],
 };
 
@@ -77,43 +89,8 @@ interface TeamDriverDisplay {
   standing?: DriverStanding;
 }
 
-function ConstructorsGridSkeleton() {
-  return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col bg-card animate-pulse h-[340px]"
-        >
-          <div className="p-5 bg-zinc-850 flex items-center justify-between border-b border-white/5">
-            <div className="space-y-2">
-              <div className="h-3 w-20 bg-zinc-700/60 rounded" />
-              <div className="h-6 w-44 bg-zinc-700 rounded" />
-            </div>
-            <div className="h-10 w-24 bg-zinc-700/80 rounded-lg" />
-          </div>
-          <div className="grid grid-cols-2 divide-x divide-white/10 flex-1 bg-zinc-900/50 p-4 sm:p-5">
-            <div className="space-y-3 flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="h-3 w-16 bg-zinc-800 rounded" />
-                <div className="h-5 w-28 bg-zinc-800 rounded" />
-                <div className="h-7 w-12 bg-zinc-800/60 rounded" />
-              </div>
-              <div className="h-4 w-6 bg-zinc-800 rounded" />
-            </div>
-            <div className="space-y-3 flex flex-col justify-between pl-4 sm:pl-5">
-              <div className="space-y-2">
-                <div className="h-3 w-16 bg-zinc-800 rounded" />
-                <div className="h-5 w-28 bg-zinc-800 rounded" />
-                <div className="h-7 w-12 bg-zinc-800/60 rounded" />
-              </div>
-              <div className="h-4 w-6 bg-zinc-800 rounded" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+interface TeamDriverWithPhoto extends TeamDriverDisplay {
+  photoUrl: string;
 }
 
 export async function ConstructorsContent({
@@ -155,10 +132,15 @@ export async function ConstructorsContent({
     return a.name.localeCompare(b.name);
   });
 
+  // Calculate unique drivers count
+  const uniqueDriverIds = new Set<string>();
+  for (const s of driverStandings) {
+    uniqueDriverIds.add(s.Driver.driverId);
+  }
+
   // Prepare teams data with resolved drivers and image URLs
   const teamEntries = sortedConstructors.map((team) => {
     const theme = getTeamTheme(team.constructorId);
-    const isLight = theme.textColor === 'dark';
     const standing = constructorStandingsMap.get(team.constructorId);
 
     let teamDrivers: TeamDriverDisplay[] = constructorDriversMap.get(team.constructorId) ?? [];
@@ -169,10 +151,15 @@ export async function ConstructorsContent({
           givenName: d.givenName,
           familyName: d.familyName,
           permanentNumber: d.permanentNumber,
-          nationality: 'International',
+          nationality: d.nationality,
           url: '',
         },
       }));
+    }
+
+    // Register drivers in global unique set
+    for (const td of teamDrivers) {
+      uniqueDriverIds.add(td.driver.driverId);
     }
 
     const sortedDrivers = [...teamDrivers].sort((a, b) => {
@@ -183,13 +170,18 @@ export async function ConstructorsContent({
     });
     const primaryDrivers = sortedDrivers.slice(0, 2);
 
-    const driversWithPhotos = primaryDrivers.map((item) => {
+    // Resolve photos with authentic inwards orientation:
+    // Left driver (index 0) faces inward right ('left' cutout)
+    // Right driver (index 1) faces inward left ('right' cutout)
+    const driversWithPhotos: TeamDriverWithPhoto[] = primaryDrivers.map((item, idx) => {
+      const orientation = idx === 0 ? 'left' : 'right';
       const photoUrl = getDriverPhotoUrl(
         item.driver.driverId,
         item.driver.givenName,
         item.driver.familyName,
         String(year),
-        team.constructorId
+        team.constructorId,
+        orientation
       );
       return {
         ...item,
@@ -200,7 +192,6 @@ export async function ConstructorsContent({
     return {
       team,
       theme,
-      isLight,
       standing,
       primaryDrivers: driversWithPhotos,
     };
@@ -214,130 +205,264 @@ export async function ConstructorsContent({
     }
   }
 
+  // Telemetry Ribbon metrics
+  const leaderConstructor = constructorStandings[0];
+  const leaderDriver = driverStandings[0];
+
+  let titleMarginValue = '—';
+  let titleMarginLabel = 'Title Margin';
+  if (constructorStandings.length >= 2) {
+    const p1Pts = parseFloat(constructorStandings[0].points) || 0;
+    const p2Pts = parseFloat(constructorStandings[1].points) || 0;
+    const gap = p1Pts - p2Pts;
+    titleMarginValue = gap > 0 ? `+${gap} PTS` : gap === 0 ? 'TIED' : `${gap} PTS`;
+    titleMarginLabel = `P1 vs P2 (${constructorStandings[1].Constructor.name})`;
+  } else if (constructorStandings.length === 1) {
+    titleMarginValue = 'LEADER';
+    titleMarginLabel = 'Single Competitor';
+  } else {
+    titleMarginValue = 'PENDING';
+    titleMarginLabel = 'Pre-Season';
+  }
+
   return (
-    <div className="space-y-8">
-      {/* Header toolbar */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-border pb-6">
+    <div className="space-y-6 sm:space-y-8">
+      {/* ── Main Cockpit Header ────────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">{year} Teams &amp; Drivers</h1>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono tracking-tight text-white uppercase flex flex-wrap items-baseline gap-3">
+            <span>{year}</span>
+            <span className="text-zinc-400 font-sans font-black tracking-tighter text-2xl sm:text-3xl lg:text-4xl">
+              TEAMS &amp; DRIVERS
+            </span>
+          </h1>
+
+          <p className="text-xs sm:text-sm font-mono text-zinc-400 mt-1 flex flex-wrap items-center gap-2">
+            <span>{sortedConstructors.length} Constructors</span>
+            <span className="text-zinc-600">•</span>
+            <span>{uniqueDriverIds.size} Drivers</span>
+            <span className="text-zinc-600">•</span>
+            <span>Official FIA World Championship Grid</span>
+          </p>
         </div>
-        <SeasonSelector currentSeason={year} allYears={allYears} />
+
+        <div className="flex items-center gap-3 shrink-0">
+          <SeasonSelector currentSeason={year} allYears={allYears} />
+        </div>
       </div>
 
-      {/* Constructors Grid with Image Preloading Skeleton Barrier */}
+      {/* ── Season Pulse Telemetry Ribbon (Monolithic 4-Metric Bar) ───── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+        {/* Metric 1: Constructors' Leader */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider flex items-center gap-1.5">
+            <Shield className="size-3.5 text-amber-400" />
+            Constructors&apos; Leader
+          </span>
+          <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+            {leaderConstructor ? leaderConstructor.Constructor.name.toUpperCase() : '—'}
+          </p>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {leaderConstructor ? `${leaderConstructor.points} PTS (P01)` : 'Classification pending'}
+          </span>
+        </div>
+
+        {/* Metric 2: Drivers' Leader */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider flex items-center gap-1.5">
+            <Trophy className="size-3.5 text-red-500" />
+            Drivers&apos; Leader
+          </span>
+          <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+            {leaderDriver
+              ? (leaderDriver.Driver.code || leaderDriver.Driver.familyName).toUpperCase()
+              : '—'}
+          </p>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {leaderDriver
+              ? `${leaderDriver.Driver.givenName} ${leaderDriver.Driver.familyName} • ${leaderDriver.points} PTS`
+              : 'Classification pending'}
+          </span>
+        </div>
+
+        {/* Metric 3: Title Margin P1-P2 */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+            Title Margin
+          </span>
+          <p className="text-xl sm:text-2xl font-black font-mono text-white tabular-nums">
+            {titleMarginValue}
+          </p>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            {titleMarginLabel}
+          </span>
+        </div>
+
+        {/* Metric 4: Grid Composition */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
+          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider flex items-center gap-1.5">
+            <Users className="size-3.5 text-zinc-400" />
+            Championship Grid
+          </span>
+          <p className="text-xl sm:text-2xl font-black font-mono text-white">
+            {sortedConstructors.length}{' '}
+            <span className="text-xs font-mono font-bold text-zinc-400 uppercase">Teams</span>
+            {' / '}
+            {uniqueDriverIds.size}{' '}
+            <span className="text-xs font-mono font-bold text-zinc-400 uppercase">Drivers</span>
+          </p>
+          <span className="text-[11px] font-mono text-zinc-400 truncate">
+            Season {year} Entry List
+          </span>
+        </div>
+      </div>
+
+      {/* ── Constructors Grid with Image Preloading Skeleton Barrier ── */}
       {teamEntries.length > 0 ? (
-        <PreloadedContent imageUrls={allPhotoUrls} skeleton={<ConstructorsGridSkeleton />}>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {teamEntries.map(({ team, theme, isLight, standing, primaryDrivers }) => {
+        <PreloadedContent imageUrls={allPhotoUrls} skeleton={<ConstructorsPageSkeleton onlyGrid />}>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-6">
+            {teamEntries.map(({ team, theme, standing, primaryDrivers }) => {
+              const posNum = standing ? parseInt(standing.position, 10) : NaN;
+              const posLabel = Number.isFinite(posNum) ? posNum.toString().padStart(2, '0') : '—';
+              const isLeader = posNum === 1;
+              const isPodium = posNum === 2 || posNum === 3;
+
               return (
                 <div
                   key={team.constructorId}
-                  className="rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col hover:border-white/20 transition-all duration-300 bg-card"
+                  className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col hover:border-white/20 transition-all duration-300 group"
                 >
-                  {/* Clickable Top Header Strip */}
+                  {/* Top Livery Accent Stripe */}
+                  <div className="h-1 w-full" style={{ backgroundColor: theme.primary }} />
+
+                  {/* Dynamic Ambient Team Glow */}
+                  <div
+                    className="absolute top-0 inset-x-0 h-40 opacity-15 blur-3xl pointer-events-none"
+                    style={{ backgroundColor: theme.primary }}
+                  />
+
+                  {/* Clickable Team Cockpit Header */}
                   <Link
                     href={`/constructors/${team.constructorId}`}
-                    className="group/header p-5 flex items-center justify-between transition-all hover:brightness-105"
-                    style={{ backgroundColor: theme.primary }}
+                    className="border-b border-white/10 bg-zinc-900/40 p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors hover:bg-zinc-900/70 relative z-10 group/header"
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <CountryFlag countryName={team.nationality} />
-                        <span
-                          className={[
-                            'text-xs font-bold uppercase tracking-wider',
-                            isLight ? 'text-black/75' : 'text-white/75',
-                          ].join(' ')}
-                        >
-                          {team.nationality}
-                        </span>
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="size-10 sm:size-11 rounded-2xl bg-zinc-900/90 border border-white/10 p-2 flex items-center justify-center shrink-0 shadow-inner">
+                        <TeamLogo constructorId={team.constructorId} season={year} size={26} />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <h2
-                          className={[
-                            'text-2xl font-black uppercase tracking-tight',
-                            isLight ? 'text-black' : 'text-white',
-                          ].join(' ')}
-                        >
-                          {team.name}
-                        </h2>
-                        <ChevronRight
-                          className={[
-                            'h-5 w-5 transition-transform group-hover/header:translate-x-1 opacity-70 group-hover/header:opacity-100',
-                            isLight ? 'text-black' : 'text-white',
-                          ].join(' ')}
-                        />
+
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <CountryFlag countryName={team.nationality} className="w-4 h-3 rounded-xs shrink-0" />
+                          <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider truncate">
+                            {team.nationality}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-lg sm:text-2xl font-black font-sans uppercase tracking-tight text-white group-hover/header:text-red-500 transition-colors truncate">
+                            {team.name}
+                          </h2>
+                          <ChevronRight className="size-4 sm:size-5 text-zinc-500 group-hover/header:translate-x-0.5 group-hover/header:text-white transition-all shrink-0" />
+                        </div>
                       </div>
                     </div>
 
-                    {standing && (
-                      <div
-                        className={[
-                          'text-right px-3.5 py-1.5 rounded-lg border backdrop-blur-sm',
-                          isLight
-                            ? 'bg-black/10 border-black/20 text-black'
-                            : 'bg-white/10 border-white/20 text-white',
-                        ].join(' ')}
-                      >
-                        <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">
-                          POS / PTS
+                    {standing ? (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-zinc-950/80 shrink-0">
+                        <span
+                          className={cn(
+                            'font-mono text-sm',
+                            isLeader
+                              ? 'font-black text-amber-300'
+                              : isPodium
+                                ? 'font-bold text-zinc-200'
+                                : 'font-bold text-zinc-400'
+                          )}
+                        >
+                          P{posLabel}
                         </span>
-                        <span className="text-xl font-black font-mono">
-                          P{standing.position} <span className="text-xs font-normal">({standing.points} pts)</span>
+                        <span className="text-zinc-600 font-mono text-xs">•</span>
+                        <span className="font-mono font-bold text-white text-sm">
+                          {standing.points} <span className="text-[10px] text-zinc-400 font-normal">pts</span>
                         </span>
                       </div>
+                    ) : (
+                      <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-wider shrink-0">
+                        GRID ENTRY
+                      </span>
                     )}
                   </Link>
 
-                  {/* 2 Primary Drivers Grid with dimmed team background */}
-                  {primaryDrivers.length > 0 && (
+                  {/* Dual Driver Cockpit Split Cells */}
+                  {primaryDrivers.length > 0 ? (
                     <div
-                      className="grid grid-cols-2 divide-x divide-white/10 flex-1 border-t border-black/15"
+                      className="grid grid-cols-2 divide-x divide-white/10 flex-1 relative z-10 bg-zinc-950/60"
                       style={{
-                        background: `linear-gradient(180deg, ${theme.primary}28 0%, ${theme.primary}14 45%, rgba(12,12,14,0.94) 100%)`,
+                        background: `linear-gradient(180deg, ${theme.primary}12 0%, ${theme.primary}04 40%, rgba(9,9,11,0.96) 100%)`,
                       }}
                     >
                       {primaryDrivers.map((item) => {
                         const { driver, standing: dStanding, photoUrl } = item;
                         const driverNumber = dStanding?.Driver?.permanentNumber ?? driver.permanentNumber;
+                        const dPosNum = dStanding ? parseInt(dStanding.position, 10) : NaN;
+                        const dPosLabel = Number.isFinite(dPosNum) ? dPosNum.toString().padStart(2, '0') : '—';
 
                         return (
                           <Link
                             key={driver.driverId}
                             href={`/drivers/${driver.driverId}`}
-                            className="group relative overflow-hidden min-h-[190px] sm:min-h-[220px] flex flex-col justify-between p-4 sm:p-5 hover:bg-white/5 transition-all"
+                            className="group/driver relative overflow-hidden min-h-[190px] sm:min-h-[220px] flex flex-col justify-between p-4 sm:p-5 hover:bg-zinc-900/40 transition-colors"
                           >
-                            <div className="relative z-10 space-y-0.5">
-                              <p className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider drop-shadow-sm">
+                            {/* Driver Identity */}
+                            <div className="relative z-10 space-y-0.5 max-w-[65%] sm:max-w-[60%]">
+                              <p className="text-[11px] font-mono font-semibold text-zinc-400 uppercase tracking-wider truncate">
                                 {driver.givenName}
                               </p>
-                              <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors drop-shadow-sm">
+                              <h3 className="text-base sm:text-xl font-black font-sans text-white uppercase tracking-tight group-hover/driver:text-red-500 transition-colors truncate">
                                 {driver.familyName}
                               </h3>
                               {driverNumber && (
-                                <p className="text-2xl sm:text-3xl font-black italic text-white/40 font-mono">
+                                <p className="text-2xl sm:text-3xl font-black italic text-white/25 font-mono tracking-tighter">
                                   #{driverNumber}
                                 </p>
                               )}
                             </div>
 
-                            <div className="relative z-10 mt-auto pt-2">
-                              <CountryFlag countryName={driver.nationality} />
+                            {/* Bottom Metadata */}
+                            <div className="relative z-10 mt-auto pt-4 flex flex-wrap items-center gap-2">
+                              <CountryFlag countryName={driver.nationality} className="w-4 h-3 rounded-xs shrink-0" />
+                              {dStanding ? (
+                                <span className="text-xs font-mono font-bold text-zinc-300">
+                                  P{dPosLabel}{' '}
+                                  <span className="text-zinc-500 font-normal">({dStanding.points} pts)</span>
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-mono text-zinc-400">
+                                  {driver.nationality}
+                                </span>
+                              )}
                             </div>
 
-                            {/* Driver photo cut-out */}
-                            <div className="absolute top-1 -right-2 sm:right-0 h-[210%] w-[72%] sm:w-[66%] pointer-events-none select-none">
+                            {/* Inward Facing Driver Cutout */}
+                            <div className="absolute top-2 -right-3 sm:right-0 h-[190%] w-[70%] sm:w-[65%] pointer-events-none select-none z-0">
                               <DriverImage
                                 src={photoUrl}
                                 alt={`${driver.givenName} ${driver.familyName}`}
                                 fill
                                 sizes="(max-width: 640px) 250px, 300px"
-                                className="object-contain object-top transition-transform duration-300 group-hover:scale-105 origin-top drop-shadow-lg"
+                                className="object-contain object-top transition-transform duration-300 group-hover/driver:scale-105 origin-top drop-shadow-xl"
                               />
                             </div>
+
+                            {/* Base Fade Gradient */}
+                            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-transparent pointer-events-none z-5" />
                           </Link>
                         );
                       })}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-xs font-mono text-zinc-500 uppercase tracking-wider">
+                      No drivers classified
                     </div>
                   )}
                 </div>
@@ -346,8 +471,8 @@ export async function ConstructorsContent({
           </div>
         </PreloadedContent>
       ) : (
-        <div className="py-16 text-center text-muted-foreground">
-          No constructor data available for {year}.
+        <div className="rounded-3xl border border-white/10 bg-zinc-950 p-12 text-center text-sm font-mono text-zinc-400">
+          No constructor data available for season {year}.
         </div>
       )}
     </div>

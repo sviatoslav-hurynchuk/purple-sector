@@ -1,0 +1,82 @@
+import React from 'react';
+
+interface ConstructorsPageSkeletonProps {
+  onlyGrid?: boolean;
+}
+
+export function ConstructorsPageSkeleton({ onlyGrid = false }: ConstructorsPageSkeletonProps) {
+  return (
+    <div className="space-y-6 sm:space-y-8 animate-pulse" aria-hidden="true">
+      {!onlyGrid && (
+        <>
+          {/* ── Cockpit Header Skeleton ──────────────────────────────────── */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <div className="h-10 sm:h-12 w-80 sm:w-[480px] bg-zinc-800 rounded" />
+              <div className="h-4 w-64 sm:w-96 bg-zinc-800/60 rounded mt-2" />
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="h-10 w-44 bg-zinc-800/60 rounded-full border border-white/5" />
+            </div>
+          </div>
+
+          {/* ── Telemetry Ribbon Skeleton (4-Metric Bar) ─────────────────── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="p-4 sm:p-5 flex flex-col justify-between gap-2.5 min-h-[96px]">
+                <div className="h-3 w-28 bg-zinc-800 rounded" />
+                <div className="h-7 w-36 bg-zinc-800 rounded" />
+                <div className="h-2.5 w-24 bg-zinc-800/60 rounded" />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── Constructors Cards Matrix Skeleton ───────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col h-[280px] sm:h-[300px]"
+          >
+            {/* Top Livery Accent Stripe Placeholder */}
+            <div className="h-1 w-full bg-zinc-800" />
+
+            {/* Header */}
+            <div className="h-16 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="size-10 sm:size-11 rounded-2xl bg-zinc-800/60 border border-white/5" />
+                <div className="space-y-1.5">
+                  <div className="h-3 w-20 bg-zinc-800/60 rounded" />
+                  <div className="h-5 w-40 sm:w-48 bg-zinc-800 rounded" />
+                </div>
+              </div>
+              <div className="h-7 w-20 bg-zinc-800/60 rounded-xl" />
+            </div>
+
+            {/* Dual Drivers Split */}
+            <div className="grid grid-cols-2 divide-x divide-white/10 flex-1 p-4 sm:p-5 bg-zinc-950/60">
+              <div className="flex flex-col justify-between">
+                <div className="space-y-1.5">
+                  <div className="h-3 w-16 bg-zinc-800/60 rounded" />
+                  <div className="h-5 w-28 bg-zinc-800 rounded" />
+                  <div className="h-6 w-12 bg-zinc-800/40 rounded mt-2" />
+                </div>
+                <div className="h-4 w-24 bg-zinc-800/60 rounded" />
+              </div>
+              <div className="flex flex-col justify-between pl-4 sm:pl-5">
+                <div className="space-y-1.5">
+                  <div className="h-3 w-16 bg-zinc-800/60 rounded" />
+                  <div className="h-5 w-28 bg-zinc-800 rounded" />
+                  <div className="h-6 w-12 bg-zinc-800/40 rounded mt-2" />
+                </div>
+                <div className="h-4 w-24 bg-zinc-800/60 rounded" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
