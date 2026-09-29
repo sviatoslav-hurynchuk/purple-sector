@@ -101,11 +101,16 @@ export async function ConstructorsContent({
   const year = parseYear(params.season, getMaxYear());
 
   // Fetch constructors, driver standings, and constructor standings for the season in parallel
-  const [constructors, driverStandings, constructorStandings] = await Promise.all([
+  const [constructors, driverStandingsResult, constructorStandings] = await Promise.all([
     getSeasonConstructors(year),
-    getDriverStandings(year).catch(() => [] as DriverStanding[]),
+    getDriverStandings(year)
+      .then((data) => ({ data, isError: false }))
+      .catch(() => ({ data: [] as DriverStanding[], isError: true })),
     getConstructorStandings(year).catch(() => [] as ConstructorStanding[]),
   ]);
+
+  const driverStandings = driverStandingsResult.data;
+  const isDriverStandingsUnavailable = driverStandingsResult.isError;
 
   const constructorStandingsMap = new Map<string, ConstructorStanding>(
     constructorStandings.map((cs) => [cs.Constructor.constructorId, cs])
@@ -429,7 +434,9 @@ export async function ConstructorsContent({
                     </div>
                   ) : (
                     <div className="p-8 text-center text-xs font-mono text-zinc-500 uppercase tracking-wider">
-                      No drivers classified
+                      {isDriverStandingsUnavailable
+                        ? 'Driver standings unavailable'
+                        : 'No drivers classified'}
                     </div>
                   )}
                 </div>

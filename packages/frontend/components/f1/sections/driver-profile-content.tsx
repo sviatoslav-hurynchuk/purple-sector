@@ -392,7 +392,7 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                       {careerPoles}
                     </p>
                     <p className="text-[11px] font-mono text-zinc-400 mt-1">
-                      {((careerPoles / startsSafe) * 100).toFixed(1)}% Front-Row Starts
+                      {((careerPoles / startsSafe) * 100).toFixed(1)}% Pole Rate
                     </p>
                   </div>
                 </div>

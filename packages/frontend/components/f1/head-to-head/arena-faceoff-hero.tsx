@@ -539,7 +539,7 @@ export function ArenaFaceoffHero({
                       onClick={() => setSelectedBattleId(b.id)}
                       className={cn(
                         'px-2 py-0.5 rounded text-xs transition-colors cursor-pointer',
-                        b.id === selectedBattleId
+                        b.id === resolvedBattleId
                           ? 'bg-primary text-primary-foreground font-bold'
                           : 'text-zinc-400 hover:text-white'
                       )}
