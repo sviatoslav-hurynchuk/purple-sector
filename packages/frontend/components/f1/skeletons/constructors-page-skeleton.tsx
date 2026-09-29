@@ -8,29 +8,16 @@ export function ConstructorsPageSkeleton({ onlyGrid = false }: ConstructorsPageS
   return (
     <div className="space-y-6 sm:space-y-8 animate-pulse" aria-hidden="true">
       {!onlyGrid && (
-        <>
-          {/* ── Cockpit Header Skeleton ──────────────────────────────────── */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <div className="h-10 sm:h-12 w-80 sm:w-[480px] bg-zinc-800 rounded" />
-              <div className="h-4 w-64 sm:w-96 bg-zinc-800/60 rounded mt-2" />
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="h-10 w-44 bg-zinc-800/60 rounded-full border border-white/5" />
-            </div>
+        /* ── Cockpit Header Skeleton ──────────────────────────────────── */
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <div className="h-10 sm:h-12 w-80 sm:w-[480px] bg-zinc-800 rounded" />
+            <div className="h-4 w-64 sm:w-96 bg-zinc-800/60 rounded mt-2" />
           </div>
-
-          {/* ── Telemetry Ribbon Skeleton (4-Metric Bar) ─────────────────── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="p-4 sm:p-5 flex flex-col justify-between gap-2.5 min-h-[96px]">
-                <div className="h-3 w-28 bg-zinc-800 rounded" />
-                <div className="h-7 w-36 bg-zinc-800 rounded" />
-                <div className="h-2.5 w-24 bg-zinc-800/60 rounded" />
-              </div>
-            ))}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="h-10 w-44 bg-zinc-800/60 rounded-full border border-white/5" />
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Constructors Cards Matrix Skeleton ───────────────────────── */}

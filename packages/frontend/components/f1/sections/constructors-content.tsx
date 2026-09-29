@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, Trophy, Shield, Users } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { DriverImage } from '@/components/f1/driver-image';
 import { getSeasonConstructors, getDriverStandings, getConstructorStandings } from '@/lib/api';
 import { SeasonSelector } from '@/components/f1/season-selector';
@@ -205,26 +205,6 @@ export async function ConstructorsContent({
     }
   }
 
-  // Telemetry Ribbon metrics
-  const leaderConstructor = constructorStandings[0];
-  const leaderDriver = driverStandings[0];
-
-  let titleMarginValue = '—';
-  let titleMarginLabel = 'Title Margin';
-  if (constructorStandings.length >= 2) {
-    const p1Pts = parseFloat(constructorStandings[0].points) || 0;
-    const p2Pts = parseFloat(constructorStandings[1].points) || 0;
-    const gap = p1Pts - p2Pts;
-    titleMarginValue = gap > 0 ? `+${gap} PTS` : gap === 0 ? 'TIED' : `${gap} PTS`;
-    titleMarginLabel = `P1 vs P2 (${constructorStandings[1].Constructor.name})`;
-  } else if (constructorStandings.length === 1) {
-    titleMarginValue = 'LEADER';
-    titleMarginLabel = 'Single Competitor';
-  } else {
-    titleMarginValue = 'PENDING';
-    titleMarginLabel = 'Pre-Season';
-  }
-
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* ── Main Cockpit Header ────────────────────────────────────────── */}
@@ -248,72 +228,6 @@ export async function ConstructorsContent({
 
         <div className="flex items-center gap-3 shrink-0">
           <SeasonSelector currentSeason={year} allYears={allYears} />
-        </div>
-      </div>
-
-      {/* ── Season Pulse Telemetry Ribbon (Monolithic 4-Metric Bar) ───── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
-        {/* Metric 1: Constructors' Leader */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider flex items-center gap-1.5">
-            <Shield className="size-3.5 text-amber-400" />
-            Constructors&apos; Leader
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
-            {leaderConstructor ? leaderConstructor.Constructor.name.toUpperCase() : '—'}
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
-            {leaderConstructor ? `${leaderConstructor.points} PTS (P01)` : 'Classification pending'}
-          </span>
-        </div>
-
-        {/* Metric 2: Drivers' Leader */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider flex items-center gap-1.5">
-            <Trophy className="size-3.5 text-red-500" />
-            Drivers&apos; Leader
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
-            {leaderDriver
-              ? (leaderDriver.Driver.code || leaderDriver.Driver.familyName).toUpperCase()
-              : '—'}
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
-            {leaderDriver
-              ? `${leaderDriver.Driver.givenName} ${leaderDriver.Driver.familyName} • ${leaderDriver.points} PTS`
-              : 'Classification pending'}
-          </span>
-        </div>
-
-        {/* Metric 3: Title Margin P1-P2 */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Title Margin
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white tabular-nums">
-            {titleMarginValue}
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
-            {titleMarginLabel}
-          </span>
-        </div>
-
-        {/* Metric 4: Grid Composition */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider flex items-center gap-1.5">
-            <Users className="size-3.5 text-zinc-400" />
-            Championship Grid
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white">
-            {sortedConstructors.length}{' '}
-            <span className="text-xs font-mono font-bold text-zinc-400 uppercase">Teams</span>
-            {' / '}
-            {uniqueDriverIds.size}{' '}
-            <span className="text-xs font-mono font-bold text-zinc-400 uppercase">Drivers</span>
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
-            Season {year} Entry List
-          </span>
         </div>
       </div>
 
@@ -395,28 +309,56 @@ export async function ConstructorsContent({
                   {/* ── Driver Showcase (Split 2-column arena with authentic cutouts) ── */}
                   {primaryDrivers.length > 0 ? (
                     <div className="grid grid-cols-2 divide-x divide-white/10 flex-1 relative bg-zinc-950">
-                      {primaryDrivers.map((item) => {
+                      {primaryDrivers.map((item, idx) => {
                         const { driver, standing: dStanding, photoUrl } = item;
                         const driverNumber = dStanding?.Driver?.permanentNumber ?? driver.permanentNumber;
                         const dPosNum = dStanding ? parseInt(dStanding.position, 10) : NaN;
                         const dPosLabel = Number.isFinite(dPosNum) ? dPosNum.toString().padStart(2, '0') : '—';
 
+                        // Harmonized Driver Comparison Colors (Apex benchmark from Head-to-Head)
+                        const rawSecondary =
+                          theme.secondary ||
+                          (theme.textColor === 'dark' ? '#A1A1AA' : '#E2E8F0');
+                        const secondaryColor =
+                          rawSecondary === '#27272A' || rawSecondary === '#18181B'
+                            ? '#71717A'
+                            : rawSecondary;
+                        const driverColor = idx === 0 ? theme.primary : secondaryColor;
+
                         return (
                           <Link
                             key={driver.driverId}
                             href={`/drivers/${driver.driverId}`}
-                            className="group/driver relative overflow-hidden min-h-[185px] sm:min-h-[210px] flex flex-col justify-between p-4 sm:p-5 hover:bg-zinc-900/30 transition-colors"
+                            className="group/driver relative overflow-hidden min-h-[185px] sm:min-h-[210px] flex flex-col justify-between p-4 sm:p-5 hover:bg-zinc-900/30 transition-all duration-300"
                           >
+                            {/* Ambient Driver Livery Glow (Harmonized with Head-to-Head Comparison Colors) */}
+                            <div
+                              className={cn(
+                                'absolute -top-10 size-36 sm:size-44 rounded-full opacity-20 blur-3xl pointer-events-none transition-opacity duration-500 group-hover/driver:opacity-35',
+                                idx === 0 ? '-left-10' : '-right-10'
+                              )}
+                              style={{ backgroundColor: driverColor }}
+                            />
+
                             {/* Driver Identity */}
                             <div className="relative z-10 space-y-0.5 max-w-[65%]">
-                              <p className="text-[11px] font-mono font-semibold text-zinc-400 uppercase tracking-wider truncate">
-                                {driver.givenName}
-                              </p>
-                              <h3 className="text-lg sm:text-2xl font-black font-sans text-white uppercase tracking-tight transition-colors drop-shadow-sm truncate group-hover/driver:text-zinc-200">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className="size-1.5 rounded-full shrink-0 shadow-xs"
+                                  style={{
+                                    backgroundColor: driverColor,
+                                    boxShadow: `0 0 6px ${driverColor}80`,
+                                  }}
+                                />
+                                <p className="text-[11px] font-mono font-semibold text-zinc-400 uppercase tracking-wider truncate">
+                                  {driver.givenName}
+                                </p>
+                              </div>
+                              <h3 className="text-lg sm:text-2xl font-black font-sans text-white uppercase tracking-tight transition-colors drop-shadow-sm truncate group-hover/driver:text-zinc-100">
                                 {driver.familyName}
                               </h3>
                               {driverNumber && (
-                                <p className="text-2xl sm:text-3xl font-black italic text-zinc-700/80 font-mono tracking-tighter">
+                                <p className="text-2xl sm:text-3xl font-black italic text-zinc-700/80 font-mono tracking-tighter transition-colors group-hover/driver:text-zinc-500">
                                   #{driverNumber}
                                 </p>
                               )}
@@ -449,6 +391,12 @@ export async function ConstructorsContent({
 
                             {/* Base fade */}
                             <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-zinc-950 to-transparent pointer-events-none z-5" />
+
+                            {/* Subtle Driver Livery Accent on Hover */}
+                            <div
+                              className="absolute inset-x-0 bottom-0 h-0.5 opacity-0 group-hover/driver:opacity-100 transition-opacity duration-300 pointer-events-none"
+                              style={{ backgroundColor: driverColor }}
+                            />
                           </Link>
                         );
                       })}
