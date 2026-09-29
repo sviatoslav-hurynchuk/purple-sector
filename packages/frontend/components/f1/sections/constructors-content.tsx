@@ -189,9 +189,12 @@ export async function ConstructorsContent({
       };
     });
 
+    const isLight = theme.textColor === 'dark';
+
     return {
       team,
       theme,
+      isLight,
       standing,
       primaryDrivers: driversWithPhotos,
     };
@@ -235,7 +238,7 @@ export async function ConstructorsContent({
       {teamEntries.length > 0 ? (
         <PreloadedContent imageUrls={allPhotoUrls} skeleton={<ConstructorsPageSkeleton onlyGrid />}>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-6">
-            {teamEntries.map(({ team, theme, standing, primaryDrivers }) => {
+            {teamEntries.map(({ team, theme, isLight, standing, primaryDrivers }) => {
               const posNum = standing ? parseInt(standing.position, 10) : NaN;
               const posLabel = Number.isFinite(posNum) ? posNum.toString().padStart(2, '0') : '—';
 
@@ -244,62 +247,81 @@ export async function ConstructorsContent({
                   key={team.constructorId}
                   className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col hover:border-white/20 transition-all duration-300 group"
                 >
-                  {/* ── Cockpit Header ────────────────────────────────────────── */}
+                  {/* ── Top Header Strip (Full-bleed team theme) ────────────── */}
                   <Link
                     href={`/constructors/${team.constructorId}`}
-                    className="p-4 sm:p-5 flex items-center justify-between border-b border-white/10 bg-zinc-900/40 transition-colors group-hover:bg-zinc-900/70"
+                    className="group/header p-4 sm:p-5 flex items-center justify-between border-b border-black/15 transition-all hover:brightness-105"
+                    style={{ backgroundColor: theme.primary }}
                   >
                     <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
-                      {/* Vertical Team Livery Accent Bar */}
                       <div
-                        className="w-1.5 h-8 sm:h-9 rounded-full shrink-0 transition-all duration-300"
-                        style={{
-                          backgroundColor: theme.primary,
-                          boxShadow: `0 0 12px ${theme.primary}80`,
-                        }}
-                      />
-
-                      <div className="size-10 sm:size-11 rounded-2xl bg-zinc-900 border border-white/10 p-2 flex items-center justify-center shrink-0 shadow-inner">
+                        className={cn(
+                          'size-10 sm:size-11 rounded-2xl border flex items-center justify-center shrink-0 shadow-inner p-2',
+                          isLight ? 'bg-black/10 border-black/15' : 'bg-black/20 border-white/20'
+                        )}
+                      >
                         <TeamLogo constructorId={team.constructorId} season={year} size={26} />
                       </div>
 
                       <div className="min-w-0 space-y-0.5">
                         <div className="flex items-center gap-2">
                           <CountryFlag countryName={team.nationality} className="w-4 h-3 rounded-xs shrink-0" />
-                          <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider truncate">
+                          <span
+                            className={cn(
+                              'text-xs font-mono font-bold uppercase tracking-wider truncate',
+                              isLight ? 'text-black/75' : 'text-white/75'
+                            )}
+                          >
                             {team.nationality}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <h2 className="text-xl sm:text-2xl font-black font-sans uppercase tracking-tight text-white group-hover:text-zinc-200 transition-colors truncate">
+                          <h2
+                            className={cn(
+                              'text-xl sm:text-2xl font-black font-sans uppercase tracking-tight truncate',
+                              isLight ? 'text-black' : 'text-white'
+                            )}
+                          >
                             {team.name}
                           </h2>
-                          <ChevronRight className="size-4 sm:size-5 text-zinc-500 group-hover:translate-x-0.5 group-hover:text-white transition-all shrink-0" />
+                          <ChevronRight
+                            className={cn(
+                              'size-4 sm:size-5 transition-transform group-hover/header:translate-x-1 shrink-0',
+                              isLight ? 'text-black/70' : 'text-white/70'
+                            )}
+                          />
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                       {standing ? (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-zinc-900/60 font-mono text-sm shrink-0">
-                          <span
-                            className={cn(
-                              standing.position === '1'
-                                ? 'font-black text-amber-300'
-                                : standing.position === '2' || standing.position === '3'
-                                  ? 'font-bold text-zinc-200'
-                                  : 'font-bold text-zinc-400'
-                            )}
-                          >
-                            P{posLabel}
-                          </span>
-                          <span className="text-zinc-600 font-mono text-xs">•</span>
-                          <span className="font-mono font-bold text-white">
-                            {standing.points} <span className="text-[10px] text-zinc-400 font-normal">pts</span>
+                        <div
+                          className={cn(
+                            'flex items-center gap-2 px-3 py-1.5 rounded-xl border font-mono text-sm shrink-0 backdrop-blur-sm',
+                            isLight
+                              ? 'bg-black/10 border-black/20 text-black'
+                              : 'bg-black/20 border-white/20 text-white'
+                          )}
+                        >
+                          <span className="font-black">P{posLabel}</span>
+                          <span className={cn('text-xs font-mono', isLight ? 'text-black/40' : 'text-white/40')}>•</span>
+                          <span className="font-bold">
+                            {standing.points}{' '}
+                            <span className={cn('text-[10px] font-normal', isLight ? 'text-black/70' : 'text-white/70')}>
+                              pts
+                            </span>
                           </span>
                         </div>
                       ) : (
-                        <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-wider shrink-0 px-3 py-1.5 rounded-xl border border-white/5 bg-zinc-900/40">
+                        <span
+                          className={cn(
+                            'text-xs font-mono font-bold uppercase tracking-wider shrink-0 px-3 py-1.5 rounded-xl border',
+                            isLight
+                              ? 'bg-black/10 border-black/15 text-black/75'
+                              : 'bg-white/10 border-white/15 text-white/75'
+                          )}
+                        >
                           GRID ENTRY
                         </span>
                       )}
@@ -323,7 +345,18 @@ export async function ConstructorsContent({
                           rawSecondary === '#27272A' || rawSecondary === '#18181B'
                             ? '#71717A'
                             : rawSecondary;
-                        const driverColor = idx === 0 ? theme.primary : secondaryColor;
+                        let driverColor = idx === 0 ? theme.primary : secondaryColor;
+
+                        // Ferrari color swap: Charles Leclerc gets Rosso Corsa (#E8002D), Lewis Hamilton gets Giallo Modena (#FFF200)
+                        if (team.constructorId === 'ferrari') {
+                          if (driver.driverId === 'leclerc') {
+                            driverColor = theme.primary;
+                          } else if (driver.driverId === 'hamilton') {
+                            driverColor = secondaryColor;
+                          } else {
+                            driverColor = idx === 0 ? secondaryColor : theme.primary;
+                          }
+                        }
 
                         return (
                           <Link

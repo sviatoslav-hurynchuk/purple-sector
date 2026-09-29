@@ -28,17 +28,15 @@ export function ConstructorsPageSkeleton({ onlyGrid = false }: ConstructorsPageS
             className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col min-h-[270px] sm:min-h-[295px]"
           >
             {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+            <div className="p-4 sm:p-5 border-b border-black/15 bg-zinc-800/80 flex items-center justify-between">
               <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
-                {/* Livery Pill Placeholder */}
-                <div className="w-1.5 h-8 sm:h-9 rounded-full bg-zinc-800 shrink-0" />
-                <div className="size-10 sm:size-11 rounded-2xl bg-zinc-900 border border-white/10 p-2 shrink-0" />
+                <div className="size-10 sm:size-11 rounded-2xl bg-zinc-700/60 p-2 shrink-0" />
                 <div className="space-y-1.5">
-                  <div className="h-3 w-16 bg-zinc-800/80 rounded" />
-                  <div className="h-5 w-36 sm:w-44 bg-zinc-800 rounded" />
+                  <div className="h-3 w-16 bg-zinc-700/80 rounded" />
+                  <div className="h-5 w-36 sm:w-44 bg-zinc-700 rounded" />
                 </div>
               </div>
-              <div className="h-8 w-24 bg-zinc-900/60 border border-white/10 rounded-xl shrink-0" />
+              <div className="h-8 w-24 bg-zinc-700/60 rounded-xl shrink-0" />
             </div>
 
             {/* Dual Drivers Split */}
