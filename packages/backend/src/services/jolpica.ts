@@ -271,6 +271,27 @@ export async function jolpicaFetch<T>(path: string, timeoutMs = 10000): Promise<
   return data as T;
 }
 
+/**
+ * Executes an async mapper function over an array with limited concurrency.
+ */
+async function mapConcurrent<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let index = 0;
+  async function worker() {
+    while (index < items.length) {
+      const i = index++;
+      results[i] = await fn(items[i]);
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
 // ── Cache-Aside Wrapper with Stampede & Negative Caching Protection ─────────
 
 interface NegativeCacheSentinel {
@@ -557,21 +578,25 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
     const seasons = seasonsRes?.MRData?.SeasonTable?.Seasons?.map((s) => s.season) ?? [];
     const currentSeason = getCurrentSeason();
 
-    // If Jolpica returned seasons, fetch each season's standing (cached individually)
+    // If Jolpica returned seasons, fetch each season's standing (cached individually with limited concurrency)
     let seasonHistory: DriverSeasonStanding[] = [];
     if (seasons.length > 0) {
       const reversedSeasons = [...seasons].reverse();
-      const standingsResults = await Promise.all(
-        reversedSeasons.map(async (seasonYear) => {
+      const standingsResults = await mapConcurrent(
+        reversedSeasons,
+        3, // Limit concurrency to prevent saturating the Jolpica queue
+        async (seasonYear) => {
           const isCurrent = seasonYear === currentSeason;
           const ttl = isCurrent ? 3600 : TTL.SCHEDULE_PAST;
           return cachedFetch<DriverSeasonStanding | null>(
             `f1:driver:${id}:standing:${seasonYear}`,
             ttl,
             async () => {
+              // Throw on fetch failure so transient network/server failures
+              // are not stored as negative cache sentinels.
               const res = await jolpicaFetch<JolpicaStandingsResponse>(
                 `/${seasonYear}/drivers/${id}/driverStandings.json`
-              ).catch(() => null);
+              );
               const list = res?.MRData.StandingsTable.StandingsLists[0];
               const entry = list?.DriverStandings?.[0];
               if (!entry) return null;
@@ -587,28 +612,30 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
                 })),
               };
             }
-          );
-        })
+          ).catch(() => null); // Catch outside cachedFetch so one season failure doesn't abort the rest
+        }
       );
       seasonHistory = standingsResults.filter((s): s is DriverSeasonStanding => s !== null);
     }
 
     // Ensure active season from official stats is present if missing from Jolpica
-    if (officialStats?.season && !seasonHistory.some((s) => s.season === officialStats.season.year)) {
-      const constructorId = fallbackMeta?.constructorId ?? 'mercedes';
-      const constructorName = fallbackMeta?.constructorName ?? 'Mercedes';
+    const activeOfficialSeason = officialStats?.season?.year ?? currentSeason;
+    if (officialStats?.season && !seasonHistory.some((s) => s.season === activeOfficialSeason)) {
+      const constructors = fallbackMeta
+        ? [
+            {
+              constructorId: fallbackMeta.constructorId,
+              name: fallbackMeta.constructorName,
+            },
+          ]
+        : [];
       seasonHistory.unshift({
-        season: officialStats.season.year ?? currentSeason,
+        season: activeOfficialSeason,
         round: '1',
         position: officialStats.season.position || '—',
         points: officialStats.season.points || '0',
         wins: String(officialStats.season.gpWins || 0),
-        constructors: [
-          {
-            constructorId,
-            name: constructorName,
-          },
-        ],
+        constructors,
       });
     }
 
