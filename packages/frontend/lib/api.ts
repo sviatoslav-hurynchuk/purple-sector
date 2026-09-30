@@ -170,7 +170,7 @@ export async function getSeasonDrivers(season?: number): Promise<Driver[]> {
 }
 
 export async function getDriverProfile(driverId: string): Promise<DriverProfile | null> {
-  const revalidate = 86400; // 24h for driver profiles
+  const revalidate = 60; // 60s on frontend; backend Express handles Redis caching (24h)
   return apiFetchNullable<DriverProfile>(`/api/drivers/${driverId}`, revalidate);
 }
 

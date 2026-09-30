@@ -532,12 +532,20 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
     'nico-hulkenberg': 'hulkenberg',
     'carlos-sainz': 'sainz',
     'max-verstappen': 'max_verstappen',
+    verstappen: 'max_verstappen',
     'lewis-hamilton': 'hamilton',
   };
   const id = idMap[rawId] ?? rawId;
   const cacheKey = `f1:driver:profile:${id}`;
 
-  return cachedFetch<DriverProfile | null>(cacheKey, TTL.SCHEDULE_PAST, async () => {
+  return cachedFetch<DriverProfile | null>(
+    cacheKey,
+    (profile) => {
+      if (!profile) return TTL.NEGATIVE_CACHE;
+      if (profile.seasonHistory.length === 0) return 60;
+      return TTL.SCHEDULE_PAST;
+    },
+    async () => {
     // Fetch driver bio and seasons from Jolpica
     const [driverRes, seasonsRes] = await Promise.all([
       jolpicaFetch<JolpicaDriversResponse>(`/drivers/${id}`).catch(() => null),
