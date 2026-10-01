@@ -93,9 +93,9 @@ export function NextRaceCard({ race, className }: NextRaceCardProps) {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 shrink-0">
-            <SessionRecapModal race={race} />
+          <div className="flex flex-wrap items-center gap-4 shrink-0">
             <CountdownWidget race={race} size="sm" showCountry={false} />
+            <SessionRecapModal />
           </div>
         </div>
       </div>

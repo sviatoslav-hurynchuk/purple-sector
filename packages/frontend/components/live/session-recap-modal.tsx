@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSharedLiveSession } from '@/components/live/live-session-provider';
-import { LiveStatusIndicator } from '@/components/live/live-status-indicator';
 import { CountryFlag } from '@/components/f1/country-flag';
 import {
   Dialog,
@@ -21,13 +20,10 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { LiveDriverState, LiveSessionState, Race, RaceEvent } from '@/types/f1';
+import type { LiveDriverState, RaceEvent } from '@/types/f1';
 
-/** How long after session completion the race results button remains visible (24 hours). */
+/** How long after session completion the recap button remains visible (24 hours). */
 const RECAP_VISIBILITY_MS = 24 * 60 * 60 * 1000;
-
-/** Maximum age for any non-race session to be considered part of an active weekend (7 days). */
-const MAX_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** localStorage key prefix for storing the first-seen timestamp per session. */
 const STORAGE_KEY_PREFIX = 'ps_recap_seen_';
@@ -58,124 +54,6 @@ function formatLapTime(seconds: number | null): string {
   return secs.toFixed(3);
 }
 
-/**
- * Resolves a clean session display name like "Practice 1", "Qualifying", "Sprint", "Race".
- */
-function resolveSessionDisplayName(sessionName?: string, sessionType?: string): string {
-  const combined = `${sessionName ?? ''} ${sessionType ?? ''}`.toLowerCase();
-
-  if (combined.includes('practice 1') || combined.includes('fp1')) return 'Practice 1';
-  if (combined.includes('practice 2') || combined.includes('fp2')) return 'Practice 2';
-  if (combined.includes('practice 3') || combined.includes('fp3')) return 'Practice 3';
-  if (combined.includes('sprint qualifying') || combined.includes('sprint shootout') || combined.includes('sq')) return 'Sprint Qualifying';
-  if (combined.includes('sprint')) return 'Sprint';
-  if (combined.includes('qualifying') || combined.includes('qualy')) return 'Qualifying';
-  if (combined.includes('race')) return 'Race';
-
-  return sessionType || sessionName || 'Session';
-}
-
-/**
- * Validates whether a completed live session belongs to the specific race weekend
- * displayed on the dashboard, and applies the 24-hour expiration rule for races.
- */
-function isSessionRelevant(
-  state: LiveSessionState | null,
-  race: Race | null | undefined,
-  firstSeenTimestamp: number | null
-): boolean {
-  if (!state || state.status !== 'COMPLETED' || state.isActive) return false;
-  if (!state.drivers || state.drivers.length === 0) return false;
-
-  const sessionLabel = resolveSessionDisplayName(state.sessionName, state.sessionType);
-  const isRace = sessionLabel.toLowerCase() === 'race';
-  const now = Date.now();
-
-  const endMs = state.dateEnd ? new Date(state.dateEnd).getTime() : NaN;
-  const startMs = state.dateStart ? new Date(state.dateStart).getTime() : NaN;
-
-  // ── 1. Expiration check for Race results (must disappear 24h after appearance) ─
-  if (isRace) {
-    // If official dateEnd is available, check 24h from dateEnd
-    if (!isNaN(endMs) && now - endMs > RECAP_VISIBILITY_MS) {
-      return false;
-    }
-    // Also check 24h from first time the user's client observed the completed state
-    if (firstSeenTimestamp != null && now - firstSeenTimestamp > RECAP_VISIBILITY_MS) {
-      return false;
-    }
-  } else {
-    // Non-race sessions older than 7 days are definitely stale
-    if (!isNaN(endMs) && now - endMs > MAX_SESSION_AGE_MS) {
-      return false;
-    }
-  }
-
-  // ── 2. Weekend association check ───────────────────────────────────────────
-  // Non-race sessions (Practice 1-3, Qualifying, Sprint) must correspond specifically
-  // to the active race weekend currently shown on the dashboard.
-  if (!race) {
-    // Without race context, we only allow recent completed races
-    return isRace;
-  }
-
-  const raceCountry = race.Circuit?.Location?.country?.toLowerCase().trim();
-  const stateCountry = state.countryName?.toLowerCase().trim();
-  const raceCircuit = race.Circuit?.circuitId?.toLowerCase().trim();
-  const stateCircuit = state.circuitShortName?.toLowerCase().trim();
-  const raceName = race.raceName?.toLowerCase().trim();
-  const stateName = state.sessionName?.toLowerCase().trim();
-
-  const countryMatch = Boolean(
-    raceCountry &&
-      stateCountry &&
-      (raceCountry === stateCountry || raceCountry.includes(stateCountry) || stateCountry.includes(raceCountry))
-  );
-
-  const circuitMatch = Boolean(
-    raceCircuit &&
-      stateCircuit &&
-      (raceCircuit.includes(stateCircuit) || stateCircuit.includes(raceCircuit))
-  );
-
-  const nameMatch = Boolean(
-    raceName &&
-      stateName &&
-      (stateName.includes(raceName) || raceName.includes(stateName))
-  );
-
-  const isMatchingVenue = countryMatch || circuitMatch || nameMatch;
-
-  if (!isRace) {
-    // Non-race session MUST match venue
-    if (!isMatchingVenue) return false;
-
-    // And session must be within the weekend date range (5 days prior to race day until Monday after)
-    const raceDateMs = new Date(race.date).getTime();
-    if (!isNaN(raceDateMs) && !isNaN(startMs)) {
-      const weekendStart = raceDateMs - 5 * 24 * 60 * 60 * 1000;
-      const weekendEnd = raceDateMs + 2 * 24 * 60 * 60 * 1000;
-      if (startMs < weekendStart || startMs > weekendEnd) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  // For a completed Race:
-  // If the race matches the venue or finished within the last 24h, show it.
-  if (isMatchingVenue) return true;
-
-  // If Jolpica getNextRace() already rolled over to the next round,
-  // allow the just-finished race to stay for 24h if it ended < 24h ago
-  if (!isNaN(endMs) && now - endMs < RECAP_VISIBILITY_MS) {
-    return true;
-  }
-
-  return false;
-}
-
 // ── Trigger button ────────────────────────────────────────────────────────────
 
 interface SessionResultsButtonProps {
@@ -183,8 +61,8 @@ interface SessionResultsButtonProps {
   isRace: boolean;
   /** Country name for the race flag (only used when isRace=true). */
   countryName?: string;
-  /** Clean session label, e.g. "Race", "Qualifying", "Practice 1". */
-  sessionLabel: string;
+  /** Session type label, e.g. "Race", "Qualifying". */
+  sessionType: string;
   onClick: () => void;
   className?: string;
 }
@@ -196,18 +74,17 @@ interface SessionResultsButtonProps {
 export function SessionResultsButton({
   isRace,
   countryName,
-  sessionLabel,
+  sessionType,
   onClick,
   className,
 }: SessionResultsButtonProps) {
   return (
     <button
       onClick={onClick}
-      type="button"
       className={cn(
-        'group inline-flex items-center gap-2 sm:gap-2.5 p-3 sm:p-4 rounded-xl',
-        'bg-zinc-950/90 border border-zinc-800/80 hover:border-primary/50 hover:bg-zinc-900/90',
-        'shadow-lg backdrop-blur-sm transition-all cursor-pointer select-none',
+        'group inline-flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl',
+        'bg-zinc-950/80 border border-zinc-800 hover:border-emerald-600/50 hover:bg-zinc-900/90',
+        'transition-all cursor-pointer',
         className
       )}
     >
@@ -216,14 +93,14 @@ export function SessionResultsButton({
           countryName={countryName}
           width={18}
           height={14}
-          className="w-4.5 sm:w-5 h-3 sm:h-3.5 object-cover rounded-xs border border-zinc-700/60 shadow-xs shrink-0"
+          className="w-4 h-3 rounded-xs border border-zinc-700/50 shrink-0"
         />
       )}
-      <span className="font-mono text-xs sm:text-sm font-black text-foreground uppercase tracking-tight group-hover:text-primary transition-colors whitespace-nowrap">
-        {sessionLabel} Results
+      <span className="font-mono text-xs sm:text-sm font-black text-zinc-300 group-hover:text-white tracking-tight whitespace-nowrap">
+        {sessionType} Results
       </span>
       <svg
-        className="size-4 text-zinc-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 ml-0.5"
+        className="size-4 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -238,8 +115,6 @@ export function SessionResultsButton({
 // ── Full modal component ──────────────────────────────────────────────────────
 
 interface SessionRecapModalProps {
-  /** The current race weekend displayed in NextRaceCard to scope session relevance. */
-  race?: Race | null;
   className?: string;
 }
 
@@ -248,25 +123,27 @@ interface SessionRecapModalProps {
  *
  * Visibility rules:
  *  - Only shown when status === 'COMPLETED' and drivers data is present.
- *  - Must relate to the specific weekend displayed on the card.
- *  - Race results persist for strictly 24 hours after completion.
+ *  - Persists for up to 24 hours after first being seen (tracked in localStorage
+ *    keyed by sessionKey so it's scoped to the specific weekend).
  *  - Disappears immediately when a new live session becomes active.
  *
- * Trigger button renders beside CountdownWidget matching its visual style:
- * "*session* Results >" or "[flag] Race Results >".
+ * The trigger is the compact `SessionResultsButton` rendered beside CountdownWidget
+ * inside NextRaceCard. This component renders the Dialog only (no outer trigger).
  */
-export function SessionRecapModal({ race, className }: SessionRecapModalProps) {
+export function SessionRecapModal({ className }: SessionRecapModalProps) {
   const { state } = useSharedLiveSession();
   const [open, setOpen] = useState(false);
 
-  // Stable references for hooks to avoid optional-chaining in deps (fixes react-hooks/preserve-manual-memoization)
+  // Stable references to avoid optional-chaining in deps (fixes react-hooks/preserve-manual-memoization)
   const drivers = state?.drivers ?? null;
   const raceControlFeed = state?.raceControlFeed ?? null;
   const sessionKey = state?.sessionKey ?? null;
   const sessionStatus = state?.status ?? null;
 
   /**
-   * Reads or registers the first-seen timestamp from localStorage for this sessionKey.
+   * Read or register the first-seen timestamp from localStorage for this session.
+   * Returns null when called server-side or before the session key is known.
+   * Safe to call in lazy state initializers and effects.
    */
   function readOrRegisterTimestamp(key: number | null): number | null {
     if (key == null) return null;
@@ -282,27 +159,48 @@ export function SessionRecapModal({ race, className }: SessionRecapModalProps) {
     }
   }
 
-  const [firstSeenTimestamp, setFirstSeenTimestamp] = useState<number | null>(() => {
-    if (typeof window === 'undefined' || sessionStatus !== 'COMPLETED') return null;
-    return readOrRegisterTimestamp(sessionKey);
+  /**
+   * Whether the recap is still within the 24-hour visibility window.
+   * Stored as state so React re-renders when the interval fires.
+   * Lazy initializer runs once before the first render (avoids setState-in-effect).
+   */
+  const [isWithin24h, setIsWithin24h] = useState<boolean>(() => {
+    // On the server there is no localStorage — default to true and let
+    // the client-side effect correct it if needed.
+    if (typeof window === 'undefined' || sessionStatus !== 'COMPLETED') return true;
+    const ts = readOrRegisterTimestamp(sessionKey);
+    return ts == null || Date.now() - ts < RECAP_VISIBILITY_MS;
   });
 
-  // Persist first-seen timestamp when a session completes
+  // When the session key or status changes, persist the timestamp and sync isWithin24h.
+  // We deliberately do not call setIsWithin24h inside this effect's synchronous body;
+  // instead, we schedule the state update via a zero-delay timeout to satisfy
+  // react-hooks/set-state-in-effect (setState must be in a callback, not inline).
   useEffect(() => {
     if (sessionStatus !== 'COMPLETED' || sessionKey == null) return;
     const ts = readOrRegisterTimestamp(sessionKey);
-    const id = setTimeout(() => setFirstSeenTimestamp(ts), 0);
+    const within = ts == null || Date.now() - ts < RECAP_VISIBILITY_MS;
+    // Use a microtask-safe timeout so the state update is treated as async
+    const id = setTimeout(() => setIsWithin24h(within), 0);
     return () => clearTimeout(id);
   }, [sessionKey, sessionStatus]);
 
-  // Periodic interval re-checks relevance (e.g. at the 24h boundary)
-  const [, setTick] = useState(0);
+  // Re-check once per minute so the 24h boundary triggers a re-render automatically.
   useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 60_000);
+    const interval = setInterval(() => {
+      if (sessionStatus !== 'COMPLETED' || sessionKey == null) return;
+      const ts = readOrRegisterTimestamp(sessionKey);
+      setIsWithin24h(ts == null || Date.now() - ts < RECAP_VISIBILITY_MS);
+    }, 60_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [sessionKey, sessionStatus]);
 
-  const isVisible = isSessionRelevant(state, race, firstSeenTimestamp);
+  const isVisible =
+    state?.status === 'COMPLETED' &&
+    !state.isActive &&
+    isWithin24h &&
+    drivers &&
+    drivers.length > 0;
 
   const sortedDrivers = useMemo(() => {
     if (!drivers) return [];
@@ -321,11 +219,11 @@ export function SessionRecapModal({ race, className }: SessionRecapModalProps) {
     [raceControlFeed]
   );
 
-  if (!isVisible || !state) return null;
+  if (!isVisible) return null;
 
-  const sessionLabel = resolveSessionDisplayName(state.sessionName, state.sessionType);
-  const isRace = sessionLabel.toLowerCase() === 'race';
-  const countryName = state.countryName || race?.Circuit?.Location?.country;
+  const sessionType = state?.sessionType ?? 'Session';
+  const isRace = sessionType.toLowerCase().includes('race');
+  const countryName = state?.countryName;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -333,7 +231,7 @@ export function SessionRecapModal({ race, className }: SessionRecapModalProps) {
         <SessionResultsButton
           isRace={isRace}
           countryName={countryName}
-          sessionLabel={sessionLabel}
+          sessionType={sessionType}
           onClick={() => setOpen(true)}
           className={className}
         />
@@ -350,12 +248,11 @@ export function SessionRecapModal({ race, className }: SessionRecapModalProps) {
             )}
             <div className="min-w-0">
               <DialogTitle>
-                {state.sessionName || `${sessionLabel} Results`}
+                {state?.sessionName || 'Session Recap'}
               </DialogTitle>
               <p className="text-xs font-mono text-zinc-400 mt-0.5">
-                {state.circuitShortName || race?.Circuit?.circuitName}
+                {state?.circuitShortName}
                 {countryName ? ` · ${countryName}` : ''}
-                {sessionLabel ? ` · ${sessionLabel}` : ''}
               </p>
             </div>
           </div>
@@ -370,7 +267,6 @@ export function SessionRecapModal({ race, className }: SessionRecapModalProps) {
               <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
                 Classification
               </span>
-              <LiveStatusIndicator status="COMPLETED" size="sm" className="ml-auto" />
             </div>
 
             <div className="divide-y divide-zinc-800/60">
@@ -470,7 +366,7 @@ export function SessionRecapModal({ race, className }: SessionRecapModalProps) {
                   Track Conditions
                 </span>
               </div>
-              {state.weather ? (
+              {state?.weather ? (
                 <div className="flex flex-wrap items-center gap-3 text-sm font-mono">
                   <span className="text-white">
                     {Math.round(state.weather.trackTemperature ?? 0)}°C
