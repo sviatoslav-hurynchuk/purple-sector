@@ -4,7 +4,6 @@ import { NextRaceSection } from '@/components/f1/sections/next-race-section';
 import { DashboardStandings } from '@/components/f1/sections/dashboard-standings';
 import { NextRaceSkeleton } from '@/components/f1/skeletons/next-race-skeleton';
 import { StandingsSkeleton } from '@/components/f1/skeletons/standings-skeleton';
-import { SessionRecapModal } from '@/components/live/session-recap-modal';
 
 export const metadata: Metadata = {
     title: 'Dashboard | Purple Sector',
@@ -21,9 +20,6 @@ export default function DashboardPage() {
                 <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
                 <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
             </div>
-
-            {/* Session Recap: appears after a completed session */}
-            <SessionRecapModal />
 
             <Suspense fallback={<NextRaceSkeleton />}>
                 <NextRaceSection />

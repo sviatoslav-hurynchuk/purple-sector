@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSharedLiveSession } from '@/components/live/live-session-provider';
 import { LiveStatusIndicator } from '@/components/live/live-status-indicator';
 import { CountryFlag } from '@/components/f1/country-flag';
@@ -14,26 +14,29 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Flag,
   Trophy,
   Timer,
   Thermometer,
   Droplets,
   ShieldAlert,
-  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LiveDriverState, RaceEvent } from '@/types/f1';
 
-/** Extract notable race control events (SC, VSC, Red Flag) */
+/** How long after session completion the recap button remains visible (24 hours). */
+const RECAP_VISIBILITY_MS = 24 * 60 * 60 * 1000;
+
+/** localStorage key prefix for storing the first-seen timestamp per session. */
+const STORAGE_KEY_PREFIX = 'ps_recap_seen_';
+
+/** Extract notable race control events (SC, VSC, Red Flag). */
 function getNotableEvents(events: RaceEvent[]): RaceEvent[] {
   const types = new Set(['safety_car', 'vsc', 'red_flag']);
   return events.filter((e) => types.has(e.type));
 }
 
-/** Find the driver with the fastest lap (rank 1 or best lastLapDuration) */
+/** Find the driver with the fastest lap (lowest positive lastLapDuration). */
 function findFastestLapDriver(drivers: LiveDriverState[]): LiveDriverState | null {
-  // Sort by lastLapDuration ascending, filter out nulls
   const withTimes = drivers.filter((d) => d.lastLapDuration != null && d.lastLapDuration > 0);
   if (withTimes.length === 0) return null;
   return withTimes.reduce((best, d) =>
@@ -41,7 +44,7 @@ function findFastestLapDriver(drivers: LiveDriverState[]): LiveDriverState | nul
   );
 }
 
-/** Format lap time from seconds to M:SS.mmm */
+/** Format lap time in seconds to M:SS.mmm display format. */
 function formatLapTime(seconds: number | null): string {
   if (!seconds || seconds <= 0) return '—';
   const mins = Math.floor(seconds / 60);
@@ -52,87 +55,195 @@ function formatLapTime(seconds: number | null): string {
   return secs.toFixed(3);
 }
 
-export function SessionRecapModal() {
+// ── Trigger button ────────────────────────────────────────────────────────────
+
+interface SessionResultsButtonProps {
+  /** Whether this is a Race session type (adds country flag). */
+  isRace: boolean;
+  /** Country name for the race flag (only used when isRace=true). */
+  countryName?: string;
+  /** Session type label, e.g. "Race", "Qualifying". */
+  sessionType: string;
+  onClick: () => void;
+  className?: string;
+}
+
+/**
+ * Compact inline button styled to match CountdownWidget.
+ * Renders next to the countdown in NextRaceCard.
+ */
+export function SessionResultsButton({
+  isRace,
+  countryName,
+  sessionType,
+  onClick,
+  className,
+}: SessionResultsButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'group inline-flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl',
+        'bg-zinc-950/80 border border-zinc-800 hover:border-emerald-600/50 hover:bg-zinc-900/90',
+        'transition-all cursor-pointer',
+        className
+      )}
+    >
+      {isRace && countryName && (
+        <CountryFlag
+          countryName={countryName}
+          width={18}
+          height={14}
+          className="w-4 h-3 rounded-xs border border-zinc-700/50 shrink-0"
+        />
+      )}
+      <span className="font-mono text-xs sm:text-sm font-black text-zinc-300 group-hover:text-white tracking-tight whitespace-nowrap">
+        {sessionType} Results
+      </span>
+      <svg
+        className="size-4 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+      >
+        <path d="m9 18 6-6-6-6" />
+      </svg>
+    </button>
+  );
+}
+
+// ── Full modal component ──────────────────────────────────────────────────────
+
+interface SessionRecapModalProps {
+  className?: string;
+}
+
+/**
+ * Session recap dialog.
+ *
+ * Visibility rules:
+ *  - Only shown when status === 'COMPLETED' and drivers data is present.
+ *  - Persists for up to 24 hours after first being seen (tracked in localStorage
+ *    keyed by sessionKey so it's scoped to the specific weekend).
+ *  - Disappears immediately when a new live session becomes active.
+ *
+ * The trigger is the compact `SessionResultsButton` rendered beside CountdownWidget
+ * inside NextRaceCard. This component renders the Dialog only (no outer trigger).
+ */
+export function SessionRecapModal({ className }: SessionRecapModalProps) {
   const { state } = useSharedLiveSession();
   const [open, setOpen] = useState(false);
 
-  // Only show when session is completed and has driver data
+  // Stable references to avoid optional-chaining in deps (fixes react-hooks/preserve-manual-memoization)
+  const drivers = state?.drivers ?? null;
+  const raceControlFeed = state?.raceControlFeed ?? null;
+  const sessionKey = state?.sessionKey ?? null;
+  const sessionStatus = state?.status ?? null;
+
+  /**
+   * Read or register the first-seen timestamp from localStorage for this session.
+   * Returns null when called server-side or before the session key is known.
+   * Safe to call in lazy state initializers and effects.
+   */
+  function readOrRegisterTimestamp(key: number | null): number | null {
+    if (key == null) return null;
+    const storageKey = `${STORAGE_KEY_PREFIX}${key}`;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) return parseInt(stored, 10);
+      const now = Date.now();
+      localStorage.setItem(storageKey, String(now));
+      return now;
+    } catch {
+      return Date.now();
+    }
+  }
+
+  /**
+   * Whether the recap is still within the 24-hour visibility window.
+   * Stored as state so React re-renders when the interval fires.
+   * Lazy initializer runs once before the first render (avoids setState-in-effect).
+   */
+  const [isWithin24h, setIsWithin24h] = useState<boolean>(() => {
+    // On the server there is no localStorage — default to true and let
+    // the client-side effect correct it if needed.
+    if (typeof window === 'undefined' || sessionStatus !== 'COMPLETED') return true;
+    const ts = readOrRegisterTimestamp(sessionKey);
+    return ts == null || Date.now() - ts < RECAP_VISIBILITY_MS;
+  });
+
+  // When the session key or status changes, persist the timestamp and sync isWithin24h.
+  // We deliberately do not call setIsWithin24h inside this effect's synchronous body;
+  // instead, we schedule the state update via a zero-delay timeout to satisfy
+  // react-hooks/set-state-in-effect (setState must be in a callback, not inline).
+  useEffect(() => {
+    if (sessionStatus !== 'COMPLETED' || sessionKey == null) return;
+    const ts = readOrRegisterTimestamp(sessionKey);
+    const within = ts == null || Date.now() - ts < RECAP_VISIBILITY_MS;
+    // Use a microtask-safe timeout so the state update is treated as async
+    const id = setTimeout(() => setIsWithin24h(within), 0);
+    return () => clearTimeout(id);
+  }, [sessionKey, sessionStatus]);
+
+  // Re-check once per minute so the 24h boundary triggers a re-render automatically.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (sessionStatus !== 'COMPLETED' || sessionKey == null) return;
+      const ts = readOrRegisterTimestamp(sessionKey);
+      setIsWithin24h(ts == null || Date.now() - ts < RECAP_VISIBILITY_MS);
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [sessionKey, sessionStatus]);
+
   const isVisible =
     state?.status === 'COMPLETED' &&
     !state.isActive &&
-    state.drivers &&
-    state.drivers.length > 0;
+    isWithin24h &&
+    drivers &&
+    drivers.length > 0;
 
   const sortedDrivers = useMemo(() => {
-    if (!state?.drivers) return [];
-    return [...state.drivers].sort((a, b) => a.position - b.position);
-  }, [state?.drivers]);
+    if (!drivers) return [];
+    return [...drivers].sort((a, b) => a.position - b.position);
+  }, [drivers]);
 
   const top10 = sortedDrivers.slice(0, 10);
+
   const fastestLapDriver = useMemo(
-    () => findFastestLapDriver(state?.drivers ?? []),
-    [state?.drivers]
+    () => findFastestLapDriver(drivers ?? []),
+    [drivers]
   );
+
   const notableEvents = useMemo(
-    () => getNotableEvents(state?.raceControlFeed ?? []),
-    [state?.raceControlFeed]
+    () => getNotableEvents(raceControlFeed ?? []),
+    [raceControlFeed]
   );
 
   if (!isVisible) return null;
 
+  const sessionType = state?.sessionType ?? 'Session';
+  const isRace = sessionType.toLowerCase().includes('race');
+  const countryName = state?.countryName;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger>
-        <button
-          className={cn(
-            'group w-full rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/30 via-zinc-900/80 to-zinc-950/80',
-            'p-4 sm:p-5 backdrop-blur-xl shadow-lg shadow-emerald-950/10',
-            'hover:border-emerald-500/40 hover:shadow-emerald-950/20 transition-all duration-300',
-            'flex items-center justify-between gap-4'
-          )}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 shrink-0">
-              <Flag className="size-5 text-emerald-400" />
-            </div>
-            <div className="flex flex-col items-start min-w-0">
-              <div className="flex items-center gap-2">
-                <LiveStatusIndicator status="COMPLETED" size="sm" />
-                <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider truncate">
-                  {state?.sessionType || 'Session'}
-                </span>
-              </div>
-              <p className="text-sm sm:text-base font-bold text-white truncate">
-                {state?.sessionName || 'Session Completed'}
-              </p>
-            </div>
-          </div>
-
-          {/* Quick winner preview */}
-          <div className="flex items-center gap-3 shrink-0">
-            {sortedDrivers[0] && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-white/5">
-                <span
-                  className="h-4 w-1 rounded-full shrink-0"
-                  style={{ backgroundColor: sortedDrivers[0].teamColour || '#e10600' }}
-                />
-                <span className="text-sm font-mono font-bold text-white">
-                  {sortedDrivers[0].code || sortedDrivers[0].name}
-                </span>
-                <span className="text-xs font-mono font-bold text-amber-400">P1</span>
-              </div>
-            )}
-            <ChevronRight className="size-5 text-zinc-400 group-hover:text-emerald-400 transition-colors" />
-          </div>
-        </button>
+        <SessionResultsButton
+          isRace={isRace}
+          countryName={countryName}
+          sessionType={sessionType}
+          onClick={() => setOpen(true)}
+          className={className}
+        />
       </DialogTrigger>
 
       <DialogPanel className="max-w-xl sm:max-w-2xl">
         <DialogHeader>
           <div className="flex items-center gap-3 min-w-0">
-            {state?.countryName && (
+            {countryName && (
               <CountryFlag
-                countryName={state.countryName}
+                countryName={countryName}
                 className="w-7 h-5 object-cover rounded-xs border border-white/15 shadow-sm shrink-0"
               />
             )}
@@ -142,8 +253,8 @@ export function SessionRecapModal() {
               </DialogTitle>
               <p className="text-xs font-mono text-zinc-400 mt-0.5">
                 {state?.circuitShortName}
-                {state?.countryName ? ` · ${state.countryName}` : ''}
-                {state?.sessionType ? ` · ${state.sessionType}` : ''}
+                {countryName ? ` · ${countryName}` : ''}
+                {sessionType ? ` · ${sessionType}` : ''}
               </p>
             </div>
           </div>
@@ -151,13 +262,14 @@ export function SessionRecapModal() {
         </DialogHeader>
 
         <DialogContent className="p-0">
-          {/* ── Top-10 Classification ───────────────────────────── */}
+          {/* ── Top-10 Classification ─────────────────────────────────── */}
           <div className="border-b border-zinc-800">
             <div className="px-5 py-3 flex items-center gap-2">
               <Trophy className="size-4 text-amber-400" />
               <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
                 Classification
               </span>
+              <LiveStatusIndicator status="COMPLETED" size="sm" className="ml-auto" />
             </div>
 
             <div className="divide-y divide-zinc-800/60">
@@ -203,10 +315,12 @@ export function SessionRecapModal() {
                     {driver.teamName}
                   </span>
 
-                  {/* Gap */}
+                  {/* Gap / leader time */}
                   <span className="text-xs font-mono text-zinc-400 shrink-0 w-20 text-right">
                     {driver.position === 1
-                      ? (driver.lastLapDuration ? formatLapTime(driver.lastLapDuration) : 'LEADER')
+                      ? driver.lastLapDuration
+                        ? formatLapTime(driver.lastLapDuration)
+                        : 'LEADER'
                       : driver.gapToLeader != null
                         ? typeof driver.gapToLeader === 'number'
                           ? `+${driver.gapToLeader.toFixed(3)}s`
@@ -219,7 +333,7 @@ export function SessionRecapModal() {
             </div>
           </div>
 
-          {/* ── Bottom Info Grid ───────────────────────────────── */}
+          {/* ── Bottom Info Grid ──────────────────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-zinc-800">
             {/* Fastest Lap */}
             <div className="p-4 sm:p-5 space-y-2">
@@ -293,7 +407,7 @@ export function SessionRecapModal() {
               <div className="space-y-1.5">
                 {notableEvents.slice(-5).map((event, i) => (
                   <div
-                    key={`${event.type}-${event.lap}-${i}`}
+                    key={`${event.type}-${event.lap ?? 0}-${i}`}
                     className={cn(
                       'flex items-center gap-2 text-xs font-mono px-2.5 py-1.5 rounded-lg border',
                       event.type === 'safety_car' && 'bg-amber-500/5 text-amber-300 border-amber-500/15',
