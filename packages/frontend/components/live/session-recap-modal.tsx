@@ -34,13 +34,34 @@ function getNotableEvents(events: RaceEvent[]): RaceEvent[] {
   return events.filter((e) => types.has(e.type));
 }
 
-/** Find the driver with the fastest lap (lowest positive lastLapDuration). */
-function findFastestLapDriver(drivers: LiveDriverState[]): LiveDriverState | null {
+interface LiveDriverWithBestLap extends LiveDriverState {
+  bestLapTime?: number | null;
+}
+
+/** Find the driver with the best or last recorded lap time. */
+function findBestOrLastLapDriver(drivers: LiveDriverState[]): {
+  driver: LiveDriverState;
+  lapDuration: number;
+  isSessionBest: boolean;
+} | null {
+  // If an official best-lap value is present on LiveDriverState, prefer it
+  const withBest = (drivers as LiveDriverWithBestLap[]).filter(
+    (d) => d.bestLapTime != null && d.bestLapTime > 0
+  );
+  if (withBest.length > 0) {
+    const best = withBest.reduce((prev, d) =>
+      (d.bestLapTime ?? Infinity) < (prev.bestLapTime ?? Infinity) ? d : prev
+    );
+    return { driver: best, lapDuration: best.bestLapTime!, isSessionBest: true };
+  }
+
+  // Otherwise fall back to lastLapDuration, accurately identified as the last lap
   const withTimes = drivers.filter((d) => d.lastLapDuration != null && d.lastLapDuration > 0);
   if (withTimes.length === 0) return null;
-  return withTimes.reduce((best, d) =>
-    (d.lastLapDuration ?? Infinity) < (best.lastLapDuration ?? Infinity) ? d : best
+  const best = withTimes.reduce((prev, d) =>
+    (d.lastLapDuration ?? Infinity) < (prev.lastLapDuration ?? Infinity) ? d : prev
   );
+  return { driver: best, lapDuration: best.lastLapDuration!, isSessionBest: false };
 }
 
 /** Format lap time in seconds to M:SS.mmm display format. */
@@ -56,61 +77,62 @@ function formatLapTime(seconds: number | null): string {
 
 // ── Trigger button ────────────────────────────────────────────────────────────
 
-interface SessionResultsButtonProps {
+export interface SessionResultsButtonProps extends React.ComponentPropsWithRef<'button'> {
   /** Whether this is a Race session type (adds country flag). */
   isRace: boolean;
   /** Country name for the race flag (only used when isRace=true). */
   countryName?: string;
   /** Session type label, e.g. "Race", "Qualifying". */
   sessionType: string;
-  onClick: () => void;
-  className?: string;
 }
 
 /**
  * Compact inline button styled to match CountdownWidget.
  * Renders next to the countdown in NextRaceCard.
+ * Forwards ref and button props from DialogTrigger for proper focus management.
  */
-export function SessionResultsButton({
-  isRace,
-  countryName,
-  sessionType,
-  onClick,
-  className,
-}: SessionResultsButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'group inline-flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl',
-        'bg-zinc-950/80 border border-zinc-800 hover:border-emerald-600/50 hover:bg-zinc-900/90',
-        'transition-all cursor-pointer',
-        className
-      )}
-    >
-      {isRace && countryName && (
-        <CountryFlag
-          countryName={countryName}
-          width={18}
-          height={14}
-          className="w-4 h-3 rounded-xs border border-zinc-700/50 shrink-0"
-        />
-      )}
-      <span className="font-mono text-xs sm:text-sm font-black text-zinc-300 group-hover:text-white tracking-tight whitespace-nowrap">
-        {sessionType} Results
-      </span>
-      <svg
-        className="size-4 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
+export const SessionResultsButton = React.forwardRef<HTMLButtonElement, SessionResultsButtonProps>(
+  function SessionResultsButton(
+    { isRace, countryName, sessionType, className, type = 'button', ...props },
+    ref
+  ) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={cn(
+          'group inline-flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl',
+          'bg-zinc-950/80 border border-zinc-800 hover:border-emerald-600/50 hover:bg-zinc-900/90',
+          'transition-all cursor-pointer',
+          className
+        )}
+        {...props}
       >
-        <path d="m9 18 6-6-6-6" />
-      </svg>
-    </button>
-  );
-}
+        {isRace && countryName && (
+          <CountryFlag
+            countryName={countryName}
+            width={18}
+            height={14}
+            className="w-4 h-3 rounded-xs border border-zinc-700/50 shrink-0"
+          />
+        )}
+        <span className="font-mono text-xs sm:text-sm font-black text-zinc-300 group-hover:text-white tracking-tight whitespace-nowrap">
+          {sessionType} Results
+        </span>
+        <svg
+          className="size-4 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </button>
+    );
+  }
+);
+SessionResultsButton.displayName = 'SessionResultsButton';
 
 // ── Full modal component ──────────────────────────────────────────────────────
 
@@ -209,8 +231,8 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
 
   const top10 = sortedDrivers.slice(0, 10);
 
-  const fastestLapDriver = useMemo(
-    () => findFastestLapDriver(drivers ?? []),
+  const lapInfo = useMemo(
+    () => findBestOrLastLapDriver(drivers ?? []),
     [drivers]
   );
 
@@ -232,7 +254,6 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
           isRace={isRace}
           countryName={countryName}
           sessionType={sessionType}
-          onClick={() => setOpen(true)}
           className={className}
         />
       </DialogTrigger>
@@ -312,12 +333,10 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
                     {driver.teamName}
                   </span>
 
-                  {/* Gap / leader time */}
+                  {/* Gap */}
                   <span className="text-xs font-mono text-zinc-400 shrink-0 w-20 text-right">
                     {driver.position === 1
-                      ? driver.lastLapDuration
-                        ? formatLapTime(driver.lastLapDuration)
-                        : 'LEADER'
+                      ? 'LEADER'
                       : driver.gapToLeader != null
                         ? typeof driver.gapToLeader === 'number'
                           ? `+${driver.gapToLeader.toFixed(3)}s`
@@ -332,25 +351,25 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
 
           {/* ── Bottom Info Grid ──────────────────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-zinc-800">
-            {/* Fastest Lap */}
+            {/* Last Lap / Fastest Lap */}
             <div className="p-4 sm:p-5 space-y-2">
               <div className="flex items-center gap-2">
                 <Timer className="size-3.5 text-purple-400" />
                 <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                  Fastest Lap
+                  {lapInfo?.isSessionBest ? 'Fastest Lap' : 'Last Lap'}
                 </span>
               </div>
-              {fastestLapDriver ? (
+              {lapInfo ? (
                 <div className="flex items-center gap-2">
                   <span
                     className="h-4 w-1 rounded-full shrink-0"
-                    style={{ backgroundColor: fastestLapDriver.teamColour || '#a855f7' }}
+                    style={{ backgroundColor: lapInfo.driver.teamColour || '#a855f7' }}
                   />
                   <span className="font-mono font-bold text-sm text-white">
-                    {fastestLapDriver.code || fastestLapDriver.name}
+                    {lapInfo.driver.code || lapInfo.driver.name}
                   </span>
                   <span className="font-mono text-sm text-purple-400">
-                    {formatLapTime(fastestLapDriver.lastLapDuration)}
+                    {formatLapTime(lapInfo.lapDuration)}
                   </span>
                 </div>
               ) : (
