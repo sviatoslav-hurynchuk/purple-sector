@@ -534,6 +534,7 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
   },
   sepang: {
     circuitId: 'sepang',
+    circuitName: 'Sepang International Circuit',
     country: 'Malaysia',
     circuitLength: '5.543km',
     firstGrandPrix: '1999',
@@ -544,7 +545,8 @@ const F1_CIRCUIT_DETAILS: Record<string, CircuitDetails> = {
       driver: 'Sebastian Vettel',
       year: '2017',
     },
-    officialMapUrl: '',
+    officialMapUrl:
+      'https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/common/f1/2026/track/2026trackkualalumpurdetailed.webp',
   },
   buddh: {
     circuitId: 'buddh',
@@ -744,6 +746,11 @@ const CIRCUIT_ALIASES: Record<string, string> = {
   algarve: 'portimao',
   istanbul_park: 'istanbul',
   sepang_international_circuit: 'sepang',
+  kuala_lumpur: 'sepang',
+  kualalumpur: 'sepang',
+  malaysia: 'sepang',
+  malaysian: 'sepang',
+  malaysian_grand_prix: 'sepang',
   buddh_international_circuit: 'buddh',
   korean_international_circuit: 'yeongam',
   magny_cours_circuit: 'magny_cours',
