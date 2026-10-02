@@ -152,6 +152,36 @@ interface SessionRecapModalProps {
  * The trigger is the compact `SessionResultsButton` rendered beside CountdownWidget
  * inside NextRaceCard. This component renders the Dialog only (no outer trigger).
  */
+/** In-memory fallback map when localStorage access throws or is disabled (e.g. private mode). */
+const fallbackTimestamps = new Map<number, number>();
+
+/**
+ * Read or register the first-seen timestamp from localStorage for this session.
+ * Returns null when called server-side or before the session key is known.
+ * Safe to call in lazy state initializers and effects.
+ */
+function readOrRegisterTimestamp(key: number | null): number | null {
+  if (typeof window === 'undefined' || key == null) return null;
+  const storageKey = `${STORAGE_KEY_PREFIX}${key}`;
+  const fallback = fallbackTimestamps.get(key);
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      fallbackTimestamps.set(key, parsed);
+      return parsed;
+    }
+    const now = fallback ?? Date.now();
+    localStorage.setItem(storageKey, String(now));
+    fallbackTimestamps.set(key, now);
+    return now;
+  } catch {
+    const now = fallback ?? Date.now();
+    fallbackTimestamps.set(key, now);
+    return now;
+  }
+}
+
 export function SessionRecapModal({ className }: SessionRecapModalProps) {
   const { state } = useSharedLiveSession();
   const [open, setOpen] = useState(false);
@@ -161,25 +191,6 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
   const raceControlFeed = state?.raceControlFeed ?? null;
   const sessionKey = state?.sessionKey ?? null;
   const sessionStatus = state?.status ?? null;
-
-  /**
-   * Read or register the first-seen timestamp from localStorage for this session.
-   * Returns null when called server-side or before the session key is known.
-   * Safe to call in lazy state initializers and effects.
-   */
-  function readOrRegisterTimestamp(key: number | null): number | null {
-    if (key == null) return null;
-    const storageKey = `${STORAGE_KEY_PREFIX}${key}`;
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) return parseInt(stored, 10);
-      const now = Date.now();
-      localStorage.setItem(storageKey, String(now));
-      return now;
-    } catch {
-      return Date.now();
-    }
-  }
 
   /**
    * Whether the recap is still within the 24-hour visibility window.
