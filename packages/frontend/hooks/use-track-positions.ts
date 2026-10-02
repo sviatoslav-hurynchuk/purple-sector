@@ -14,7 +14,7 @@ interface UseTrackPositionsOptions {
 interface MapPositionsResponse {
   sessionKey: number;
   windowSeconds: number;
-  samples: CarLocationSample[];
+  locations: CarLocationSample[];
 }
 
 export interface DriverLatestLocation {
@@ -61,12 +61,12 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
         `/api/live/map/positions?${queryParams.toString()}`
       );
 
-      if (isMountedRef.current && res?.samples) {
-        setRawSamples(res.samples);
+      if (isMountedRef.current && res?.locations) {
+        setRawSamples(res.locations);
 
         // Group by driver and find the most recent sample
         const latestMap = new Map<number, DriverLatestLocation>();
-        for (const s of res.samples) {
+        for (const s of res.locations) {
           const existing = latestMap.get(s.driverNumber);
           if (!existing || new Date(s.date).getTime() > new Date(existing.date).getTime()) {
             latestMap.set(s.driverNumber, {

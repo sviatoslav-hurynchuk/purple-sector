@@ -31,6 +31,13 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/standings', label: 'Standings', icon: Trophy },
 ];
 
+/** Filter nav items based on feature flags */
+const VISIBLE_NAV_ITEMS = NAV_ITEMS.filter((item) => {
+  // Hide Live Timing unless explicitly enabled via env
+  if (item.isLive && process.env.NEXT_PUBLIC_LIVE_ENABLED !== 'true') return false;
+  return true;
+});
+
 export function Navbar() {
   const pathname = usePathname();
   const { state } = useSharedLiveSession();
@@ -51,7 +58,7 @@ export function Navbar() {
     [pathname]
   );
 
-  const activeRouteIndex = NAV_ITEMS.findIndex(isActive);
+  const activeRouteIndex = VISIBLE_NAV_ITEMS.findIndex(isActive);
   const currentActiveIndex = selectedTab !== null ? selectedTab : (activeRouteIndex >= 0 ? activeRouteIndex : 0);
 
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -108,7 +115,7 @@ export function Navbar() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-              {NAV_ITEMS.map((item) => {
+              {VISIBLE_NAV_ITEMS.map((item) => {
                 const active = isActive(item);
                 return (
                   <Link
@@ -135,7 +142,7 @@ export function Navbar() {
 
             {/* Mobile Header: Live Session Indicator */}
             <div className="flex md:hidden items-center gap-2">
-              {isLiveActive && (
+              {process.env.NEXT_PUBLIC_LIVE_ENABLED === 'true' && isLiveActive && (
                 <Link
                   href="/live"
                   className="flex items-center gap-1.5 px-2.5 py-1 min-h-[44px] rounded-full bg-red-500/10 border border-red-500/25 text-red-400 text-[11px] font-mono font-bold uppercase tracking-wider animate-pulse"
@@ -158,11 +165,12 @@ export function Navbar() {
           role="navigation"
           aria-label="Mobile Bottom Navigation"
           className={cn(
-            'relative dock-physics pointer-events-auto liquid-glass-dock rounded-full grid grid-cols-6 items-center w-full',
+            'relative dock-physics pointer-events-auto liquid-glass-dock rounded-full grid items-center w-full',
             isCompact
               ? 'max-w-[270px] scale-90 opacity-95 py-1 px-2'
               : 'max-w-[310px] scale-100 opacity-100 py-1.5 px-2'
           )}
+          style={{ gridTemplateColumns: `repeat(${VISIBLE_NAV_ITEMS.length}, 1fr)` }}
         >
           {/* Physical Sliding Active Indicator Pill */}
           <div
@@ -172,14 +180,14 @@ export function Navbar() {
               isCompact ? 'top-1 bottom-1' : 'top-1.5 bottom-1.5'
             )}
             style={{
-              width: 'calc((100% - 16px) / 6)',
+              width: `calc((100% - 16px) / ${VISIBLE_NAV_ITEMS.length})`,
               transform: `translateX(${currentActiveIndex * 100}%)`,
             }}
           >
             <div className="w-full h-full rounded-full active-pill-glow" />
           </div>
 
-          {NAV_ITEMS.map((item, index) => {
+          {VISIBLE_NAV_ITEMS.map((item, index) => {
             const isTabActive = currentActiveIndex === index;
             const Icon = item.icon;
             return (

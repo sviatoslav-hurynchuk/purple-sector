@@ -29,6 +29,8 @@ const WIKIMEDIA_CIRCUIT_MAP: Record<string, string> = {
   shanghai: 'https://commons.wikimedia.org/wiki/Special:FilePath/Shanghai_International_Circuit.svg',
   rodriguez: 'https://commons.wikimedia.org/wiki/Special:FilePath/Aut%C3%B3dromo_Hermanos_Rodr%C3%ADguez_2015.svg',
   villeneuve: 'https://commons.wikimedia.org/wiki/Special:FilePath/Circuit_Gilles_Villeneuve.svg',
+  sepang: 'https://commons.wikimedia.org/wiki/Special:FilePath/Sepang.svg',
+  kuala_lumpur: 'https://commons.wikimedia.org/wiki/Special:FilePath/Sepang.svg',
 };
 
 /**

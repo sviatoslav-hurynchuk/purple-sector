@@ -7,6 +7,7 @@ import { formatDateDDMMYYYY, formatDateInTimezone, cn } from '@/lib/utils';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { CountdownWidget } from '@/components/f1/countdown-widget';
 import { Clock, Calendar, Zap, Flag } from 'lucide-react';
+import { SessionRecapModal } from '@/components/live/session-recap-modal';
 
 interface NextRaceCardProps {
   race: Race;
@@ -94,6 +95,7 @@ export function NextRaceCard({ race, className }: NextRaceCardProps) {
 
           <div className="flex flex-wrap items-center gap-4 shrink-0">
             <CountdownWidget race={race} size="sm" showCountry={false} />
+            <SessionRecapModal />
           </div>
         </div>
       </div>

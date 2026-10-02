@@ -119,7 +119,7 @@ function DialogClose({ className, ...props }: React.ComponentProps<typeof Dialog
 function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
-      className={cn('text-lg font-black tracking-tight uppercase italic', className)}
+      className={cn('text-lg font-black tracking-tight uppercase', className)}
       {...props}
     />
   );
