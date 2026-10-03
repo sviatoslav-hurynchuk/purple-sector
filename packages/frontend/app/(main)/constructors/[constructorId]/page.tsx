@@ -1,10 +1,23 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import { getConstructorProfile } from '@/lib/api';
 import { ConstructorProfileContent } from '@/components/f1/sections/constructor-profile-content';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 3600;
+
+export async function generateStaticParams() {
+  return [
+    { constructorId: 'ferrari' },
+    { constructorId: 'mclaren' },
+    { constructorId: 'mercedes' },
+    { constructorId: 'red_bull' },
+    { constructorId: 'aston_martin' },
+    { constructorId: 'alpine' },
+    { constructorId: 'williams' },
+    { constructorId: 'rb' },
+    { constructorId: 'sauber' },
+    { constructorId: 'haas' },
+  ];
+}
 
 interface ConstructorPageProps {
   params: Promise<{ constructorId: string }>;

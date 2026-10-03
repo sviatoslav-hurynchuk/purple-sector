@@ -3,6 +3,35 @@ import { notFound } from 'next/navigation';
 import { getDriverProfile } from '@/lib/api';
 import { DriverProfileContent } from '@/components/f1/sections/driver-profile-content';
 
+export const revalidate = 3600;
+
+export async function generateStaticParams() {
+  return [
+    { driverId: 'max_verstappen' },
+    { driverId: 'norris' },
+    { driverId: 'leclerc' },
+    { driverId: 'piastri' },
+    { driverId: 'sainz' },
+    { driverId: 'hamilton' },
+    { driverId: 'russell' },
+    { driverId: 'perez' },
+    { driverId: 'alonso' },
+    { driverId: 'stroll' },
+    { driverId: 'gasly' },
+    { driverId: 'ocon' },
+    { driverId: 'albon' },
+    { driverId: 'colapinto' },
+    { driverId: 'bearman' },
+    { driverId: 'hulkenberg' },
+    { driverId: 'bortoleto' },
+    { driverId: 'lawson' },
+    { driverId: 'hadjar' },
+    { driverId: 'antonelli' },
+    { driverId: 'arvid_lindblad' },
+    { driverId: 'bottas' },
+  ];
+}
+
 interface DriverPageProps {
   params: Promise<{ driverId: string }>;
 }
