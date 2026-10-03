@@ -3,11 +3,16 @@ import type { Metadata } from 'next';
 import { RaceDetailContent } from '@/components/f1/sections/race-detail-content';
 import { RaceDetailSkeleton } from '@/components/f1/skeletons/race-detail-skeleton';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
+import { isBackendReachable } from '@/lib/api';
 
 export const revalidate = 3600;
 
 /** Pre-render all 24 championship rounds for instant SSG page loads */
 export async function generateStaticParams() {
+    if (!(await isBackendReachable())) {
+        return [];
+    }
+
     return Array.from({ length: 24 }, (_, i) => ({
         round: String(i + 1),
     }));

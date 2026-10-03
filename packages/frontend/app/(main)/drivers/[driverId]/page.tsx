@@ -1,11 +1,15 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getDriverProfile } from '@/lib/api';
+import { getDriverProfile, isBackendReachable } from '@/lib/api';
 import { DriverProfileContent } from '@/components/f1/sections/driver-profile-content';
 
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
+  if (!(await isBackendReachable())) {
+    return [];
+  }
+
   return [
     { driverId: 'max_verstappen' },
     { driverId: 'norris' },
