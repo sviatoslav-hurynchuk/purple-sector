@@ -23,6 +23,22 @@ import type {
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
+/**
+ * Checks if the backend API server is reachable.
+ * Used by generateStaticParams to avoid build failures in CI/Vercel
+ * when the backend server is not running during the static build phase.
+ */
+export async function isBackendReachable(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/health`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 function getCurrentYear(): number {
   return new Date().getFullYear();
 }

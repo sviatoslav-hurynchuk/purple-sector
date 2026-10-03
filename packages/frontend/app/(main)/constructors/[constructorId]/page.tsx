@@ -1,10 +1,14 @@
 import type { Metadata } from 'next';
-import { getConstructorProfile } from '@/lib/api';
+import { getConstructorProfile, isBackendReachable } from '@/lib/api';
 import { ConstructorProfileContent } from '@/components/f1/sections/constructor-profile-content';
 
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
+  if (!(await isBackendReachable())) {
+    return [];
+  }
+
   return [
     { constructorId: 'ferrari' },
     { constructorId: 'mclaren' },
