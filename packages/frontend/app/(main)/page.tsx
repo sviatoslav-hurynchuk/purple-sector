@@ -10,6 +10,8 @@ export const metadata: Metadata = {
     description: 'Real-time Formula 1 live telemetry, upcoming race countdown, and official championship standings.',
 };
 
+export const revalidate = 300;
+
 export default function DashboardPage() {
     return (
         <div className="space-y-4 sm:space-y-5">
