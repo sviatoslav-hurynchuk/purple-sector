@@ -61,10 +61,18 @@ const STATIC_ROUTES = [
   '/head-to-head',
 ];
 
+const CALENDAR_ROUNDS = Array.from({ length: 24 }, (_, i) => String(i + 1));
+const TELEMETRY_ROUNDS = ['1', '2', '3'];
+
 const ALL_ROUTES = [
   ...STATIC_ROUTES,
   ...CONSTRUCTORS.map((c) => `/constructors/${c}`),
   ...DRIVERS.map((d) => `/drivers/${d}`),
+  ...CALENDAR_ROUNDS.map((r) => `/calendar/${r}`),
+  ...TELEMETRY_ROUNDS.flatMap((r) => [
+    `/calendar/${r}/laps`,
+    `/calendar/${r}/pit-stops`,
+  ]),
 ];
 
 async function warmRoute(path) {
