@@ -4,6 +4,15 @@ import { RaceDetailContent } from '@/components/f1/sections/race-detail-content'
 import { RaceDetailSkeleton } from '@/components/f1/skeletons/race-detail-skeleton';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 
+export const revalidate = 3600;
+
+/** Pre-render all 24 championship rounds for instant SSG page loads */
+export async function generateStaticParams() {
+    return Array.from({ length: 24 }, (_, i) => ({
+        round: String(i + 1),
+    }));
+}
+
 interface RaceDetailPageProps {
     params: Promise<{ round: string }>;
     searchParams: Promise<{ season?: string }>;
