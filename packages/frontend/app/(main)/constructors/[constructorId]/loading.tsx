@@ -87,7 +87,7 @@ export default function ConstructorProfileLoading() {
         <div className="lg:col-span-7 flex flex-col space-y-6">
           <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
             {/* Career Benchmarks Header */}
-            <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+            <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
               <div className="h-5 w-48 bg-zinc-800 rounded" />
               <div className="h-6 w-28 bg-zinc-800/70 rounded-xl" />
             </div>
@@ -113,18 +113,21 @@ export default function ConstructorProfileLoading() {
 
             {/* Compact 2-Cell Driver Lineup Skeleton */}
             <div className="border-t border-white/10">
-              <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
                 <div className="h-5 w-36 bg-zinc-800 rounded" />
                 <div className="h-6 w-24 bg-zinc-800/60 rounded-lg" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">
                 {Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="p-4 border-b border-r border-white/10 bg-zinc-900/20 flex items-center gap-3.5">
-                    <div className="size-14 sm:size-16 rounded-xl bg-zinc-800/80 shrink-0" />
-                    <div className="space-y-1.5 flex-1">
-                      <div className="h-2.5 w-16 bg-zinc-800/80 rounded" />
-                      <div className="h-4 w-28 bg-zinc-700 rounded" />
-                      <div className="h-2.5 w-20 bg-zinc-800/60 rounded" />
+                  <div key={i} className="border-b border-r border-white/10 bg-zinc-900/20 flex items-stretch overflow-hidden">
+                    <div className="w-16 sm:w-20 bg-zinc-800/80 shrink-0 border-r border-white/10 min-h-[76px] sm:min-h-[82px]" />
+                    <div className="py-2.5 sm:py-3 px-3 sm:px-4 flex-1 flex items-center justify-between gap-3">
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-2.5 w-16 bg-zinc-800/80 rounded" />
+                        <div className="h-4 w-28 bg-zinc-700 rounded" />
+                        <div className="h-2.5 w-20 bg-zinc-800/60 rounded" />
+                      </div>
+                      <div className="h-7 w-9 bg-zinc-800/60 rounded-md shrink-0" />
                     </div>
                   </div>
                 ))}
@@ -133,7 +136,7 @@ export default function ConstructorProfileLoading() {
 
             {/* Technical Leadership 4-Cell Grid */}
             <div className="border-t border-white/10">
-              <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40">
+              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40">
                 <div className="h-5 w-48 bg-zinc-800 rounded" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">
@@ -154,7 +157,7 @@ export default function ConstructorProfileLoading() {
 
       {/* ── Historical Roster Skeleton ──────────────────────────────────── */}
       <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
-        <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+        <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
           <div className="h-5 w-48 bg-zinc-800 rounded" />
           <div className="h-8 w-60 bg-zinc-800/70 rounded-xl" />
         </div>

@@ -9,8 +9,6 @@ import {
   Wrench,
   Zap,
   Flag,
-  Shield,
-  Award,
   Calendar,
   ChevronRight,
   Swords,
@@ -174,16 +172,9 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
                 {/* World Championships Accolade Strip */}
                 {stats.championships > 0 && (
-                  <div className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 shadow-lg">
-                    <Trophy className="size-5 fill-amber-400/20 text-amber-400 shrink-0" />
-                    <div className="space-y-0.5">
-                      <p className="text-xs font-mono font-black tracking-wide uppercase">
-                        {stats.championships}× Constructors&apos; World Champion
-                      </p>
-                      <p className="text-[10px] font-mono text-amber-400/80">
-                        Official FIA Formula One World Championship
-                      </p>
-                    </div>
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 shadow-lg font-mono text-xs font-black tracking-wide uppercase">
+                    <Trophy className="size-4 fill-amber-400/20 text-amber-400 shrink-0" />
+                    <span>{stats.championships}× Constructors&apos; World Champion</span>
                   </div>
                 )}
               </div>
@@ -329,16 +320,15 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
             {/* Section 1: All-Time Career Benchmarks */}
             <div>
               {/* Header */}
-              <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-1.5 h-4.5 rounded-full shrink-0 bg-amber-400" />
-                  <h2 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white flex items-center gap-2">
-                    <Trophy className="size-4 text-amber-400 shrink-0" />
-                    <span>All-Time Constructor Benchmarks</span>
+                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-amber-400" />
+                  <h2 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
+                    All-Time Constructor Benchmarks
                   </h2>
                 </div>
 
-                <div className="font-mono text-xs font-bold text-zinc-300 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80">
+                <div className="font-mono text-[11px] font-bold text-zinc-300 px-2.5 py-0.5 rounded-lg border border-white/10 bg-zinc-900/80">
                   <span>{stats.totalRaces} GRAND PRIX STARTS</span>
                 </div>
               </div>
@@ -375,7 +365,7 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
                       {stats.wins}
                     </p>
                     <p className="text-[11px] font-mono text-zinc-400 mt-1">
-                      {winRate}% Win Conversion
+                      {winRate}% All-Time Rate
                     </p>
                   </div>
                 </div>
@@ -390,7 +380,7 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
                       {stats.podiums}
                     </p>
                     <p className="text-[11px] font-mono text-zinc-400 mt-1">
-                      {podiumRate}% Podium Rate
+                      {podiumRate}% All-Time Rate
                     </p>
                   </div>
                 </div>
@@ -405,7 +395,7 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
                       {stats.poles}
                     </p>
                     <p className="text-[11px] font-mono text-zinc-400 mt-1">
-                      {poleRate}% Pole Rate
+                      {poleRate}% All-Time Rate
                     </p>
                   </div>
                 </div>
@@ -445,7 +435,7 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
               <div className="grid grid-cols-2 sm:grid-cols-4 border-t border-l border-white/10 bg-zinc-900/30 text-xs font-mono">
                 <div className="p-3 border-b border-r border-white/10 flex flex-col justify-between">
                   <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">
-                    Win Ratio
+                    All-Time Win %
                   </span>
                   <span className="text-base font-black font-mono text-white mt-0.5">
                     {winRate}%
@@ -454,7 +444,7 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
                 <div className="p-3 border-b border-r border-white/10 flex flex-col justify-between">
                   <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">
-                    Podium Ratio
+                    All-Time Podium %
                   </span>
                   <span className="text-base font-black font-mono text-white mt-0.5">
                     {podiumRate}%
@@ -484,15 +474,14 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
             {/* Section 2: Official Driver Pairing (Compact Integrated Duo) */}
             {primaryDrivers.length > 0 && (
               <div className="border-t border-white/10">
-                <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+                <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div
-                      className="w-1.5 h-4.5 rounded-full shrink-0"
+                      className="w-1.5 h-3.5 rounded-full shrink-0"
                       style={{ backgroundColor: theme.primary }}
                     />
-                    <h3 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white flex items-center gap-2">
-                      <Award className="size-4 text-zinc-400 shrink-0" />
-                      <span>{activeSeason} Driver Lineup</span>
+                    <h3 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
+                      {activeSeason} Driver Lineup
                     </h3>
                   </div>
 
@@ -506,7 +495,7 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
                   </Link>
                 </div>
 
-                {/* 2-Cell Monolithic Driver Matrix with Small Photo Thumbnails */}
+                {/* 2-Cell Monolithic Driver Matrix with Small Photo Thumbnails (Headshot Focus) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">
                   {primaryDrivers.map((driver, idx) => {
                     const orientation = idx === 0 ? 'left' : 'right';
@@ -524,51 +513,57 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
                       <Link
                         key={driver.driverId}
                         href={`/drivers/${driver.driverId}`}
-                        className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/50 transition-colors group flex items-center gap-3.5"
+                        className="border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/50 transition-colors group flex items-stretch overflow-hidden"
                       >
-                        {/* Compact Driver Avatar Thumbnail */}
-                        <div className="size-14 sm:size-16 rounded-xl border border-white/10 bg-zinc-900/80 shrink-0 overflow-hidden relative shadow-md">
+                        {/* Seamless Edge-to-Edge Driver Portrait Column (No Rounding, Monolithic 1px Border) */}
+                        <div className="w-16 sm:w-20 shrink-0 relative bg-zinc-950/80 border-r border-white/10 group-hover:border-white/20 overflow-hidden transition-colors min-h-[76px] sm:min-h-[82px]">
                           <DriverImage
                             src={photo}
                             alt={`${driver.givenName} ${driver.familyName}`}
                             fill
-                            sizes="64px"
-                            className="object-contain object-top transition-transform duration-300 group-hover:scale-105"
+                            sizes="(max-width: 640px) 64px, 80px"
+                            className="object-contain object-top scale-[5.7] origin-[50%_0%]"
                             unoptimized
                           />
+                          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 via-transparent to-transparent pointer-events-none" />
                         </div>
 
-                        {/* Driver Metadata */}
-                        <div className="space-y-0.5 min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <CountryFlag countryName={driver.nationality} className="w-3.5 h-2.5 rounded-xs shrink-0" />
-                            <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider truncate">
-                              {driver.nationality}
-                            </span>
-                            {driver.permanentNumber && (
-                              <span className="text-[11px] font-mono font-bold text-zinc-500 ml-auto">
-                                #{driver.permanentNumber}
+                        {/* Driver Metadata & Action */}
+                        <div className="py-2.5 sm:py-3 px-3 sm:px-4 min-w-0 flex-1 flex items-center justify-between gap-3">
+                          <div className="space-y-0.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <CountryFlag countryName={driver.nationality} className="w-3.5 h-2.5 rounded-xs shrink-0" />
+                              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider truncate">
+                                {driver.nationality}
                               </span>
+                            </div>
+
+                            <p className="text-[11px] font-mono text-zinc-400 truncate leading-none">
+                              {driver.givenName}
+                            </p>
+                            <p className="text-sm font-black font-sans uppercase tracking-tight text-white group-hover:text-primary transition-colors truncate">
+                              {driver.familyName}
+                            </p>
+
+                            {standing && (
+                              <p className="text-[10px] font-mono text-zinc-400 pt-0.5 leading-none">
+                                <span className="text-amber-400 font-bold">P{standing.position}</span>
+                                <span className="text-zinc-600 mx-1">•</span>
+                                <span className="text-zinc-300 font-bold">{standing.points} PTS</span>
+                              </p>
                             )}
                           </div>
 
-                          <p className="text-[11px] font-mono text-zinc-400 truncate">
-                            {driver.givenName}
-                          </p>
-                          <p className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white group-hover:text-primary transition-colors truncate">
-                            {driver.familyName}
-                          </p>
-
-                          {standing && (
-                            <p className="text-[10px] font-mono text-zinc-400 pt-0.5">
-                              <span className="text-amber-400 font-bold">P{standing.position}</span>
-                              <span className="text-zinc-600 mx-1">•</span>
-                              <span className="text-zinc-300 font-bold">{standing.points} PTS</span>
-                            </p>
-                          )}
+                          {/* Bold Racing Number & Chevron */}
+                          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                            {driver.permanentNumber && (
+                              <span className="font-mono font-black italic text-2xl sm:text-3xl tracking-tighter text-zinc-200 group-hover:text-white transition-colors leading-none select-none drop-shadow-sm">
+                                #{driver.permanentNumber}
+                              </span>
+                            )}
+                            <ChevronRight className="size-4 text-zinc-600 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
+                          </div>
                         </div>
-
-                        <ChevronRight className="size-4 text-zinc-600 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
                       </Link>
                     );
                   })}
@@ -578,11 +573,10 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
             {/* Section 3: Technical Blueprint & Operations Leadership */}
             <div className="border-t border-white/10">
-              <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center gap-2.5">
-                <div className="w-1.5 h-4.5 rounded-full shrink-0 bg-blue-400" />
-                <h3 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white flex items-center gap-2">
-                  <Shield className="size-4 text-blue-400 shrink-0" />
-                  <span>Technical Blueprint &amp; Leadership</span>
+              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center gap-2.5">
+                <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-blue-400" />
+                <h3 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
+                  Technical Blueprint &amp; Leadership
                 </h3>
               </div>
 
@@ -651,9 +645,9 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
             {/* Section 4: Championship Roll of Honor (if titles exist) */}
             {championshipYears.length > 0 && (
-              <div className="border-t border-white/10 p-4 sm:p-5 bg-zinc-950/80 space-y-3">
+              <div className="border-t border-white/10 p-3.5 sm:p-4 bg-zinc-950/80 space-y-2.5">
                 <div className="flex items-center gap-2">
-                  <Award className="size-4 text-amber-400" />
+                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-amber-400" />
                   <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
                     Constructors&apos; Championship Roll of Honor ({championshipYears.length})
                   </h3>

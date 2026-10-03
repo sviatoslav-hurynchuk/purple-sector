@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Search, Users, ChevronRight } from 'lucide-react';
+import { Search, ChevronRight } from 'lucide-react';
 import { CountryFlag } from '@/components/f1/country-flag';
 import type { ConstructorDriverHistory } from '@/types/f1';
 import { cn } from '@/lib/utils';
@@ -40,25 +40,19 @@ export function ConstructorDriverRoster({
       )}
     >
       {/* ── Monolithic Header ─────────────────────────────────────────── */}
-      <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
           <div
-            className="w-1.5 h-5 rounded-full shrink-0"
+            className="w-1.5 h-3.5 rounded-full shrink-0"
             style={{ backgroundColor: teamPrimaryColor }}
           />
-          <div>
-            <div className="flex items-center gap-2">
-              <Users className="size-4 text-zinc-400" />
-              <h2 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white">
-                Historical Driver Roster
-              </h2>
-              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-white/5">
-                {drivers.length}
-              </span>
-            </div>
-            <p className="text-[11px] font-mono text-zinc-400 mt-0.5">
-              All pilots who contested official Formula 1 Grands Prix for this constructor
-            </p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
+              Historical Driver Roster
+            </h2>
+            <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-white/5">
+              {drivers.length}
+            </span>
           </div>
         </div>
 

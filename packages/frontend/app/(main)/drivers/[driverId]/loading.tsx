@@ -86,7 +86,7 @@ export default function DriverProfileLoading() {
         <div className="lg:col-span-7 flex flex-col">
           <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
             {/* Section 1: Career Benchmarks Header */}
-            <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+            <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
               <div className="h-5 w-48 bg-zinc-800 rounded" />
               <div className="h-6 w-24 bg-zinc-800/70 rounded-xl" />
             </div>
@@ -112,7 +112,7 @@ export default function DriverProfileLoading() {
 
             {/* Section 2: Championship Trajectory */}
             <div className="border-t border-white/10">
-              <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
                 <div className="h-5 w-48 bg-zinc-800 rounded" />
                 <div className="h-6 w-24 bg-zinc-800/70 rounded-xl" />
               </div>
