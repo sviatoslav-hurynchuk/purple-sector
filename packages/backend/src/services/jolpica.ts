@@ -311,20 +311,37 @@ const inFlight = new Map<string, Promise<unknown>>();
 
 export type TTLResolver<T> = number | ((data: T) => number | Promise<number>);
 
+export interface CachedFetchOptions<T> {
+  negativeTtl?: number;
+  validate?: (data: T) => boolean;
+}
+
 export async function cachedFetch<T>(
   key: string,
   ttl: TTLResolver<T>,
   fetcher: () => Promise<T>,
-  negativeTtl = TTL.NEGATIVE_CACHE
+  optionsOrNegativeTtl: number | CachedFetchOptions<T> = TTL.NEGATIVE_CACHE
 ): Promise<T> {
+  const options: CachedFetchOptions<T> =
+    typeof optionsOrNegativeTtl === 'number'
+      ? { negativeTtl: optionsOrNegativeTtl }
+      : optionsOrNegativeTtl;
+  const negativeTtl = options.negativeTtl ?? TTL.NEGATIVE_CACHE;
+  const validator = options.validate;
+
   const cached = await cache.get<T | NegativeCacheSentinel>(key);
   if (cached !== null && cached !== undefined) {
     if (isNegativeCacheSentinel(cached)) {
       console.log(`[Cache NEGATIVE HIT] ${key}`);
       return null as T;
     }
-    console.log(`[Cache HIT] ${key}`);
-    return cached as T;
+    if (validator && !validator(cached as T)) {
+      console.log(`[Cache INVALID HIT] ${key} failed validation, re-fetching...`);
+      await cache.del(key).catch(() => {});
+    } else {
+      console.log(`[Cache HIT] ${key}`);
+      return cached as T;
+    }
   }
 
   console.log(`[Cache MISS] ${key}`);
@@ -337,11 +354,16 @@ export async function cachedFetch<T>(
 
   const promise = fetcher()
     .then(async (fresh) => {
-      // Negative caching protection: if fresh is null/undefined, store sentinel with negativeTtl
       if (fresh !== null && fresh !== undefined) {
+        if (validator && !validator(fresh)) {
+          console.warn(`[Cache] Fresh data for ${key} failed integrity validation, skipping cache storage.`);
+          inFlight.delete(key);
+          return fresh;
+        }
+
         const computedTtl = typeof ttl === 'function' ? await ttl(fresh) : ttl;
         await cache.set(key, fresh, computedTtl);
-      } else {
+      } else if (negativeTtl > 0) {
         const sentinel: NegativeCacheSentinel = { __negativeCache: true };
         await cache.set(key, sentinel, negativeTtl);
       }
@@ -1524,12 +1546,12 @@ export async function getRaceLaps(
 // ── Cache Warming ─────────────────────────────────────────────────────────────
 
 export async function warmCache(): Promise<void> {
-
-  console.log('[CacheWarming] Pre-fetching core F1 data...');
+  console.log('[CacheWarming] Pre-fetching core F1 baseline data...');
   const start = Date.now();
   const currentSeason = getCurrentSeason();
 
   try {
+    // 1. Core baseline data
     await Promise.all([
       getNextRace().catch((err) => console.warn('[CacheWarming] Failed next race:', err instanceof Error ? err.message : err)),
       getRaceSchedule(currentSeason).catch((err) => console.warn('[CacheWarming] Failed schedule:', err instanceof Error ? err.message : err)),
@@ -1537,7 +1559,70 @@ export async function warmCache(): Promise<void> {
       getConstructorStandings(currentSeason).catch((err) => console.warn('[CacheWarming] Failed constructor standings:', err instanceof Error ? err.message : err)),
       warmOfficialDriverStats().catch((err) => console.warn('[CacheWarming] Failed official driver stats:', err instanceof Error ? err.message : err)),
     ]);
-    console.log(`[CacheWarming] Completed in ${Date.now() - start}ms`);
+
+    // 2. Active constructor profiles (10 current championship teams)
+    const activeConstructorIds = Object.entries(CONSTRUCTOR_REGISTRY)
+      .filter(([, meta]) => meta.currentDrivers.length > 0)
+      .map(([id]) => id);
+    console.log(`[CacheWarming] Pre-fetching ${activeConstructorIds.length} active constructor profiles...`);
+    await mapConcurrent(activeConstructorIds, 2, async (cid) => {
+      try {
+        await getConstructorProfile(cid);
+      } catch (err) {
+        console.warn(`[CacheWarming] Failed constructor ${cid}:`, err instanceof Error ? err.message : err);
+      }
+    });
+
+    // 3. All primary active drivers
+    const driverIdSet = new Set<string>();
+    for (const meta of Object.values(CONSTRUCTOR_REGISTRY)) {
+      for (const d of meta.currentDrivers) {
+        driverIdSet.add(d);
+      }
+    }
+    for (const d of Object.keys(DRIVER_2026_REGISTRY)) {
+      driverIdSet.add(d);
+    }
+    const driverIds = Array.from(driverIdSet);
+    console.log(`[CacheWarming] Pre-fetching ${driverIds.length} driver profiles...`);
+    await mapConcurrent(driverIds, 2, async (did) => {
+      try {
+        await getDriverProfile(did);
+      } catch (err) {
+        console.warn(`[CacheWarming] Failed driver ${did}:`, err instanceof Error ? err.message : err);
+      }
+    });
+
+    // 4. Completed races for current season (require confirmed start time + results)
+    const schedule = await getRaceSchedule(currentSeason).catch(() => []);
+    const now = new Date();
+    // Candidate completed races whose scheduled start was at least 3 hours ago
+    const candidateRaces = schedule.filter((r) => {
+      const raceStartTime = r.time ? new Date(`${r.date}T${r.time}`) : new Date(`${r.date}T15:00:00Z`);
+      return now.getTime() - raceStartTime.getTime() > 3 * 60 * 60 * 1000;
+    });
+
+    if (candidateRaces.length > 0) {
+      const recentCandidates = candidateRaces.slice(-2);
+      console.log(`[CacheWarming] Verifying completion & pre-fetching telemetry for ${recentCandidates.length} candidate race(s)...`);
+      await mapConcurrent(recentCandidates, 1, async (r) => {
+        const raceResult = await getRaceResult(currentSeason, r.round).catch(() => null);
+        const hasFinished =
+          raceResult &&
+          'Results' in raceResult &&
+          Array.isArray(raceResult.Results) &&
+          raceResult.Results.length > 0;
+
+        if (hasFinished) {
+          await Promise.allSettled([
+            getRacePitStops(currentSeason, r.round),
+            getRaceLaps(currentSeason, r.round),
+          ]);
+        }
+      });
+    }
+
+    console.log(`[CacheWarming] Successfully completed in ${Date.now() - start}ms`);
   } catch (err) {
     console.warn('[CacheWarming] Unexpected error:', err instanceof Error ? err.message : err);
   }

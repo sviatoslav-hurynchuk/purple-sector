@@ -8,6 +8,8 @@ export const metadata: Metadata = {
     title: 'Championship Standings',
 };
 
+export const revalidate = 600;
+
 interface StandingsPageProps {
     searchParams: Promise<{ season?: string; round?: string }>;
 }

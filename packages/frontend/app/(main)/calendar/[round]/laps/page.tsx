@@ -8,6 +8,15 @@ import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 import type { Race, RaceResult } from '@/types/f1';
 import LapsLoading from './loading';
 
+export const revalidate = 3600;
+
+/** Pre-render all 24 championship rounds for instant SSG page loads */
+export async function generateStaticParams() {
+  return Array.from({ length: 24 }, (_, i) => ({
+    round: String(i + 1),
+  }));
+}
+
 interface LapsPageProps {
   params: Promise<{ round: string }>;
   searchParams: Promise<{ season?: string }>;
@@ -80,22 +89,22 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
           </p>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-8 sm:p-12 text-center space-y-4 shadow-lg max-w-2xl mx-auto">
-          <div className="size-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-muted-foreground mx-auto">
+        <div className="rounded-3xl border border-white/10 bg-zinc-950 p-8 sm:p-12 text-center space-y-4 shadow-xl max-w-2xl mx-auto">
+          <div className="size-14 rounded-2xl bg-zinc-900/60 border border-white/10 flex items-center justify-center text-zinc-400 mx-auto font-mono text-2xl">
             📊
           </div>
           <div className="space-y-2">
-            <h2 className="text-lg sm:text-xl font-bold text-foreground">
+            <h2 className="text-lg sm:text-xl font-bold font-mono uppercase tracking-wider text-white">
               Lap-by-Lap Data Not Available Yet
             </h2>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            <p className="text-sm text-zinc-400 max-w-md mx-auto">
               Lap times and position tracking become available once the Grand Prix has started or concluded.
             </p>
           </div>
           <div className="pt-2">
             <Link
               href={`/calendar/${race.round}?season=${race.season}`}
-              className="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md"
+              className="inline-flex items-center justify-center font-mono font-bold uppercase tracking-wider px-5 py-2.5 rounded-xl text-xs bg-red-600 hover:bg-red-500 text-white transition-all shadow-md shadow-red-950/20"
             >
               Back to Race Details
             </Link>

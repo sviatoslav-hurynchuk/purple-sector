@@ -8,6 +8,8 @@ export const metadata: Metadata = {
     title: 'Race Calendar',
 };
 
+export const revalidate = 3600;
+
 interface CalendarPageProps {
     searchParams: Promise<{ season?: string }>;
 }

@@ -9,6 +9,8 @@ export const metadata: Metadata = {
     'Comprehensive intra-team Formula 1 teammate battles across Qualifying, Race results, points share, and median lap time deltas.',
 };
 
+export const revalidate = 900;
+
 interface HeadToHeadPageProps {
   searchParams: Promise<{ season?: string; team?: string }>;
 }

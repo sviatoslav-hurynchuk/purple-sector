@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: 'Explore all Formula 1 constructors, team lineups, and championship statistics.',
 };
 
+export const revalidate = 3600;
+
 interface ConstructorsPageProps {
   searchParams: Promise<{ season?: string }>;
 }

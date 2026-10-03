@@ -46,6 +46,11 @@ export function CountdownWidget({
   const countryName = race.Circuit.Location.country;
   const season = race.season ?? race.date?.substring(0, 4) ?? new Date().getFullYear();
   const eventUrl = `/calendar/${race.round}?season=${season}`;
+  const isLiveEnabled = process.env.NEXT_PUBLIC_LIVE_ENABLED === 'true';
+  const liveTargetUrl = isLiveEnabled ? '/live' : eventUrl;
+  const liveTitle = isLiveEnabled
+    ? 'Live Timing is active — click to view live stream'
+    : 'Session is live — click to view race details';
 
   const textSizes = {
     sm: 'text-xs',
@@ -80,8 +85,8 @@ export function CountdownWidget({
 
       return (
         <Link
-          href="/live"
-          title="Live Timing is active — click to view live stream"
+          href={liveTargetUrl}
+          title={liveTitle}
           className={cn(
             'group inline-flex items-center gap-3 p-2.5 sm:p-3 rounded-xl bg-zinc-950/95 border border-red-800/60 hover:border-red-500 hover:bg-zinc-900/90 shadow-lg backdrop-blur-sm transition-all cursor-pointer',
             className
@@ -131,8 +136,8 @@ export function CountdownWidget({
 
     return (
       <Link
-        href="/live"
-        title="Live Timing is active — click to view live stream"
+        href={liveTargetUrl}
+        title={liveTitle}
         className={cn(
           'group inline-flex items-center gap-3 p-2.5 sm:p-3 rounded-xl bg-zinc-950/95 border border-red-800/60 hover:border-red-500 hover:bg-zinc-900/90 shadow-lg backdrop-blur-sm transition-all cursor-pointer',
           className

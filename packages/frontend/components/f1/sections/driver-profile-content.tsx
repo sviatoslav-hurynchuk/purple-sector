@@ -316,16 +316,15 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
             {/* Section 1: All-Time Career Benchmarks */}
             <div>
               {/* Header */}
-              <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-1.5 h-4.5 rounded-full shrink-0 bg-amber-400" />
-                  <h2 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white flex items-center gap-2">
-                    <Trophy className="size-4 text-amber-400 shrink-0" />
-                    <span>All-Time Career Benchmarks</span>
+                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-amber-400" />
+                  <h2 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
+                    All-Time Career Benchmarks
                   </h2>
                 </div>
 
-                <div className="font-mono text-xs font-bold text-zinc-300 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80">
+                <div className="font-mono text-[11px] font-bold text-zinc-300 px-2.5 py-0.5 rounded-lg border border-white/10 bg-zinc-900/80">
                   <span>{grandsPrixEntered} CAREER STARTS</span>
                 </div>
               </div>
@@ -452,15 +451,15 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
             {/* Section 2: Championship Trajectory (Integrated seamlessly directly below) */}
             <div className="border-t border-white/10">
               {/* Header */}
-              <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-1.5 h-4.5 rounded-full shrink-0 bg-amber-400" />
-                  <h2 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white">
+                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-amber-400" />
+                  <h2 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
                     CHAMPIONSHIP TRAJECTORY
                   </h2>
                 </div>
 
-                <span className="text-xs font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 text-zinc-300">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-lg border border-white/10 bg-zinc-900/80 text-zinc-300">
                   {seasonHistory.length} {seasonHistory.length === 1 ? 'CAMPAIGN' : 'CAMPAIGNS'}
                 </span>
               </div>
