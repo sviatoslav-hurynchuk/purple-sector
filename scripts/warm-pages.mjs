@@ -13,6 +13,7 @@
 const BASE_URL = process.argv[2] || process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 const CONCURRENCY = 3;
 const RETRIES = 2;
+const REQUEST_TIMEOUT_MS = 15000;
 
 const CONSTRUCTORS = [
   'ferrari',
@@ -84,6 +85,7 @@ async function warmRoute(path) {
     const start = performance.now();
     try {
       const res = await fetch(url, {
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
           'User-Agent': 'PurpleSector-CacheWarmer/1.0',
           'Accept': 'text/html,application/xhtml+xml',
