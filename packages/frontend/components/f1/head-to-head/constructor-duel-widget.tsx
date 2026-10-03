@@ -44,16 +44,14 @@ export function ConstructorDuelWidget({
   const qD1 = stats.qualifying.d1Wins;
   const qD2 = stats.qualifying.d2Wins;
   const qTotal = Math.max(1, qD1 + qD2);
-  const qD1Raw = (qD1 / qTotal) * 100;
-  const qD1Pct = qD1 === 0 ? 0 : qD2 === 0 ? 100 : Math.max(12, Math.min(88, Math.round(qD1Raw)));
+  const qD1Pct = qD1 === 0 ? 0 : qD2 === 0 ? 100 : Math.round((qD1 / qTotal) * 100);
   const qD2Pct = 100 - qD1Pct;
 
   // 2. Races calculations
   const rD1 = stats.race.d1Wins;
   const rD2 = stats.race.d2Wins;
   const rTotal = Math.max(1, rD1 + rD2);
-  const rD1Raw = (rD1 / rTotal) * 100;
-  const rD1Pct = rD1 === 0 ? 0 : rD2 === 0 ? 100 : Math.max(12, Math.min(88, Math.round(rD1Raw)));
+  const rD1Pct = rD1 === 0 ? 0 : rD2 === 0 ? 100 : Math.round((rD1 / rTotal) * 100);
   const rD2Pct = 100 - rD1Pct;
 
   // 3. Points calculations
@@ -62,8 +60,7 @@ export function ConstructorDuelWidget({
   const pD1 = stats.points.d1Points;
   const pD2 = stats.points.d2Points;
   const pTotal = Math.max(1, pD1 + pD2);
-  const pD1Raw = (pD1 / pTotal) * 100;
-  const pD1Pct = pD1 === 0 ? 0 : pD2 === 0 ? 100 : Math.max(12, Math.min(88, Math.round(pD1Raw)));
+  const pD1Pct = pD1 === 0 ? 0 : pD2 === 0 ? 100 : Math.round((pD1 / pTotal) * 100);
   const pD2Pct = 100 - pD1Pct;
 
   return (
