@@ -13,10 +13,10 @@ import {
   Award,
   Calendar,
   ChevronRight,
+  Swords,
 } from 'lucide-react';
 import {
   getConstructorProfile,
-  getConstructorHeadToHead,
   getConstructorStandings,
   getDriverStandings,
 } from '@/lib/api';
@@ -26,7 +26,6 @@ import { CountryFlag } from '@/components/f1/country-flag';
 import { TeamLogo } from '@/components/f1/team-logo';
 import { DriverImage } from '@/components/f1/driver-image';
 import { ConstructorDriverRoster } from '@/components/f1/constructor-driver-roster';
-import { ConstructorDuelWidget } from '@/components/f1/head-to-head/constructor-duel-widget';
 import type { ConstructorStanding, DriverStanding } from '@/types/f1';
 
 interface ConstructorProfileContentProps {
@@ -36,13 +35,11 @@ interface ConstructorProfileContentProps {
 export async function ConstructorProfileContent({ constructorId }: ConstructorProfileContentProps) {
   const currentYear = new Date().getFullYear();
 
-  // Fetch constructor profile, standings, and head-to-head battles in parallel
-  const [profile, constructorStandings, driverStandings, h2hCurrent, h2hFallback] = await Promise.all([
+  // Lean parallel fetch: constructor profile and season standings
+  const [profile, constructorStandings, driverStandings] = await Promise.all([
     getConstructorProfile(constructorId),
     getConstructorStandings(currentYear).catch(() => [] as ConstructorStanding[]),
     getDriverStandings(currentYear).catch(() => [] as DriverStanding[]),
-    getConstructorHeadToHead(currentYear, constructorId).catch(() => null),
-    getConstructorHeadToHead(2024, constructorId).catch(() => null),
   ]);
 
   if (!profile) {
@@ -70,14 +67,6 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
     ds.Constructors.some((c) => c.constructorId === team.constructorId)
   );
 
-  // Intra-team head-to-head battles (prefer active season, fallback to prior completed season)
-  let h2hBattles = h2hCurrent;
-  let h2hSeason: string | number = currentYear;
-  if (!h2hBattles || h2hBattles.length === 0 || h2hBattles[0]?.rounds.length === 0) {
-    h2hBattles = h2hFallback;
-    h2hSeason = 2024;
-  }
-
   // All-Time Career Calculations
   const startsSafe = Math.max(stats.totalRaces, 1);
   const winRate = ((stats.wins / startsSafe) * 100).toFixed(1);
@@ -86,32 +75,10 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
   const highestFinish =
     stats.wins > 0 ? 'P1' : profile.officialDetails?.highestRaceFinish || '—';
 
-  // Resolved Primary Drivers with Authentic Inward Orientation
+  // Resolved Primary Drivers
   const primaryDrivers = currentDrivers.slice(0, 2);
   const driver1 = primaryDrivers[0];
   const driver2 = primaryDrivers[1];
-
-  const d1Photo = driver1
-    ? getDriverPhotoUrl(
-        driver1.driverId,
-        driver1.givenName,
-        driver1.familyName,
-        activeSeason,
-        team.constructorId,
-        'left' // Inward facing right
-      )
-    : '';
-
-  const d2Photo = driver2
-    ? getDriverPhotoUrl(
-        driver2.driverId,
-        driver2.givenName,
-        driver2.familyName,
-        activeSeason,
-        team.constructorId,
-        'right' // Inward facing left
-      )
-    : '';
 
   const d1Standing = driver1
     ? teamDriverStandings.find((s) => s.Driver.driverId === driver1.driverId)
@@ -356,7 +323,7 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
           </div>
         </div>
 
-        {/* ── RIGHT COLUMN: All-Time Record & Technical Blueprint ─────── */}
+        {/* ── RIGHT COLUMN: All-Time Record, Drivers & Technical Blueprint */}
         <div className="lg:col-span-7 flex flex-col space-y-6">
           <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
             {/* Section 1: All-Time Career Benchmarks */}
@@ -514,25 +481,97 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
               </div>
             </div>
 
-            {/* Section 2: Championship Roll of Honor (if titles exist) */}
-            {championshipYears.length > 0 && (
-              <div className="border-t border-white/10 p-4 sm:p-5 bg-zinc-950/80 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Award className="size-4 text-amber-400" />
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
-                    Constructors&apos; Championship Roll of Honor ({championshipYears.length})
-                  </h3>
+            {/* Section 2: Official Driver Pairing (Compact Integrated Duo) */}
+            {primaryDrivers.length > 0 && (
+              <div className="border-t border-white/10">
+                <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-1.5 h-4.5 rounded-full shrink-0"
+                      style={{ backgroundColor: theme.primary }}
+                    />
+                    <h3 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white flex items-center gap-2">
+                      <Award className="size-4 text-zinc-400 shrink-0" />
+                      <span>{activeSeason} Driver Lineup</span>
+                    </h3>
+                  </div>
+
+                  <Link
+                    href={`/head-to-head?season=${activeSeason}&team=${team.constructorId}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 bg-zinc-900/80 hover:bg-zinc-800 transition-all group/h2h"
+                  >
+                    <Swords className="size-3 text-purple-400 group-hover/h2h:rotate-12 transition-transform" />
+                    <span>HEAD-TO-HEAD</span>
+                    <ChevronRight className="size-3 text-zinc-500 group-hover/h2h:text-white group-hover/h2h:translate-x-0.5 transition-all" />
+                  </Link>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  {championshipYears.map((yr) => (
-                    <span
-                      key={yr}
-                      className="px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 font-mono text-xs font-black tracking-wide"
-                    >
-                      {yr}
-                    </span>
-                  ))}
+                {/* 2-Cell Monolithic Driver Matrix with Small Photo Thumbnails */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">
+                  {primaryDrivers.map((driver, idx) => {
+                    const orientation = idx === 0 ? 'left' : 'right';
+                    const photo = getDriverPhotoUrl(
+                      driver.driverId,
+                      driver.givenName,
+                      driver.familyName,
+                      activeSeason,
+                      team.constructorId,
+                      orientation
+                    );
+                    const standing = teamDriverStandings.find((s) => s.Driver.driverId === driver.driverId);
+
+                    return (
+                      <Link
+                        key={driver.driverId}
+                        href={`/drivers/${driver.driverId}`}
+                        className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/50 transition-colors group flex items-center gap-3.5"
+                      >
+                        {/* Compact Driver Avatar Thumbnail */}
+                        <div className="size-14 sm:size-16 rounded-xl border border-white/10 bg-zinc-900/80 shrink-0 overflow-hidden relative shadow-md">
+                          <DriverImage
+                            src={photo}
+                            alt={`${driver.givenName} ${driver.familyName}`}
+                            fill
+                            sizes="64px"
+                            className="object-contain object-top transition-transform duration-300 group-hover:scale-105"
+                            unoptimized
+                          />
+                        </div>
+
+                        {/* Driver Metadata */}
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <CountryFlag countryName={driver.nationality} className="w-3.5 h-2.5 rounded-xs shrink-0" />
+                            <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider truncate">
+                              {driver.nationality}
+                            </span>
+                            {driver.permanentNumber && (
+                              <span className="text-[11px] font-mono font-bold text-zinc-500 ml-auto">
+                                #{driver.permanentNumber}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-[11px] font-mono text-zinc-400 truncate">
+                            {driver.givenName}
+                          </p>
+                          <p className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white group-hover:text-primary transition-colors truncate">
+                            {driver.familyName}
+                          </p>
+
+                          {standing && (
+                            <p className="text-[10px] font-mono text-zinc-400 pt-0.5">
+                              <span className="text-amber-400 font-bold">P{standing.position}</span>
+                              <span className="text-zinc-600 mx-1">•</span>
+                              <span className="text-zinc-300 font-bold">{standing.points} PTS</span>
+                            </p>
+                          )}
+                        </div>
+
+                        <ChevronRight className="size-4 text-zinc-600 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -609,191 +648,32 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
                 </div>
               </div>
             </div>
+
+            {/* Section 4: Championship Roll of Honor (if titles exist) */}
+            {championshipYears.length > 0 && (
+              <div className="border-t border-white/10 p-4 sm:p-5 bg-zinc-950/80 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Award className="size-4 text-amber-400" />
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                    Constructors&apos; Championship Roll of Honor ({championshipYears.length})
+                  </h3>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                  {championshipYears.map((yr) => (
+                    <span
+                      key={yr}
+                      className="px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 font-mono text-xs font-black tracking-wide"
+                    >
+                      {yr}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* ── FULL-WIDTH SECTION: Official Driver Lineup & Duel Arena ─────── */}
-      {primaryDrivers.length > 0 && (
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
-            {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-1.5 h-5 rounded-full shrink-0"
-                  style={{ backgroundColor: theme.primary }}
-                />
-                <div>
-                  <h2 className="text-sm sm:text-base font-black font-sans uppercase tracking-tight text-white flex items-center gap-2">
-                    <Award className="size-4 text-zinc-400" />
-                    <span>Official {activeSeason} Driver Lineup</span>
-                  </h2>
-                  <p className="text-[11px] font-mono text-zinc-400 mt-0.5">
-                    Active pilots representing {team.name} in the FIA Formula One World Championship
-                  </p>
-                </div>
-              </div>
-
-              <div className="font-mono text-xs font-bold text-zinc-400 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/60 hidden sm:block">
-                <span>{primaryDrivers.length} ACTIVE DRIVERS</span>
-              </div>
-            </div>
-
-            {/* Matched Driver Duel Cards with Inward Cutout Portraits */}
-            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/10 bg-zinc-950/60">
-              {/* Driver 1 (Facing Inward Right) */}
-              {driver1 && (
-                <Link
-                  href={`/drivers/${driver1.driverId}`}
-                  className="group relative overflow-hidden p-6 sm:p-7 min-h-[260px] sm:min-h-[280px] flex flex-col justify-between hover:bg-zinc-900/30 transition-all"
-                >
-                  {/* Ambient accent glow */}
-                  <div
-                    className="absolute -top-12 -left-12 size-48 rounded-full opacity-15 blur-2xl pointer-events-none group-hover:opacity-25 transition-opacity"
-                    style={{ backgroundColor: theme.primary }}
-                  />
-
-                  {/* Driver Information */}
-                  <div className="relative z-10 space-y-1.5 max-w-[60%]">
-                    <div className="flex items-center gap-2">
-                      <CountryFlag countryName={driver1.nationality} className="w-4 h-3 rounded-xs shrink-0" />
-                      <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                        {driver1.nationality}
-                      </span>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-mono text-zinc-400 uppercase tracking-widest">
-                        {driver1.givenName}
-                      </p>
-                      <h3 className="text-2xl sm:text-3xl font-black font-sans uppercase tracking-tight text-white group-hover:text-primary transition-colors">
-                        {driver1.familyName}
-                      </h3>
-                    </div>
-
-                    {driver1.permanentNumber && (
-                      <p className="text-3xl sm:text-4xl font-black italic text-zinc-700 font-mono tracking-tighter select-none">
-                        #{driver1.permanentNumber}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Standing Telemetry Badge */}
-                  <div className="relative z-10 pt-4 flex items-center gap-3">
-                    {d1Standing ? (
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 font-mono text-xs">
-                        <span className="text-amber-400 font-black">P{d1Standing.position}</span>
-                        <span className="text-zinc-600">•</span>
-                        <span className="text-white font-bold">{d1Standing.points} PTS</span>
-                      </div>
-                    ) : (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 font-mono text-xs text-zinc-400">
-                        <span>VIEW PROFILE</span>
-                        <ChevronRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Driver Inward Cutout (Placed on the right, facing inward) */}
-                  <div className="absolute right-0 bottom-0 top-2 w-[48%] pointer-events-none select-none overflow-hidden">
-                    <div className="relative w-full h-full flex items-end justify-end">
-                      <DriverImage
-                        src={d1Photo}
-                        alt={`${driver1.givenName} ${driver1.familyName}`}
-                        fill
-                        sizes="(max-width: 768px) 50vw, 30vw"
-                        className="object-contain object-bottom drop-shadow-2xl transition-transform duration-300 group-hover:scale-105"
-                        priority
-                        unoptimized
-                      />
-                    </div>
-                    {/* Subtle Base Fade */}
-                    <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-950 to-transparent pointer-events-none" />
-                  </div>
-                </Link>
-              )}
-
-              {/* Driver 2 (Facing Inward Left) */}
-              {driver2 && (
-                <Link
-                  href={`/drivers/${driver2.driverId}`}
-                  className="group relative overflow-hidden p-6 sm:p-7 min-h-[260px] sm:min-h-[280px] flex flex-col justify-between hover:bg-zinc-900/30 transition-all"
-                >
-                  {/* Ambient accent glow */}
-                  <div
-                    className="absolute -top-12 -right-12 size-48 rounded-full opacity-15 blur-2xl pointer-events-none group-hover:opacity-25 transition-opacity"
-                    style={{ backgroundColor: theme.secondary || theme.primary }}
-                  />
-
-                  {/* Driver Information */}
-                  <div className="relative z-10 space-y-1.5 max-w-[60%]">
-                    <div className="flex items-center gap-2">
-                      <CountryFlag countryName={driver2.nationality} className="w-4 h-3 rounded-xs shrink-0" />
-                      <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                        {driver2.nationality}
-                      </span>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-mono text-zinc-400 uppercase tracking-widest">
-                        {driver2.givenName}
-                      </p>
-                      <h3 className="text-2xl sm:text-3xl font-black font-sans uppercase tracking-tight text-white group-hover:text-primary transition-colors">
-                        {driver2.familyName}
-                      </h3>
-                    </div>
-
-                    {driver2.permanentNumber && (
-                      <p className="text-3xl sm:text-4xl font-black italic text-zinc-700 font-mono tracking-tighter select-none">
-                        #{driver2.permanentNumber}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Standing Telemetry Badge */}
-                  <div className="relative z-10 pt-4 flex items-center gap-3">
-                    {d2Standing ? (
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 font-mono text-xs">
-                        <span className="text-amber-400 font-black">P{d2Standing.position}</span>
-                        <span className="text-zinc-600">•</span>
-                        <span className="text-white font-bold">{d2Standing.points} PTS</span>
-                      </div>
-                    ) : (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-white/10 bg-zinc-900/80 font-mono text-xs text-zinc-400">
-                        <span>VIEW PROFILE</span>
-                        <ChevronRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Driver Inward Cutout (Placed on the right, facing inward left) */}
-                  <div className="absolute right-0 bottom-0 top-2 w-[48%] pointer-events-none select-none overflow-hidden">
-                    <div className="relative w-full h-full flex items-end justify-end">
-                      <DriverImage
-                        src={d2Photo}
-                        alt={`${driver2.givenName} ${driver2.familyName}`}
-                        fill
-                        sizes="(max-width: 768px) 50vw, 30vw"
-                        className="object-contain object-bottom drop-shadow-2xl transition-transform duration-300 group-hover:scale-105"
-                        priority
-                        unoptimized
-                      />
-                    </div>
-                    {/* Subtle Base Fade */}
-                    <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-950 to-transparent pointer-events-none" />
-                  </div>
-                </Link>
-              )}
-            </div>
-          </div>
-
-          {/* Integrated Teammate Head-to-Head Duel Matrix */}
-          {h2hBattles && h2hBattles.length > 0 && (
-            <ConstructorDuelWidget battles={h2hBattles} season={h2hSeason} />
-          )}
-        </div>
-      )}
 
       {/* ── FULL-WIDTH SECTION: Historical Driver Roster ────────────────── */}
       {historicalDrivers.length > 0 && (
