@@ -6,6 +6,7 @@ import { getRaceDetail, getRacePitStops, getRaceSchedule, getOpenF1RaceData, isB
 import { PitStopPageContent } from '@/components/f1/pit-stops/pit-stop-page-content';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 import type { Race, RaceResult } from '@/types/f1';
+import PitStopsLoading from './loading';
 
 export const revalidate = 3600;
 
@@ -74,16 +75,24 @@ export default async function PitStopsPage({ params, searchParams }: PitStopsPag
   // If the race is valid but pit stops data is not yet available (e.g. upcoming race)
   if (!pitStops || pitStops.length === 0) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8 pb-16">
+        {/* ── Top Dual F1 Racing Speed Stripes (Poster Header Hook) ─────── */}
+        <div className="space-y-1.5" aria-hidden="true">
+          <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
+          <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
+        </div>
+
         <div>
           <Link
             href={`/calendar/${race.round}?season=${race.season}`}
-            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400 hover:text-white transition-colors mb-3 group"
+            className="inline-flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-colors mb-2 group"
           >
-            <span className="transition-transform group-hover:-translate-x-1">←</span>
+            <span className="transition-transform group-hover:-translate-x-0.5">←</span>
             <span>Back to {race.raceName}</span>
+            <span className="text-zinc-600">•</span>
+            <span className="text-red-500">Round {race.round}</span>
           </Link>
-          <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-white">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono uppercase tracking-tight text-white">
             {race.raceName}
           </h1>
           <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-mono">
@@ -99,7 +108,7 @@ export default async function PitStopsPage({ params, searchParams }: PitStopsPag
             <h2 className="text-lg sm:text-xl font-bold font-mono uppercase tracking-wider text-white">
               Pit Stop Telemetry Not Available Yet
             </h2>
-            <p className="text-sm text-zinc-400 max-w-md mx-auto">
+            <p className="text-sm font-mono text-zinc-400 max-w-md mx-auto">
               Pit stop timing, tire compound stints, and station durations will become available once the Grand Prix has concluded.
             </p>
           </div>
@@ -124,13 +133,21 @@ export default async function PitStopsPage({ params, searchParams }: PitStopsPag
       : undefined;
 
   return (
-    <Suspense fallback={<div className="animate-pulse space-y-6"><div className="h-20 bg-zinc-900 rounded-xl" /><div className="h-64 bg-zinc-900 rounded-xl" /></div>}>
-      <PitStopPageContent
-        race={race}
-        pitStops={pitStops}
-        raceResults={validResults}
-        openF1Data={openF1Data}
-      />
-    </Suspense>
+    <div className="space-y-6 sm:space-y-8 pb-16">
+      {/* ── Top Dual F1 Racing Speed Stripes (Poster Header Hook) ─────── */}
+      <div className="space-y-1.5" aria-hidden="true">
+        <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
+        <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
+      </div>
+
+      <Suspense fallback={<PitStopsLoading />}>
+        <PitStopPageContent
+          race={race}
+          pitStops={pitStops}
+          raceResults={validResults}
+          openF1Data={openF1Data}
+        />
+      </Suspense>
+    </div>
   );
 }

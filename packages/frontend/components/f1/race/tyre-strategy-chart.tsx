@@ -57,9 +57,9 @@ export function TyreStrategyChart({
 
   if (stints.length === 0) {
     return (
-      <div className={cn('p-8 rounded-2xl bg-zinc-900/60 border border-white/10 text-center text-zinc-500 text-xs', className)}>
-        <Layers className="h-6 w-6 mx-auto mb-2 opacity-40 text-zinc-400" />
-        <span>No tyre strategy telemetry recorded for this race.</span>
+      <div className={cn('p-8 sm:p-12 rounded-3xl bg-zinc-950 border border-white/10 text-center shadow-xl', className)}>
+        <Layers className="size-8 mx-auto mb-2 opacity-40 text-zinc-400" />
+        <p className="font-mono text-xs uppercase tracking-wider text-zinc-400">No tyre strategy telemetry recorded for this race.</p>
       </div>
     );
   }
@@ -73,33 +73,34 @@ export function TyreStrategyChart({
   return (
     <div
       className={cn(
-        'flex flex-col rounded-2xl bg-zinc-900/80 border border-white/10 backdrop-blur-xl p-4 sm:p-5 shadow-sm space-y-4',
+        'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
         className
       )}
     >
-      {/* Header & Legend */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+      {/* Cockpit Sub-Header & Legend */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30">
         <div className="flex items-center gap-2">
-          <Disc className="h-4 w-4 text-red-500" />
-          <h3 className="font-black text-sm text-zinc-100 uppercase tracking-tight">
+          <Disc className="size-4 text-red-500" />
+          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
             Tyre Strategy Matrix
-          </h3>
+          </span>
+          <span className="text-zinc-600">•</span>
           <span className="text-[11px] font-mono text-zinc-400">
-            ({raceLaps} Laps)
+            {raceLaps} Total Laps
           </span>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-3 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
           {(['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'] as TireCompound[]).map((c) => {
             const conf = COMPOUND_CONFIG[c];
             return (
               <div key={c} className="flex items-center gap-1.5">
                 <span
-                  className="w-2.5 h-2.5 rounded-full border border-black/30"
+                  className="size-2.5 rounded-full border border-black/40"
                   style={{ backgroundColor: conf.circle }}
                 />
-                <span className="text-[11px] text-zinc-300 font-semibold">{conf.label}</span>
+                <span className="text-[11px] text-zinc-300 font-bold">{conf.label}</span>
               </div>
             );
           })}
@@ -107,11 +108,11 @@ export function TyreStrategyChart({
       </div>
 
       {/* Strategy Bars Matrix */}
-      <div className="relative overflow-x-auto">
-        <div className="min-w-[600px] space-y-2 py-2">
+      <div className="p-4 sm:p-6 relative overflow-x-auto">
+        <div className="min-w-[600px] space-y-2 py-1">
           {/* Top Lap Scale */}
-          <div className="flex items-center text-[10px] font-mono text-zinc-500 border-b border-white/5 pb-1 pl-16 pr-2 relative">
-            <span className="w-16 shrink-0 -ml-16 font-bold text-zinc-400">Driver</span>
+          <div className="flex items-center text-[10px] font-mono text-zinc-400 border-b border-white/10 pb-1.5 pl-16 pr-2 relative">
+            <span className="w-16 shrink-0 -ml-16 font-bold text-zinc-300">Driver</span>
             <div className="flex-1 relative h-4">
               <span>L1</span>
               {lapMarkers.map((m) => (
@@ -135,7 +136,10 @@ export function TyreStrategyChart({
             return (
               <div key={driverNum} className="flex items-center gap-2 group">
                 {/* Driver Tag */}
-                <div className="w-16 shrink-0 flex items-center gap-1 font-mono text-xs font-bold text-zinc-300">
+                <div
+                  className="w-16 shrink-0 flex items-center gap-1 font-mono text-xs font-bold text-zinc-300"
+                  title={driverDisplayName}
+                >
                   <span className="text-zinc-500 text-[10px]">#{driverNum}</span>
                   <span className="truncate">{driverSlug.slice(0, 3).toUpperCase()}</span>
                 </div>

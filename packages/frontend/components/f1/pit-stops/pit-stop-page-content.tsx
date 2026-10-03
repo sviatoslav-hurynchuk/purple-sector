@@ -3,7 +3,6 @@
 import React, { useState, useCallback } from 'react';
 import type { PitStopEntry, Race, RaceResult, RaceResultEntry, RaceSessionData } from '@/types/f1';
 import { CountryFlag } from '@/components/f1/country-flag';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { PitStopStatsCards } from './pit-stop-stats-cards';
 import { PitStopChronicle } from './pit-stop-chronicle';
@@ -52,63 +51,86 @@ export function PitStopPageContent({
   }, [isRacing]);
 
   return (
-    <div className="space-y-8">
-      {/* Top Breadcrumb Navigation */}
-      <div>
-        <Link
-          href={`/calendar/${race.round}?season=${race.season}`}
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors mb-3 group"
-        >
-          <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-1" />
-          <span>Back to {race.raceName}</span>
-        </Link>
+    <div className="space-y-6">
+      {/* ── Main Cockpit Header ────────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          {/* Back link / breadcrumb */}
+          <Link
+            href={`/calendar/${race.round}?season=${race.season}`}
+            className="inline-flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-colors mb-2 group"
+          >
+            <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <span>Back to {race.raceName}</span>
+            <span className="text-zinc-600">•</span>
+            <span className="text-red-500">Round {race.round}</span>
+          </Link>
 
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold uppercase tracking-widest text-primary">
-                Race Strategy &amp; Pit Stops
-              </span>
-              <span className="text-xs text-muted-foreground">·</span>
-              <span className="text-xs font-mono text-muted-foreground">
-                Round {race.round} · {race.date}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase">
-                {race.raceName}
-              </h1>
-              <CountryFlag countryName={race.Circuit.Location.country} preload />
-            </div>
-          </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono tracking-tight text-white uppercase flex flex-wrap items-baseline gap-3">
+            <span>{race.season}</span>
+            <span className="text-zinc-400 font-sans font-black tracking-tighter text-2xl sm:text-3xl lg:text-4xl">
+              {race.raceName.toUpperCase()}
+            </span>
+            <CountryFlag
+              countryName={race.Circuit.Location.country}
+              className="w-7 h-4.5 sm:w-8 sm:h-5 shadow-md rounded-xs ml-1"
+              preload
+            />
+          </h1>
+
+          <p className="text-xs sm:text-sm font-mono text-zinc-400 mt-1 flex flex-wrap items-center gap-2">
+            <span className="text-red-500 font-bold uppercase">Pit Stop Telemetry &amp; Strategy</span>
+            <span className="text-zinc-600">•</span>
+            <span>{race.Circuit.circuitName}</span>
+            <span className="text-zinc-600">•</span>
+            <span className="text-zinc-300 font-bold">{race.date}</span>
+          </p>
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
+      {/* Summary KPI Cards (Monolithic 1px Matrix) */}
       <PitStopStatsCards pitStops={pitStops} raceResults={raceResults} />
 
       {/* Main Tabs Container */}
       <div className="space-y-4">
         <Tabs defaultValue={hasStints ? 'stints' : 'fastest'} className="w-full">
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-            <TabsList>
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-red-600" />
+              <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                Strategy &amp; Telemetry Modules
+              </h2>
+            </div>
+
+            <TabsList className="inline-flex p-1 rounded-xl bg-zinc-950 border border-white/10 h-auto gap-1 shadow-inner overflow-x-auto max-w-full">
               {hasStints && (
-                <TabsTrigger value="stints" className="inline-flex items-center gap-2">
-                  <Disc className="size-3.5 text-primary" />
-                  <span>Tyre Stints Matrix</span>
+                <TabsTrigger
+                  value="stints"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-white/10 transition-all cursor-pointer inline-flex items-center gap-2 shrink-0"
+                >
+                  <Disc className="size-3.5 text-red-500" />
+                  <span>Tyre Stints</span>
                 </TabsTrigger>
               )}
-              <TabsTrigger value="fastest" className="inline-flex items-center gap-2">
-                <Trophy className="size-3.5" />
+              <TabsTrigger
+                value="fastest"
+                className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-white/10 transition-all cursor-pointer inline-flex items-center gap-2 shrink-0"
+              >
+                <Trophy className="size-3.5 text-amber-400" />
                 <span>Fastest Stops</span>
               </TabsTrigger>
-              <TabsTrigger value="chronicle" className="inline-flex items-center gap-2">
-                <Clock className="size-3.5" />
+              <TabsTrigger
+                value="chronicle"
+                className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-white/10 transition-all cursor-pointer inline-flex items-center gap-2 shrink-0"
+              >
+                <Clock className="size-3.5 text-zinc-300" />
                 <span>Chronicle Log</span>
               </TabsTrigger>
               {hasWeather && (
-                <TabsTrigger value="weather" className="inline-flex items-center gap-2">
+                <TabsTrigger
+                  value="weather"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-white/10 transition-all cursor-pointer inline-flex items-center gap-2 shrink-0"
+                >
                   <CloudRain className="size-3.5 text-blue-400" />
                   <span>Weather Timeline</span>
                 </TabsTrigger>
@@ -117,7 +139,7 @@ export function PitStopPageContent({
           </div>
 
           {hasStints && (
-            <TabsContent value="stints" className="pt-4 space-y-4">
+            <TabsContent value="stints" className="pt-2">
               <TyreStrategyChart
                 stints={openF1Data!.stints}
                 totalLaps={raceResults[0]?.laps ? parseInt(raceResults[0].laps, 10) : undefined}
@@ -125,7 +147,7 @@ export function PitStopPageContent({
             </TabsContent>
           )}
 
-          <TabsContent value="fastest" className="pt-4">
+          <TabsContent value="fastest" className="pt-2">
             <PitStopFastest
               pitStops={pitStops}
               raceResults={raceResults}
@@ -135,7 +157,7 @@ export function PitStopPageContent({
             />
           </TabsContent>
 
-          <TabsContent value="chronicle" className="pt-4">
+          <TabsContent value="chronicle" className="pt-2">
             <PitStopChronicle
               pitStops={pitStops}
               raceResults={raceResults}
@@ -146,7 +168,7 @@ export function PitStopPageContent({
           </TabsContent>
 
           {hasWeather && (
-            <TabsContent value="weather" className="pt-4">
+            <TabsContent value="weather" className="pt-2">
               <WeatherTimeline weather={openF1Data!.weather} />
             </TabsContent>
           )}
@@ -157,9 +179,10 @@ export function PitStopPageContent({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Swords className="size-4 text-primary" />
-            <h2 className="text-lg font-black uppercase tracking-tight">
-              Head-to-Head Comparison
+            <span className="size-2 rounded-full bg-red-600" />
+            <h2 className="text-base sm:text-lg font-mono font-black uppercase tracking-tight text-white flex items-center gap-2">
+              <Swords className="size-4 text-red-500" />
+              <span>Pit Stop Faceoff Arena</span>
             </h2>
           </div>
         </div>

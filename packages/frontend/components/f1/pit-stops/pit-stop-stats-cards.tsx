@@ -2,7 +2,6 @@
 
 import React from 'react';
 import type { PitStopEntry, RaceResultEntry } from '@/types/f1';
-import { Card, CardContent } from '@/components/ui/card';
 import { Trophy, Gauge, Timer, Users } from 'lucide-react';
 import { getTeamTheme } from '@/lib/team-colors';
 import { parseDurationToSeconds } from './pit-stop-chronicle';
@@ -42,106 +41,141 @@ export function PitStopStatsCards({ pitStops, raceResults }: PitStopStatsCardsPr
   const fastestTheme = getTeamTheme(fastestDriverResult?.Constructor.constructorId);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Fastest Pit Stop */}
-      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
+    <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative">
+      {/* Ambient Livery Glow for Fastest Team */}
+      {fastest && (
         <div
-          className="absolute top-0 left-0 right-0 h-0.5"
-          style={{ backgroundColor: fastest ? fastestTheme.primary : 'var(--primary)' }}
+          className="absolute top-0 inset-x-0 h-36 opacity-20 blur-3xl pointer-events-none"
+          style={{ backgroundColor: fastestTheme.primary }}
         />
-        {/* Large right-aligned feature icon */}
-        <div
-          className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 transition-all duration-300 group-hover:scale-110 group-hover:opacity-75"
-          style={{ color: fastest ? fastestTheme.primary : '#fbbf24' }}
-        >
-          <Trophy className="size-14 sm:size-16 stroke-[1.25]" />
-        </div>
+      )}
 
-        <CardContent className="p-5 relative z-10">
-          <div className="text-muted-foreground mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Fastest Pit Stop</span>
+      {/* Cockpit Sub-Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30 relative z-10">
+        <div className="flex items-center gap-2">
+          <span className="size-2 rounded-full bg-red-600 animate-pulse" />
+          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
+            Pit Lane Telemetry Cluster
+          </span>
+        </div>
+        <span className="text-[11px] font-mono text-zinc-400">
+          Official Grand Prix Stint Records
+        </span>
+      </div>
+
+      {/* Contiguous 1px Grid Matrix */}
+      <div className="border-t border-l border-white/10 bg-zinc-950/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
+        {/* Cell 1: Fastest Pit Stop */}
+        <div className="border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 p-4 sm:p-5 transition-colors flex flex-col justify-between gap-2 group relative overflow-hidden">
+          {/* Watermark icon */}
+          <div
+            className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-15 transition-all duration-300 group-hover:scale-110 group-hover:opacity-25"
+            style={{ color: fastest ? fastestTheme.primary : '#fbbf24' }}
+          >
+            <Trophy className="size-16 stroke-[1.25]" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground tabular-nums">
-              {fastest ? `${fastest.durationNum.toFixed(3)}s` : '—'}
+
+          <div className="space-y-1 relative z-10">
+            <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider block">
+              Fastest Pit Stop
             </span>
-            {fastest && (
-              <span className="text-xs font-mono text-muted-foreground">Lap {fastest.lap}</span>
-            )}
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white tabular-nums">
+                {fastest ? `${fastest.durationNum.toFixed(3)}s` : '—'}
+              </span>
+              {fastest && (
+                <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                  Lap {fastest.lap}
+                </span>
+              )}
+            </div>
           </div>
-          {fastest && (
-            <div className="flex items-center gap-2 mt-2">
+
+          {fastest ? (
+            <div className="flex items-center gap-2 relative z-10 pt-1 border-t border-white/5">
               <div
                 className="w-1.5 h-3.5 rounded-full shrink-0"
                 style={{ backgroundColor: fastestTheme.primary }}
               />
-              <p className="text-xs font-medium text-muted-foreground truncate">
-                <span className="font-semibold text-foreground">{fastestDriverName}</span> · {fastestTeamName}
+              <p className="text-xs font-mono text-zinc-300 truncate">
+                <span className="font-bold text-white uppercase">{fastestDriverName}</span> · {fastestTeamName}
               </p>
             </div>
+          ) : (
+            <span className="text-[11px] font-mono text-zinc-500">No qualifying stops</span>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Total Stops */}
-      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
-        {/* Large right-aligned feature icon */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-primary transition-all duration-300 group-hover:scale-110 group-hover:opacity-75">
-          <Gauge className="size-14 sm:size-16 stroke-[1.25]" />
         </div>
 
-        <CardContent className="p-5 relative z-10">
-          <div className="text-muted-foreground mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Pit Stops</span>
+        {/* Cell 2: Total Stops */}
+        <div className="border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 p-4 sm:p-5 transition-colors flex flex-col justify-between gap-2 group relative overflow-hidden">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-15 text-red-500 transition-all duration-300 group-hover:scale-110 group-hover:opacity-25">
+            <Gauge className="size-16 stroke-[1.25]" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground tabular-nums">
-            {totalStops}
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Across {uniqueDrivers} drivers during Grand Prix
-          </p>
-        </CardContent>
-      </Card>
 
-      {/* Average Pit Duration */}
-      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
-        {/* Large right-aligned feature icon */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-blue-400 transition-all duration-300 group-hover:scale-110 group-hover:opacity-75">
-          <Timer className="size-14 sm:size-16 stroke-[1.25]" />
+          <div className="space-y-1 relative z-10">
+            <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider block">
+              Total Pit Stops
+            </span>
+            <p className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white tabular-nums">
+              {totalStops}{' '}
+              <span className="text-xs font-mono font-semibold text-zinc-400">Stints</span>
+            </p>
+          </div>
+
+          <div className="relative z-10 pt-1 border-t border-white/5">
+            <span className="text-[11px] font-mono text-zinc-400">
+              Across {uniqueDrivers} drivers during Grand Prix
+            </span>
+          </div>
         </div>
 
-        <CardContent className="p-5 relative z-10">
-          <div className="text-muted-foreground mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Average Lane Time</span>
+        {/* Cell 3: Average Pit Lane Duration */}
+        <div className="border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 p-4 sm:p-5 transition-colors flex flex-col justify-between gap-2 group relative overflow-hidden">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-15 text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:opacity-25">
+            <Timer className="size-16 stroke-[1.25]" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground tabular-nums">
-            {avgDuration > 0 ? `${avgDuration.toFixed(2)}s` : '—'}
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Excluding stationary incident delays
-          </p>
-        </CardContent>
-      </Card>
 
-      {/* Active Drivers */}
-      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
-        {/* Large right-aligned feature icon */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-emerald-400 transition-all duration-300 group-hover:scale-110 group-hover:opacity-75">
-          <Users className="size-14 sm:size-16 stroke-[1.25]" />
+          <div className="space-y-1 relative z-10">
+            <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider block">
+              Average Lane Time
+            </span>
+            <p className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white tabular-nums">
+              {avgDuration > 0 ? `${avgDuration.toFixed(2)}s` : '—'}
+            </p>
+          </div>
+
+          <div className="relative z-10 pt-1 border-t border-white/5">
+            <span className="text-[11px] font-mono text-zinc-400">
+              Pit in to pit out delta (&lt;60s stops)
+            </span>
+          </div>
         </div>
 
-        <CardContent className="p-5 relative z-10">
-          <div className="text-muted-foreground mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Drivers Serviced</span>
+        {/* Cell 4: Drivers Serviced */}
+        <div className="border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 p-4 sm:p-5 transition-colors flex flex-col justify-between gap-2 group relative overflow-hidden">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-15 text-emerald-400 transition-all duration-300 group-hover:scale-110 group-hover:opacity-25">
+            <Users className="size-16 stroke-[1.25]" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground tabular-nums">
-            {uniqueDrivers}
+
+          <div className="space-y-1 relative z-10">
+            <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider block">
+              Drivers Serviced
+            </span>
+            <p className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white tabular-nums">
+              {uniqueDrivers}{' '}
+              <span className="text-xs font-mono font-semibold text-zinc-400">
+                / {raceResults.length || 20}
+              </span>
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Avg {(totalStops / (uniqueDrivers || 1)).toFixed(1)} stops per active driver
-          </p>
-        </CardContent>
-      </Card>
+
+          <div className="relative z-10 pt-1 border-t border-white/5">
+            <span className="text-[11px] font-mono text-zinc-400">
+              Avg {(totalStops / (uniqueDrivers || 1)).toFixed(1)} stops per active driver
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
