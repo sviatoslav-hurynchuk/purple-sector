@@ -337,6 +337,7 @@ export async function cachedFetch<T>(
     }
     if (validator && !validator(cached as T)) {
       console.log(`[Cache INVALID HIT] ${key} failed validation, re-fetching...`);
+      await cache.del(key).catch(() => {});
     } else {
       console.log(`[Cache HIT] ${key}`);
       return cached as T;
@@ -1559,10 +1560,12 @@ export async function warmCache(): Promise<void> {
       warmOfficialDriverStats().catch((err) => console.warn('[CacheWarming] Failed official driver stats:', err instanceof Error ? err.message : err)),
     ]);
 
-    // 2. All 10 constructor profiles
-    const constructorIds = Object.keys(CONSTRUCTOR_REGISTRY);
-    console.log(`[CacheWarming] Pre-fetching ${constructorIds.length} constructor profiles...`);
-    await mapConcurrent(constructorIds, 2, async (cid) => {
+    // 2. Active constructor profiles (10 current championship teams)
+    const activeConstructorIds = Object.entries(CONSTRUCTOR_REGISTRY)
+      .filter(([, meta]) => meta.currentDrivers.length > 0)
+      .map(([id]) => id);
+    console.log(`[CacheWarming] Pre-fetching ${activeConstructorIds.length} active constructor profiles...`);
+    await mapConcurrent(activeConstructorIds, 2, async (cid) => {
       try {
         await getConstructorProfile(cid);
       } catch (err) {
@@ -1590,19 +1593,32 @@ export async function warmCache(): Promise<void> {
       }
     });
 
-    // 4. Completed races for current season (results, pit stops, laps)
+    // 4. Completed races for current season (require confirmed start time + results)
     const schedule = await getRaceSchedule(currentSeason).catch(() => []);
     const now = new Date();
-    const completedRaces = schedule.filter((r) => new Date(r.date) < now);
-    if (completedRaces.length > 0) {
-      const recentCompleted = completedRaces.slice(-2);
-      console.log(`[CacheWarming] Pre-fetching data for ${recentCompleted.length} recent completed race(s)...`);
-      await mapConcurrent(recentCompleted, 1, async (r) => {
-        await Promise.allSettled([
-          getRaceResult(currentSeason, r.round),
-          getRacePitStops(currentSeason, r.round),
-          getRaceLaps(currentSeason, r.round),
-        ]);
+    // Candidate completed races whose scheduled start was at least 3 hours ago
+    const candidateRaces = schedule.filter((r) => {
+      const raceStartTime = r.time ? new Date(`${r.date}T${r.time}`) : new Date(`${r.date}T15:00:00Z`);
+      return now.getTime() - raceStartTime.getTime() > 3 * 60 * 60 * 1000;
+    });
+
+    if (candidateRaces.length > 0) {
+      const recentCandidates = candidateRaces.slice(-2);
+      console.log(`[CacheWarming] Verifying completion & pre-fetching telemetry for ${recentCandidates.length} candidate race(s)...`);
+      await mapConcurrent(recentCandidates, 1, async (r) => {
+        const raceResult = await getRaceResult(currentSeason, r.round).catch(() => null);
+        const hasFinished =
+          raceResult &&
+          'Results' in raceResult &&
+          Array.isArray(raceResult.Results) &&
+          raceResult.Results.length > 0;
+
+        if (hasFinished) {
+          await Promise.allSettled([
+            getRacePitStops(currentSeason, r.round),
+            getRaceLaps(currentSeason, r.round),
+          ]);
+        }
       });
     }
 
