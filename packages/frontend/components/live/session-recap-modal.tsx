@@ -28,9 +28,9 @@ const RECAP_VISIBILITY_MS = 24 * 60 * 60 * 1000;
 /** localStorage key prefix for storing the first-seen timestamp per session. */
 const STORAGE_KEY_PREFIX = 'ps_recap_seen_';
 
-/** Extract notable race control events (SC, VSC, Red Flag). */
+/** Extract notable race control events (SC, VSC, Red Flag, Penalty). */
 function getNotableEvents(events: RaceEvent[]): RaceEvent[] {
-  const types = new Set(['safety_car', 'vsc', 'red_flag']);
+  const types = new Set(['safety_car', 'vsc', 'red_flag', 'penalty']);
   return events.filter((e) => types.has(e.type));
 }
 
@@ -438,33 +438,50 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
           {/* Notable Race Control Events */}
           {notableEvents.length > 0 && (
             <div className="border-t border-zinc-800 p-4 sm:p-5 space-y-2">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="size-3.5 text-amber-400" />
-                <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                  Race Control
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="size-3.5 text-amber-400" />
+                  <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                    Race Control
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-zinc-500">
+                  {notableEvents.length} {notableEvents.length === 1 ? 'event' : 'events'}
                 </span>
               </div>
-              <div className="space-y-1.5">
-                {notableEvents.slice(-5).map((event, i) => (
+              <div className="max-h-32 sm:max-h-36 overflow-y-auto space-y-1.5 pr-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                {notableEvents.map((event, i) => (
                   <div
                     key={`${event.type}-${event.lap ?? 0}-${i}`}
                     className={cn(
                       'flex items-center gap-2 text-xs font-mono px-2.5 py-1.5 rounded-lg border',
                       event.type === 'safety_car' && 'bg-amber-500/5 text-amber-300 border-amber-500/15',
                       event.type === 'vsc' && 'bg-amber-500/5 text-amber-300 border-amber-500/15',
-                      event.type === 'red_flag' && 'bg-red-500/5 text-red-300 border-red-500/15'
+                      event.type === 'red_flag' && 'bg-red-500/5 text-red-300 border-red-500/15',
+                      event.type === 'penalty' && 'bg-rose-500/10 text-rose-300 border-rose-500/20'
                     )}
                   >
-                    <ShieldAlert className="size-3.5 shrink-0" />
-                    <span className="font-bold uppercase">
-                      {event.type === 'safety_car' ? 'SC' : event.type === 'vsc' ? 'VSC' : 'RED FLAG'}
+                    <ShieldAlert
+                      className={cn(
+                        'size-3.5 shrink-0',
+                        event.type === 'penalty' ? 'text-rose-400' : 'text-amber-400'
+                      )}
+                    />
+                    <span className="font-bold uppercase shrink-0">
+                      {event.type === 'safety_car'
+                        ? 'SC'
+                        : event.type === 'vsc'
+                          ? 'VSC'
+                          : event.type === 'red_flag'
+                            ? 'RED FLAG'
+                            : 'PENALTY'}
                     </span>
                     {(event.lap ?? 0) > 0 && (
-                      <span className="text-zinc-400">
-                        Lap {event.lap}{event.endLap ? `–${event.endLap}` : ''}
+                      <span className="text-zinc-400 shrink-0">
+                        Lap {event.lap}{event.endLap && event.endLap !== event.lap ? `–${event.endLap}` : ''}
                       </span>
                     )}
-                    <span className="text-zinc-500 truncate flex-1">
+                    <span className="text-zinc-300 truncate flex-1" title={event.message}>
                       {event.message}
                     </span>
                   </div>

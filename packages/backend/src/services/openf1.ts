@@ -538,7 +538,7 @@ export async function getOpenF1Stints(sessionKey: number): Promise<OpenF1Stint[]
 }
 
 export async function getOpenF1RaceControlEvents(sessionKey: number): Promise<OpenF1RaceControl[]> {
-  const cacheKey = `f1:openf1:race_control:${sessionKey}`;
+  const cacheKey = `f1:openf1:race_control:v3:${sessionKey}`;
   return cachedFetch<OpenF1RaceControl[]>(cacheKey, TTL.ENRICHED_RACE, () =>
     openF1Fetch<OpenF1RaceControl>('/race_control', { session_key: sessionKey })
   );

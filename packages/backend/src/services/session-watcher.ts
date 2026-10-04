@@ -279,7 +279,7 @@ export class SessionWatcher {
    */
   public async hydrateCompletedSnapshot(session: OpenF1Session): Promise<LiveSessionState | null> {
     const sessionKey = session.session_key;
-    const cacheKey = `f1:openf1:completed_snapshot:v3:${sessionKey}`;
+    const cacheKey = `f1:openf1:completed_snapshot:v4:${sessionKey}`;
 
     // 1. Check Redis cache first
     const cached = await cache.get<LiveSessionState>(cacheKey);
