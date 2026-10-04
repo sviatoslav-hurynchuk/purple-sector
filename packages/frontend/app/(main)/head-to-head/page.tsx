@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getSeasonHeadToHead } from '@/lib/api';
-import { getMaxYear } from '@/lib/utils';
+import { getMaxYear, parseYear } from '@/lib/utils';
 import { HeadToHeadContent } from '@/components/f1/head-to-head/head-to-head-content';
 
 export const metadata: Metadata = {
@@ -26,14 +26,10 @@ export default async function HeadToHeadPage({
   );
 
   const resolvedParams = await searchParams;
-  const requestedYear = resolvedParams.season
-    ? parseInt(resolvedParams.season, 10)
-    : maxYear;
-
   const validYear =
-    !isNaN(requestedYear) && requestedYear >= FIRST_SEASON && requestedYear <= maxYear
-      ? requestedYear
-      : maxYear;
+    resolvedParams.season && parseInt(resolvedParams.season, 10) < FIRST_SEASON
+      ? maxYear
+      : parseYear(resolvedParams.season, maxYear);
 
   const data = await getSeasonHeadToHead(validYear);
 

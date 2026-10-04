@@ -28,40 +28,45 @@ const RECAP_VISIBILITY_MS = 24 * 60 * 60 * 1000;
 /** localStorage key prefix for storing the first-seen timestamp per session. */
 const STORAGE_KEY_PREFIX = 'ps_recap_seen_';
 
-/** Extract notable race control events (SC, VSC, Red Flag). */
+/** Extract notable race control events (SC, VSC, Red Flag, Penalty). */
 function getNotableEvents(events: RaceEvent[]): RaceEvent[] {
-  const types = new Set(['safety_car', 'vsc', 'red_flag']);
+  const types = new Set(['safety_car', 'vsc', 'red_flag', 'penalty']);
   return events.filter((e) => types.has(e.type));
 }
 
-interface LiveDriverWithBestLap extends LiveDriverState {
-  bestLapTime?: number | null;
+/** Helper to determine if a session is a Race or Sprint session */
+function isRaceOrSprintSession(sessionType?: string | null): boolean {
+  if (!sessionType) return false;
+  const lower = sessionType.toLowerCase().trim();
+  if (lower.includes('qualifying') || lower.includes('shootout') || lower.includes('practice')) {
+    return false;
+  }
+  return lower.includes('race') || lower.includes('sprint');
 }
 
-/** Find the driver with the best or last recorded lap time. */
-function findBestOrLastLapDriver(drivers: LiveDriverState[]): {
+/** Find the driver with the session's best (fastest) lap time. */
+function findBestLapDriver(drivers: LiveDriverState[]): {
   driver: LiveDriverState;
   lapDuration: number;
-  isSessionBest: boolean;
 } | null {
-  // If an official best-lap value is present on LiveDriverState, prefer it
-  const withBest = (drivers as LiveDriverWithBestLap[]).filter(
+  // Prefer official session best lap if present on LiveDriverState
+  const withBest = drivers.filter(
     (d) => d.bestLapTime != null && d.bestLapTime > 0
   );
   if (withBest.length > 0) {
     const best = withBest.reduce((prev, d) =>
       (d.bestLapTime ?? Infinity) < (prev.bestLapTime ?? Infinity) ? d : prev
     );
-    return { driver: best, lapDuration: best.bestLapTime!, isSessionBest: true };
+    return { driver: best, lapDuration: best.bestLapTime! };
   }
 
-  // Otherwise fall back to lastLapDuration, accurately identified as the last lap
+  // Fallback to recorded lap times if available
   const withTimes = drivers.filter((d) => d.lastLapDuration != null && d.lastLapDuration > 0);
   if (withTimes.length === 0) return null;
   const best = withTimes.reduce((prev, d) =>
     (d.lastLapDuration ?? Infinity) < (prev.lastLapDuration ?? Infinity) ? d : prev
   );
-  return { driver: best, lapDuration: best.lastLapDuration!, isSessionBest: false };
+  return { driver: best, lapDuration: best.lastLapDuration! };
 }
 
 /** Format lap time in seconds to M:SS.mmm display format. */
@@ -242,10 +247,17 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
 
   const top10 = sortedDrivers.slice(0, 10);
 
-  const lapInfo = useMemo(
-    () => findBestOrLastLapDriver(drivers ?? []),
-    [drivers]
-  );
+  const sessionType = state?.sessionType ?? 'Session';
+  const isRaceOrSprint = useMemo(() => isRaceOrSprintSession(sessionType), [sessionType]);
+  const isRace = sessionType.toLowerCase().includes('race');
+  const countryName = state?.countryName;
+
+  const bestLapInfo = useMemo(() => {
+    if (!isRaceOrSprint || !drivers) return null;
+    return findBestLapDriver(drivers);
+  }, [isRaceOrSprint, drivers]);
+
+  const showBestLap = isRaceOrSprint && bestLapInfo !== null;
 
   const notableEvents = useMemo(
     () => getNotableEvents(raceControlFeed ?? []),
@@ -253,10 +265,6 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
   );
 
   if (!isVisible) return null;
-
-  const sessionType = state?.sessionType ?? 'Session';
-  const isRace = sessionType.toLowerCase().includes('race');
-  const countryName = state?.countryName;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -361,32 +369,37 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
           </div>
 
           {/* ── Bottom Info Grid ──────────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-zinc-800">
-            {/* Last Lap / Fastest Lap */}
-            <div className="p-4 sm:p-5 space-y-2">
-              <div className="flex items-center gap-2">
-                <Timer className="size-3.5 text-purple-400" />
-                <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                  {lapInfo?.isSessionBest ? 'Fastest Lap' : 'Last Lap'}
-                </span>
-              </div>
-              {lapInfo ? (
+          <div
+            className={cn(
+              'grid divide-zinc-800',
+              showBestLap
+                ? 'grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x'
+                : 'grid-cols-1'
+            )}
+          >
+            {/* Best Lap (Only shown for Race and Sprint sessions) */}
+            {showBestLap && bestLapInfo && (
+              <div className="p-4 sm:p-5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Timer className="size-3.5 text-purple-400" />
+                  <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                    Best Lap
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
                   <span
                     className="h-4 w-1 rounded-full shrink-0"
-                    style={{ backgroundColor: lapInfo.driver.teamColour || '#a855f7' }}
+                    style={{ backgroundColor: bestLapInfo.driver.teamColour || '#a855f7' }}
                   />
                   <span className="font-mono font-bold text-sm text-white">
-                    {lapInfo.driver.code || lapInfo.driver.name}
+                    {bestLapInfo.driver.code || bestLapInfo.driver.name}
                   </span>
-                  <span className="font-mono text-sm text-purple-400">
-                    {formatLapTime(lapInfo.lapDuration)}
+                  <span className="font-mono text-sm font-bold text-purple-400">
+                    {formatLapTime(bestLapInfo.lapDuration)}
                   </span>
                 </div>
-              ) : (
-                <span className="text-xs text-zinc-500 font-mono">No data</span>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Weather */}
             <div className="p-4 sm:p-5 space-y-2">
@@ -425,33 +438,50 @@ export function SessionRecapModal({ className }: SessionRecapModalProps) {
           {/* Notable Race Control Events */}
           {notableEvents.length > 0 && (
             <div className="border-t border-zinc-800 p-4 sm:p-5 space-y-2">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="size-3.5 text-amber-400" />
-                <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                  Race Control
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="size-3.5 text-amber-400" />
+                  <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                    Race Control
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-zinc-500">
+                  {notableEvents.length} {notableEvents.length === 1 ? 'event' : 'events'}
                 </span>
               </div>
-              <div className="space-y-1.5">
-                {notableEvents.slice(-5).map((event, i) => (
+              <div className="max-h-32 sm:max-h-36 overflow-y-auto space-y-1.5 pr-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                {notableEvents.map((event, i) => (
                   <div
                     key={`${event.type}-${event.lap ?? 0}-${i}`}
                     className={cn(
                       'flex items-center gap-2 text-xs font-mono px-2.5 py-1.5 rounded-lg border',
                       event.type === 'safety_car' && 'bg-amber-500/5 text-amber-300 border-amber-500/15',
                       event.type === 'vsc' && 'bg-amber-500/5 text-amber-300 border-amber-500/15',
-                      event.type === 'red_flag' && 'bg-red-500/5 text-red-300 border-red-500/15'
+                      event.type === 'red_flag' && 'bg-red-500/5 text-red-300 border-red-500/15',
+                      event.type === 'penalty' && 'bg-rose-500/10 text-rose-300 border-rose-500/20'
                     )}
                   >
-                    <ShieldAlert className="size-3.5 shrink-0" />
-                    <span className="font-bold uppercase">
-                      {event.type === 'safety_car' ? 'SC' : event.type === 'vsc' ? 'VSC' : 'RED FLAG'}
+                    <ShieldAlert
+                      className={cn(
+                        'size-3.5 shrink-0',
+                        event.type === 'penalty' ? 'text-rose-400' : 'text-amber-400'
+                      )}
+                    />
+                    <span className="font-bold uppercase shrink-0">
+                      {event.type === 'safety_car'
+                        ? 'SC'
+                        : event.type === 'vsc'
+                          ? 'VSC'
+                          : event.type === 'red_flag'
+                            ? 'RED FLAG'
+                            : 'PENALTY'}
                     </span>
                     {(event.lap ?? 0) > 0 && (
-                      <span className="text-zinc-400">
-                        Lap {event.lap}{event.endLap ? `–${event.endLap}` : ''}
+                      <span className="text-zinc-400 shrink-0">
+                        Lap {event.lap}{event.endLap && event.endLap !== event.lap ? `–${event.endLap}` : ''}
                       </span>
                     )}
-                    <span className="text-zinc-500 truncate flex-1">
+                    <span className="text-zinc-300 truncate flex-1" title={event.message}>
                       {event.message}
                     </span>
                   </div>

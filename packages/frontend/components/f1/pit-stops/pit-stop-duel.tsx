@@ -263,9 +263,9 @@ function PitBoxScene({
     : 'Complete';
 
   return (
-    <div className="relative h-36 bg-zinc-950/80 rounded-xl border border-zinc-800 overflow-hidden select-none">
+    <div className="relative h-36 bg-zinc-950 rounded-2xl border border-white/10 overflow-hidden select-none shadow-inner">
       {/* Pit lane floor track line */}
-      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-zinc-800/80" />
+      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-white/10" />
 
       {/* Centered Pit Box Area (240px wide) */}
       <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[240px] pointer-events-none">
@@ -337,29 +337,29 @@ function PitBoxScene({
       <div className="absolute top-3 left-4 flex items-center gap-2.5 z-10">
         <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: teamColor }} />
         <div>
-          <p className="text-xs font-bold text-foreground leading-none">{driverName}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">{teamName} · Lap {lap}</p>
+          <p className="text-xs font-bold text-white uppercase tracking-tight leading-none">{driverName}</p>
+          <p className="text-[11px] font-mono text-zinc-400 mt-1">{teamName} · Lap {lap}</p>
         </div>
       </div>
 
       {/* Live Telemetry stopwatch (Right side) */}
       <div className="absolute bottom-3 right-4 text-right z-10">
-        <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground block mb-0.5">
+        <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-zinc-400 block mb-0.5">
           {statusLabel}
         </span>
         {(phase === 'entry' || phase === 'stopped' || phase === 'exit') && (
-          <span className="font-mono text-base font-bold text-primary tabular-nums">
+          <span className="font-mono text-base font-black text-amber-400 tabular-nums">
             {currentElapsedSec.toFixed(3)}s
           </span>
         )}
         {phase === 'done' && (
-          <span className="font-mono text-base font-bold text-emerald-400 tabular-nums inline-flex items-center gap-1">
+          <span className="font-mono text-base font-black text-emerald-400 tabular-nums inline-flex items-center gap-1">
             <Check className="size-3.5 stroke-[3]" />
             {formatDuration(duration)}
           </span>
         )}
         {(phase === 'idle' || phase === 'pre_entry') && (
-          <span className="font-mono text-sm font-semibold text-muted-foreground tabular-nums">
+          <span className="font-mono text-sm font-bold text-zinc-300 tabular-nums">
             {formatDuration(duration)}
           </span>
         )}
@@ -418,12 +418,14 @@ export function PitStopDuel({
   }, [clearAllTimers]);
 
   // Reset duel visuals when selection changes while not racing
-  useEffect(() => {
+  const [prevSelectedIds, setPrevSelectedIds] = useState(selectedIds);
+  if (prevSelectedIds !== selectedIds) {
+    setPrevSelectedIds(selectedIds);
     if (!isRacing) {
       setPhases({});
       setCurrentElapsedSec({});
     }
-  }, [selectedIds, isRacing]);
+  }
 
   const selectedStops: SelectedStop[] = Array.from(selectedIds)
     .map((key) => {
@@ -524,18 +526,18 @@ export function PitStopDuel({
       rafRef.current = requestAnimationFrame(tick);
     }, 40);
     timeoutsRef.current.push(t1);
-  }, [isRacing, selectedStops, carTimings, clearAllTimers]);
+  }, [isRacing, selectedStops, carTimings, clearAllTimers, setIsRacing]);
 
   if (selectedStops.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40 p-8 text-center">
-        <div className="size-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-3 text-muted-foreground">
-          <Gauge className="size-5" />
+      <div className="rounded-3xl border border-dashed border-white/10 bg-zinc-950/60 p-8 sm:p-12 text-center shadow-xl space-y-3">
+        <div className="size-12 rounded-2xl bg-zinc-900/80 border border-white/10 flex items-center justify-center mx-auto text-zinc-400">
+          <Gauge className="size-5 text-red-500" />
         </div>
-        <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">
+        <h4 className="text-sm font-mono font-bold uppercase tracking-wider text-white">
           Pit Stop Duel Arena
         </h4>
-        <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+        <p className="text-xs font-mono text-zinc-400 max-w-md mx-auto">
           Select up to 4 pit stops from the tables above to simulate and compare their real-time pit lane execution.
         </p>
       </div>
@@ -545,19 +547,17 @@ export function PitStopDuel({
   const isDone = Object.values(phases).length > 0 && Object.values(phases).every((p) => p === 'done');
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden space-y-4 p-5">
+    <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative space-y-5 p-5 sm:p-6">
       {/* Duel Controls Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="bg-primary text-primary-foreground font-black italic px-2.5 py-0.5 rounded text-xs tracking-wider">
-            F1
-          </div>
+          <span className="size-2 rounded-full bg-red-600 animate-pulse" />
           <div>
-            <h3 className="font-black uppercase tracking-tight text-base">
-              Pit Stop Duel Comparison
+            <h3 className="font-mono font-black uppercase tracking-tight text-white text-base">
+              Pit Stop Duel Simulator
             </h3>
-            <p className="text-xs text-muted-foreground">
-              {selectedStops.length} of 4 stops selected
+            <p className="text-xs font-mono text-zinc-400">
+              {selectedStops.length} of 4 stops selected for real-time comparison
             </p>
           </div>
         </div>
@@ -567,7 +567,7 @@ export function PitStopDuel({
             type="button"
             onClick={onClear}
             disabled={isRacing}
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg border border-zinc-800 hover:bg-zinc-900 transition-colors disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 hover:text-white px-4 py-2 min-h-[44px] rounded-xl border border-white/10 bg-zinc-900/60 hover:bg-zinc-800 transition-colors disabled:opacity-40 cursor-pointer"
           >
             <Trash2 className="size-3.5" />
             <span>Clear</span>
@@ -578,8 +578,8 @@ export function PitStopDuel({
             onClick={handleRace}
             disabled={isRacing}
             className={cn(
-              'inline-flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all',
-              'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20',
+              'inline-flex items-center justify-center gap-2 px-6 py-2 min-h-[44px] rounded-xl text-xs font-mono font-black uppercase tracking-wider transition-all cursor-pointer',
+              'bg-red-600 text-white hover:bg-red-500 shadow-lg shadow-red-950/40',
               'disabled:opacity-50 disabled:cursor-not-allowed'
             )}
           >
@@ -614,11 +614,11 @@ export function PitStopDuel({
 
       {/* Delta Leaderboard */}
       {isDone && selectedStops.length > 1 && (
-        <div className="mt-4 pt-4 border-t border-zinc-800">
-          <div className="bg-zinc-900/80 rounded-xl p-4 border border-zinc-800 space-y-2">
-            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <div className="bg-zinc-900/40 rounded-2xl p-4 sm:p-5 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
               <span>Duel Timing Analysis</span>
-              <span>Delta</span>
+              <span>Delta to Best</span>
             </div>
             {(() => {
               const sorted = [...selectedStops].sort(
@@ -630,22 +630,22 @@ export function PitStopDuel({
                 const delta = dur - fastest;
                 const theme = getTeamTheme(s.constructorId);
                 return (
-                  <div key={pitStopKey(s.pitStop)} className="flex items-center justify-between py-1.5 border-b border-zinc-800/40 last:border-0">
+                  <div key={pitStopKey(s.pitStop)} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                     <div className="flex items-center gap-2.5">
                       <div className="w-1.5 h-4 rounded-full shrink-0" style={{ backgroundColor: theme.primary }} />
-                      <span className="text-sm font-semibold text-foreground">{s.driverName}</span>
-                      <span className="text-xs text-muted-foreground">Lap {s.pitStop.lap}</span>
+                      <span className="text-sm font-bold text-white uppercase">{s.driverName}</span>
+                      <span className="text-xs font-mono text-zinc-400">Lap {s.pitStop.lap}</span>
                     </div>
                     <div className="font-mono text-sm tabular-nums">
                       {i === 0 ? (
-                        <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+                        <span className="inline-flex items-center gap-1.5 text-emerald-400 font-black">
                           <Trophy className="size-3.5" />
                           {formatDuration(s.pitStop.duration)}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">
+                        <span className="text-white">
                           {formatDuration(s.pitStop.duration)}{' '}
-                          <span className="text-rose-400 font-semibold ml-1.5">+{delta.toFixed(3)}s</span>
+                          <span className="text-rose-400 font-bold ml-1.5">+{delta.toFixed(3)}s</span>
                         </span>
                       )}
                     </div>

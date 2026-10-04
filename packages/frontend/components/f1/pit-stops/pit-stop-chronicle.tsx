@@ -2,13 +2,9 @@
 
 import React from 'react';
 import type { PitStopEntry, RaceResultEntry } from '@/types/f1';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { getTeamTheme } from '@/lib/team-colors';
-import { AlertTriangle, Check } from 'lucide-react';
+import { AlertTriangle, Check, Clock } from 'lucide-react';
 import Link from 'next/link';
 
 interface PitStopChronicleProps {
@@ -71,123 +67,156 @@ export function PitStopChronicle({
   const maxSelections = 4;
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="border-zinc-800 hover:bg-transparent">
-            <TableHead className="w-12 text-center">Select</TableHead>
-            <TableHead className="text-center w-16">Lap</TableHead>
-            <TableHead>Driver</TableHead>
-            <TableHead>Constructor</TableHead>
-            <TableHead className="text-center w-16">Stop</TableHead>
-            <TableHead className="text-right">Duration</TableHead>
-            <TableHead className="text-right">Time of Day</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {pitStops.map((stop) => {
-            const key = pitStopKey(stop);
-            const isSelected = selectedIds.has(key);
-            const result = raceResults.find((r) => r.Driver.driverId === stop.driverId);
-            const constructorId = result?.Constructor.constructorId;
-            const theme = getTeamTheme(constructorId);
-            const canSelect = !isLocked && (isSelected || selectedIds.size < maxSelections);
-            const driverName = result
-              ? `${result.Driver.givenName} ${result.Driver.familyName}`
-              : stop.driverId.replace(/_/g, ' ');
-            const teamName = result?.Constructor.name ?? constructorId ?? '—';
-            const durationSec = parseDurationToSeconds(stop.duration);
-            const isAnomaly = !isNaN(durationSec) && durationSec >= 60;
+    <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative">
+      {/* Cockpit Sub-Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30">
+        <div className="flex items-center gap-2">
+          <Clock className="size-4 text-primary" />
+          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
+            Grand Prix Pit Stop Chronicle
+          </span>
+        </div>
+        <span className="text-[11px] font-mono text-zinc-400">
+          {pitStops.length} Registered Stops • Lap by Lap Execution Log
+        </span>
+      </div>
 
-            return (
-              <TableRow
-                key={key}
-                className={cn(
-                  'border-zinc-800/80 transition-colors',
-                  canSelect && 'cursor-pointer hover:bg-zinc-900/60',
-                  isSelected && 'bg-zinc-900/90 border-l-2',
-                  !canSelect && !isSelected && 'opacity-40'
-                )}
-                style={isSelected ? { borderLeftColor: theme.primary } : undefined}
-                onClick={canSelect ? () => onToggle(key) : undefined}
-              >
-                {/* Checkbox */}
-                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    onClick={() => canSelect && onToggle(key)}
-                    disabled={!canSelect || isLocked}
-                    aria-label={`Select pit stop by ${driverName} on lap ${stop.lap}`}
-                    className={cn(
-                      'size-4 mx-auto rounded border transition-colors flex items-center justify-center',
-                      isSelected
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500',
-                      isLocked && 'cursor-not-allowed opacity-60'
-                    )}
-                  >
-                    {isSelected && <Check className="size-3 stroke-[3]" />}
-                  </button>
-                </TableCell>
+      {/* Table Matrix */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-white/10 bg-zinc-950/80">
+              <th className="py-2.5 px-3 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-12">
+                Select
+              </th>
+              <th className="py-2.5 px-3 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-16">
+                Lap
+              </th>
+              <th className="py-2.5 px-3 text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                Driver
+              </th>
+              <th className="py-2.5 px-3 text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                Constructor
+              </th>
+              <th className="py-2.5 px-3 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-16">
+                Stop
+              </th>
+              <th className="py-2.5 px-3 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                Duration
+              </th>
+              <th className="py-2.5 px-3 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                Time of Day
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {pitStops.map((stop) => {
+              const key = pitStopKey(stop);
+              const isSelected = selectedIds.has(key);
+              const result = raceResults.find((r) => r.Driver.driverId === stop.driverId);
+              const constructorId = result?.Constructor.constructorId;
+              const theme = getTeamTheme(constructorId);
+              const canSelect = !isLocked && (isSelected || selectedIds.size < maxSelections);
+              const driverName = result
+                ? `${result.Driver.givenName} ${result.Driver.familyName}`
+                : stop.driverId.replace(/_/g, ' ');
+              const teamName = result?.Constructor.name ?? constructorId ?? '—';
+              const durationSec = parseDurationToSeconds(stop.duration);
+              const isAnomaly = !isNaN(durationSec) && durationSec >= 60;
 
-                <TableCell className="text-center font-mono font-bold tabular-nums text-foreground">
-                  {stop.lap}
-                </TableCell>
-
-                <TableCell>
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-1 h-4 rounded-full shrink-0"
-                      style={{ backgroundColor: theme.primary }}
-                    />
-                    <Link
-                      href={`/drivers/${stop.driverId}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-semibold hover:text-primary transition-colors inline-flex items-center gap-2"
+              return (
+                <tr
+                  key={key}
+                  className={cn(
+                    'border-b border-white/5 transition-colors',
+                    canSelect && 'cursor-pointer hover:bg-zinc-900/50',
+                    isSelected && 'bg-zinc-900/90 border-l-2',
+                    !canSelect && !isSelected && 'opacity-40'
+                  )}
+                  style={isSelected ? { borderLeftColor: theme.primary } : undefined}
+                  onClick={canSelect ? () => onToggle(key) : undefined}
+                >
+                  {/* Checkbox */}
+                  <td className="py-2.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => canSelect && onToggle(key)}
+                      disabled={!canSelect || isLocked}
+                      aria-label={`Select pit stop by ${driverName} on lap ${stop.lap}`}
+                      className={cn(
+                        'size-4 mx-auto rounded border transition-colors flex items-center justify-center cursor-pointer',
+                        isSelected
+                          ? 'border-red-500 bg-red-600 text-white'
+                          : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500',
+                        isLocked && 'cursor-not-allowed opacity-60'
+                      )}
                     >
-                      <span>{driverName}</span>
-                      {result?.Driver.code && (
-                        <span className="text-xs font-mono text-muted-foreground">
-                          {result.Driver.code}
+                      {isSelected && <Check className="size-3 stroke-[3]" />}
+                    </button>
+                  </td>
+
+                  {/* Lap */}
+                  <td className="py-2.5 px-3 text-center font-mono font-bold text-white tabular-nums text-xs">
+                    Lap {stop.lap}
+                  </td>
+
+                  {/* Driver */}
+                  <td className="py-2.5 px-3">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-1.5 h-4 rounded-full shrink-0"
+                        style={{ backgroundColor: theme.primary }}
+                      />
+                      <Link
+                        href={`/drivers/${stop.driverId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-bold text-white uppercase tracking-tight hover:text-red-400 transition-colors inline-flex items-center gap-2"
+                      >
+                        <span>{driverName}</span>
+                        {result?.Driver.code && (
+                          <span className="text-[11px] font-mono text-zinc-400">
+                            {result.Driver.code}
+                          </span>
+                        )}
+                      </Link>
+                    </div>
+                  </td>
+
+                  {/* Constructor */}
+                  <td className="py-2.5 px-3 text-xs font-mono text-zinc-400">
+                    {teamName}
+                  </td>
+
+                  {/* Stop # */}
+                  <td className="py-2.5 px-3 text-center font-mono text-xs text-zinc-400 tabular-nums">
+                    #{stop.stop}
+                  </td>
+
+                  {/* Duration */}
+                  <td className="py-2.5 px-3 text-right font-mono font-bold tabular-nums">
+                    <div className="flex items-center justify-end gap-2">
+                      <span className={cn(isAnomaly ? 'text-amber-400' : 'text-white')}>
+                        {formatDuration(stop.duration)}
+                      </span>
+                      {isAnomaly && (
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          <AlertTriangle className="size-2.5" />
+                          Incident
                         </span>
                       )}
-                    </Link>
-                  </div>
-                </TableCell>
+                    </div>
+                  </td>
 
-                <TableCell className="text-sm text-muted-foreground">
-                  {teamName}
-                </TableCell>
-
-                <TableCell className="text-center font-mono tabular-nums text-muted-foreground">
-                  #{stop.stop}
-                </TableCell>
-
-                <TableCell className="text-right font-mono font-bold tabular-nums">
-                  <div className="flex items-center justify-end gap-2">
-                    <span className={cn(isAnomaly ? 'text-amber-400' : 'text-foreground')}>
-                      {formatDuration(stop.duration)}
-                    </span>
-                    {isAnomaly && (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-500/40 bg-amber-500/10 text-amber-400 text-[10px] px-1.5 py-0 gap-1"
-                      >
-                        <AlertTriangle className="size-2.5" />
-                        Incident
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-
-                <TableCell className="text-right font-mono text-xs text-muted-foreground tabular-nums">
-                  {stop.time}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  {/* Time of Day */}
+                  <td className="py-2.5 px-3 text-right font-mono text-xs text-zinc-400 tabular-nums">
+                    {stop.time}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

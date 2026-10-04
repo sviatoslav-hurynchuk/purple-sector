@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import type { WeatherSnapshot } from '@/types/f1';
-import { CloudRain, Thermometer, Wind, Droplets } from 'lucide-react';
+import { CloudRain, Thermometer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WeatherTimelineProps {
@@ -77,34 +77,36 @@ export function WeatherTimeline({ weather, className }: WeatherTimelineProps) {
   return (
     <div
       className={cn(
-        'flex flex-col rounded-2xl bg-zinc-900/80 border border-white/10 backdrop-blur-xl p-4 sm:p-5 shadow-sm space-y-3',
+        'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative space-y-4',
         className
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+      {/* Cockpit Sub-Header & Legend */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30">
         <div className="flex items-center gap-2">
-          <Thermometer className="h-4 w-4 text-red-400" />
-          <h3 className="font-black text-sm text-zinc-100 uppercase tracking-tight">
+          <Thermometer className="size-4 text-red-400" />
+          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
             Weather Timeline
-          </h3>
+          </span>
+          <span className="text-zinc-600">•</span>
           <span className="text-[11px] font-mono text-zinc-400">
-            ({weather.length} snapshots)
+            {weather.length} Telemetry Snapshots
           </span>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 text-xs font-mono">
-          <div className="flex items-center gap-1.5 text-red-400">
+        <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
+          <div className="flex items-center gap-1.5 text-red-400 font-bold">
             <span className="w-2.5 h-0.5 bg-red-400 rounded-full" />
-            <span className="font-semibold">Track Temp ({latest?.trackTemperature?.toFixed(1)}°C)</span>
+            <span>Track Temp ({latest?.trackTemperature?.toFixed(1)}°C)</span>
           </div>
-          <div className="flex items-center gap-1.5 text-amber-400">
+          <div className="flex items-center gap-1.5 text-amber-400 font-bold">
             <span className="w-2.5 h-0.5 bg-amber-400 rounded-full" />
-            <span className="font-semibold">Air Temp ({latest?.airTemperature?.toFixed(1)}°C)</span>
+            <span>Air Temp ({latest?.airTemperature?.toFixed(1)}°C)</span>
           </div>
           {rainPeriods.length > 0 && (
             <div className="flex items-center gap-1 text-blue-400 font-bold">
-              <CloudRain className="h-3.5 w-3.5" />
+              <CloudRain className="size-3.5" />
               <span>Rain</span>
             </div>
           )}
@@ -112,7 +114,8 @@ export function WeatherTimeline({ weather, className }: WeatherTimelineProps) {
       </div>
 
       {/* SVG Chart Canvas */}
-      <div className="relative w-full h-[140px] bg-zinc-950/80 rounded-xl border border-white/5 p-1 overflow-hidden">
+      <div className="p-4 sm:p-6 pt-0">
+        <div className="relative w-full h-[140px] bg-zinc-950 rounded-2xl border border-white/10 p-1 overflow-hidden shadow-inner">
         {/* Rain Bands */}
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -169,5 +172,6 @@ export function WeatherTimeline({ weather, className }: WeatherTimelineProps) {
         </div>
       </div>
     </div>
+  </div>
   );
 }

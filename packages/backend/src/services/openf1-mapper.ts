@@ -65,6 +65,7 @@ export function categorizeRaceControlMessage(
   const flag = (msg.flag ?? '').toUpperCase();
 
   // 1. Stewards penalties & infringements first (so e.g. "SAFETY CAR INFRINGEMENT" is categorized as warning/penalty, not deployment)
+  if (text.includes('PENALTY SERVED')) return 'other';
   if (category === 'PENALTY' || text.includes('PENALTY') || text.includes('TIME PENALTY')) return 'penalty';
   if (
     text.includes('INFRINGEMENT') ||

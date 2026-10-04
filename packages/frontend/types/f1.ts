@@ -446,6 +446,7 @@ export interface LiveDriverState {
     gapToLeader: number | string | null;
     interval: number | string | null;
     lastLapDuration: number | null;
+    bestLapTime?: number | null;
     currentCompound: TireCompound;
     currentStintLaps: number;
     sector1: number | null;

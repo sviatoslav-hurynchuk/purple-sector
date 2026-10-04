@@ -279,7 +279,7 @@ export class SessionWatcher {
    */
   public async hydrateCompletedSnapshot(session: OpenF1Session): Promise<LiveSessionState | null> {
     const sessionKey = session.session_key;
-    const cacheKey = `f1:openf1:completed_snapshot:v2:${sessionKey}`;
+    const cacheKey = `f1:openf1:completed_snapshot:v4:${sessionKey}`;
 
     // 1. Check Redis cache first
     const cached = await cache.get<LiveSessionState>(cacheKey);
@@ -321,8 +321,9 @@ export class SessionWatcher {
         lastPosByDriver.set(p.driver_number, p.position);
       }
 
-      // Map latest valid lap duration per driver
+      // Map latest valid lap duration and best lap duration per driver
       const latestLapByDriver = new Map<number, { lapNumber: number; duration: number }>();
+      const bestLapByDriver = new Map<number, number>();
       for (const l of laps) {
         if (typeof l.lap_duration === 'number' && l.lap_duration > 0 && typeof l.lap_number === 'number') {
           const current = latestLapByDriver.get(l.driver_number);
@@ -331,6 +332,10 @@ export class SessionWatcher {
               lapNumber: l.lap_number,
               duration: l.lap_duration,
             });
+          }
+          const prevBest = bestLapByDriver.get(l.driver_number);
+          if (prevBest === undefined || l.lap_duration < prevBest) {
+            bestLapByDriver.set(l.driver_number, l.lap_duration);
           }
         }
       }
@@ -361,6 +366,7 @@ export class SessionWatcher {
 
         const position = lastPosByDriver.get(d.driver_number) ?? 20;
         const lastLap = latestLapByDriver.get(d.driver_number)?.duration ?? null;
+        const bestLap = bestLapByDriver.get(d.driver_number) ?? null;
         const intervalData = lastIntervalByDriver.get(d.driver_number);
         const compoundData = latestCompoundByDriver.get(d.driver_number);
 
@@ -375,6 +381,7 @@ export class SessionWatcher {
           gapToLeader: position === 1 ? null : intervalData?.gap ?? '—',
           interval: position === 1 ? null : intervalData?.interval ?? '—',
           lastLapDuration: lastLap,
+          bestLapTime: bestLap,
           currentCompound: normalizeCompound(compoundData?.compound),
           currentStintLaps: compoundData?.stintLaps ?? 0,
           sector1: null,
