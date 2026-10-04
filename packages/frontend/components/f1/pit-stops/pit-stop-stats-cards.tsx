@@ -149,10 +149,12 @@ export function PitStopStatsCards({ pitStops, raceResults }: PitStopStatsCardsPr
               Drivers Serviced
             </span>
             <p className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white tabular-nums">
-              {uniqueDrivers}{' '}
-              <span className="text-xs font-mono font-semibold text-zinc-400">
-                / {raceResults.length || 20}
-              </span>
+              {uniqueDrivers}
+              {raceResults.length > 0 && (
+                <span className="text-xs font-mono font-semibold text-zinc-400">
+                  {' '}/ {raceResults.length}
+                </span>
+              )}
             </p>
           </div>
 

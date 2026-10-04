@@ -86,7 +86,7 @@ export function TyreStrategyChart({
           </span>
           <span className="text-zinc-600">•</span>
           <span className="text-[11px] font-mono text-zinc-400">
-            {raceLaps} Total Laps
+            Lap Scale: {raceLaps}
           </span>
         </div>
 

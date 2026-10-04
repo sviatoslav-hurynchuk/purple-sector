@@ -26,7 +26,10 @@ export default async function HeadToHeadPage({
   );
 
   const resolvedParams = await searchParams;
-  const validYear = parseYear(resolvedParams.season, maxYear);
+  const validYear =
+    resolvedParams.season && parseInt(resolvedParams.season, 10) < FIRST_SEASON
+      ? maxYear
+      : parseYear(resolvedParams.season, maxYear);
 
   const data = await getSeasonHeadToHead(validYear);
 
