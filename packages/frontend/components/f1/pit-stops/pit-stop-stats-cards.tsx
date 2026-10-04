@@ -50,19 +50,6 @@ export function PitStopStatsCards({ pitStops, raceResults }: PitStopStatsCardsPr
         />
       )}
 
-      {/* Cockpit Sub-Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30 relative z-10">
-        <div className="flex items-center gap-2">
-          <span className="size-2 rounded-full bg-red-600 animate-pulse" />
-          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Pit Lane Telemetry Cluster
-          </span>
-        </div>
-        <span className="text-[11px] font-mono text-zinc-400">
-          Official Grand Prix Stint Records
-        </span>
-      </div>
-
       {/* Contiguous 1px Grid Matrix */}
       <div className="border-t border-l border-white/10 bg-zinc-950/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
         {/* Cell 1: Fastest Pit Stop */}

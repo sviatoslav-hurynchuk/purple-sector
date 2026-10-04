@@ -10,7 +10,7 @@ import { PitStopFastest } from './pit-stop-fastest';
 import { PitStopDuel } from './pit-stop-duel';
 import { TyreStrategyChart } from '@/components/f1/race/tyre-strategy-chart';
 import { WeatherTimeline } from '@/components/f1/race/weather-timeline';
-import { ArrowLeft, Trophy, Clock, Swords, Disc, CloudRain } from 'lucide-react';
+import { ArrowLeft, Trophy, Clock, Disc, CloudRain } from 'lucide-react';
 import Link from 'next/link';
 
 interface PitStopPageContentProps {
@@ -177,15 +177,6 @@ export function PitStopPageContent({
 
       {/* Interactive Duel Arena */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-red-600" />
-            <h2 className="text-base sm:text-lg font-mono font-black uppercase tracking-tight text-white flex items-center gap-2">
-              <Swords className="size-4 text-red-500" />
-              <span>Pit Stop Faceoff Arena</span>
-            </h2>
-          </div>
-        </div>
 
         <PitStopDuel
           pitStops={pitStops}
