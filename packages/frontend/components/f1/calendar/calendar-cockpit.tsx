@@ -11,6 +11,13 @@ import {
   computeSeasonCalendarStats,
   isRaceCompleted,
 } from '@/lib/calendar-utils';
+import {
+  TelemetryRibbon,
+  TelemetryRibbonCell,
+  TelemetryRibbonLabel,
+  TelemetryRibbonValue,
+  TelemetryRibbonSub,
+} from '@/components/f1/telemetry-ribbon';
 
 interface CalendarCockpitProps {
   races: Race[];
@@ -87,41 +94,31 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
       </div>
 
       {/* ── Season Pulse Telemetry Ribbon (Monolithic 4-Metric Bar) ───── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+      <TelemetryRibbon>
         {/* Metric 1: Total Grands Prix */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Total Grands Prix
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white">
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Total Grands Prix</TelemetryRibbonLabel>
+          <TelemetryRibbonValue>
             {stats.totalRaces}{' '}
             <span className="text-xs font-mono font-semibold text-zinc-400">Rounds</span>
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400">Global World Tour</span>
-        </div>
+          </TelemetryRibbonValue>
+        </TelemetryRibbonCell>
 
         {/* Metric 2: Sprint Weekends */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-              Sprint Weekends
-            </span>
-          </div>
-          <p className="text-xl sm:text-2xl font-black font-mono text-red-400">
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Sprint Weekends</TelemetryRibbonLabel>
+          <TelemetryRibbonValue className="text-red-400">
             {stats.sprintCount}{' '}
             <span className="text-xs font-mono font-semibold text-zinc-400">Sprints</span>
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400">Saturday Shootout</span>
-        </div>
+          </TelemetryRibbonValue>
+        </TelemetryRibbonCell>
 
         {/* Metric 3: Season Progress */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Season Progress
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white">
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Season Progress</TelemetryRibbonLabel>
+          <TelemetryRibbonValue>
             {stats.completedCount} / {stats.totalRaces}
-          </p>
+          </TelemetryRibbonValue>
           <div className="flex items-center gap-2">
             <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden border border-white/5">
               <div
@@ -133,34 +130,32 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
               {stats.progressPercentage}%
             </span>
           </div>
-        </div>
+        </TelemetryRibbonCell>
 
         {/* Metric 4: Next Grand Prix */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-              Next Up
-            </span>
-          </div>
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Next Up</TelemetryRibbonLabel>
           {stats.nextRace ? (
             <div>
-              <p className="text-base sm:text-lg font-black font-mono text-white truncate">
+              <p className="text-base sm:text-lg font-black font-mono text-white truncate leading-tight">
                 R{stats.nextRace.round} • {stats.nextRace.Circuit.Location.locality}
               </p>
-              <span className="text-[11px] font-mono text-emerald-400 font-bold">
+              <TelemetryRibbonSub className="text-emerald-400 font-bold">
                 {nextWeekendInfo?.days} {nextWeekendInfo?.month}
-              </span>
+              </TelemetryRibbonSub>
             </div>
           ) : (
             <div>
-              <p className="text-base sm:text-lg font-black font-mono text-zinc-400">
+              <p className="text-base sm:text-lg font-black font-mono text-zinc-400 leading-tight">
                 Season Concluded
               </p>
-              <span className="text-[11px] font-mono text-zinc-500">All rounds completed</span>
+              <TelemetryRibbonSub className="text-zinc-500">
+                All rounds completed
+              </TelemetryRibbonSub>
             </div>
           )}
-        </div>
-      </div>
+        </TelemetryRibbonCell>
+      </TelemetryRibbon>
 
       {/* ── Segmented Cockpit Filter Toolbar ─────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

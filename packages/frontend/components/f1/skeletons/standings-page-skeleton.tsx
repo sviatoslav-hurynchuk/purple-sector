@@ -1,3 +1,5 @@
+import { TelemetryRibbonSkeleton } from '@/components/f1/telemetry-ribbon';
+
 export function StandingsPageSkeleton() {
     return (
         <div className="space-y-6 sm:space-y-8 animate-pulse" aria-hidden="true">
@@ -14,15 +16,7 @@ export function StandingsPageSkeleton() {
             </div>
 
             {/* ── Telemetry Ribbon Skeleton (4-Metric Bar) ─────────────────── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
-                {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="p-4 sm:p-5 flex flex-col justify-between gap-2.5 min-h-[96px]">
-                        <div className="h-3 w-24 bg-zinc-800 rounded" />
-                        <div className="h-7 w-32 bg-zinc-800 rounded" />
-                        <div className="h-2.5 w-20 bg-zinc-800/60 rounded" />
-                    </div>
-                ))}
-            </div>
+            <TelemetryRibbonSkeleton />
 
             {/* ── Standings Matrix Skeleton ─────────────────────────────────── */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-5 items-stretch">

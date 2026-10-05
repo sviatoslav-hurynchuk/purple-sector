@@ -1,4 +1,5 @@
 import React from 'react';
+import { TelemetryRibbonSkeleton } from '@/components/f1/telemetry-ribbon';
 
 export function CalendarListSkeleton() {
   return (
@@ -23,15 +24,7 @@ export function CalendarListSkeleton() {
       </div>
 
       {/* ── Season Pulse Telemetry Ribbon Skeleton ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-4 sm:p-5 space-y-2">
-            <div className="h-3 w-24 bg-zinc-800 rounded" />
-            <div className="h-7 w-32 bg-zinc-800 rounded-md" />
-            <div className="h-3 w-20 bg-zinc-800/60 rounded" />
-          </div>
-        ))}
-      </div>
+      <TelemetryRibbonSkeleton />
 
       {/* ── Filter Toolbar Skeleton ── */}
       <div className="flex gap-2">

@@ -8,6 +8,13 @@ import { ArenaFaceoffHero } from './arena-faceoff-hero';
 import { DominanceMatrix } from './dominance-matrix';
 import { PreloadedContent } from '@/components/f1/preloaded-content';
 import { getDriverPhotoUrl } from '@/lib/driver-photos';
+import {
+  TelemetryRibbon,
+  TelemetryRibbonCell,
+  TelemetryRibbonLabel,
+  TelemetryRibbonValue,
+  TelemetryRibbonSub,
+} from '@/components/f1/telemetry-ribbon';
 
 interface HeadToHeadContentProps {
   data: SeasonHeadToHeadResponse | null;
@@ -236,56 +243,44 @@ export function HeadToHeadContent({
 
       {/* ── Season Pulse Highlights Strip (Monolithic Telemetry Bar) ── */}
       {pulseHighlights && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
-          <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-              Grid Duels
-            </span>
-            <p className="text-xl sm:text-2xl font-black font-mono text-white">
+        <TelemetryRibbon>
+          <TelemetryRibbonCell>
+            <TelemetryRibbonLabel>Grid Duels</TelemetryRibbonLabel>
+            <TelemetryRibbonValue>
               {pulseHighlights.totalDuels}{' '}
               <span className="text-xs font-mono font-semibold text-zinc-400">Constructors</span>
-            </p>
-            <span className="text-[11px] font-mono text-zinc-400">
-              Active pairings
-            </span>
-          </div>
+            </TelemetryRibbonValue>
+            <TelemetryRibbonSub>Active pairings</TelemetryRibbonSub>
+          </TelemetryRibbonCell>
 
-          <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-              Closest Margin
-            </span>
-            <p className="text-base sm:text-lg font-black font-mono text-white truncate">
+          <TelemetryRibbonCell>
+            <TelemetryRibbonLabel>Closest Margin</TelemetryRibbonLabel>
+            <p className="text-base sm:text-lg font-black font-mono text-white truncate leading-tight">
               {pulseHighlights.closestTeam}
             </p>
-            <span className="text-xs font-mono text-amber-400 font-bold">
+            <TelemetryRibbonSub className="text-amber-400 font-bold">
               {pulseHighlights.closestMatchup}
-            </span>
-          </div>
+            </TelemetryRibbonSub>
+          </TelemetryRibbonCell>
 
-          <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-              Highest Dominance
-            </span>
-            <p className="text-base sm:text-lg font-black font-mono text-white truncate">
+          <TelemetryRibbonCell>
+            <TelemetryRibbonLabel>Highest Dominance</TelemetryRibbonLabel>
+            <p className="text-base sm:text-lg font-black font-mono text-white truncate leading-tight">
               {pulseHighlights.dominantDriver}
             </p>
-            <span className="text-xs font-mono text-emerald-400 font-bold">
+            <TelemetryRibbonSub className="text-emerald-400 font-bold">
               {pulseHighlights.dominantShare}% points share
-            </span>
-          </div>
+            </TelemetryRibbonSub>
+          </TelemetryRibbonCell>
 
-          <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-            <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-              Avg Qualy Delta
-            </span>
-            <p className="text-xl sm:text-2xl font-black font-mono text-white">
+          <TelemetryRibbonCell>
+            <TelemetryRibbonLabel>Avg Qualy Delta</TelemetryRibbonLabel>
+            <TelemetryRibbonValue>
               ±{pulseHighlights.avgGapSec}s
-            </p>
-            <span className="text-[11px] font-mono text-zinc-400">
-              Across all constructors
-            </span>
-          </div>
-        </div>
+            </TelemetryRibbonValue>
+            <TelemetryRibbonSub>Across all constructors</TelemetryRibbonSub>
+          </TelemetryRibbonCell>
+        </TelemetryRibbon>
       )}
 
       {constructorGroups.length > 0 ? (

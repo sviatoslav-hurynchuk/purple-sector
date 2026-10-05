@@ -9,6 +9,13 @@ import { RoundSelector } from '@/components/f1/round-selector';
 import { parseYear, parseRound, getMaxYear, isRacePast } from '@/lib/utils';
 import { DriverStandingsCard } from '@/components/f1/standings/driver-standings-card';
 import { ConstructorStandingsCard } from '@/components/f1/standings/constructor-standings-card';
+import {
+    TelemetryRibbon,
+    TelemetryRibbonCell,
+    TelemetryRibbonLabel,
+    TelemetryRibbonValue,
+    TelemetryRibbonSub,
+} from '@/components/f1/telemetry-ribbon';
 
 interface StandingsContentProps {
     searchParams: Promise<{ season?: string; round?: string }>;
@@ -87,61 +94,53 @@ export async function StandingsContent({ searchParams, allYears }: StandingsCont
             </div>
 
             {/* ── Season Pulse Telemetry Ribbon (Monolithic 4-Metric Bar) ───── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+            <TelemetryRibbon>
                 {/* Metric 1: Drivers' Leader */}
-                <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-                    <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-                        Drivers&apos; Leader
-                    </span>
-                    <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+                <TelemetryRibbonCell>
+                    <TelemetryRibbonLabel>Drivers&apos; Leader</TelemetryRibbonLabel>
+                    <TelemetryRibbonValue className="truncate">
                         {leaderDriver
                             ? (leaderDriver.Driver.code || leaderDriver.Driver.familyName).toUpperCase()
                             : '—'}
-                    </p>
-                    <span className="text-[11px] font-mono text-zinc-400 truncate">
+                    </TelemetryRibbonValue>
+                    <TelemetryRibbonSub>
                         {leaderDriver
                             ? `${leaderDriver.points} PTS • ${leaderDriver.Constructors[0]?.name ?? ''}`
                             : 'Awaiting season results'}
-                    </span>
-                </div>
+                    </TelemetryRibbonSub>
+                </TelemetryRibbonCell>
 
                 {/* Metric 2: Constructors' Leader */}
-                <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-                    <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-                        Constructors&apos; Leader
-                    </span>
-                    <p className="text-xl sm:text-2xl font-black font-mono text-amber-400 truncate">
+                <TelemetryRibbonCell>
+                    <TelemetryRibbonLabel>Constructors&apos; Leader</TelemetryRibbonLabel>
+                    <TelemetryRibbonValue className="text-amber-400 truncate">
                         {leaderTeam ? leaderTeam.Constructor.name.toUpperCase() : '—'}
-                    </p>
-                    <span className="text-[11px] font-mono text-zinc-400 truncate">
+                    </TelemetryRibbonValue>
+                    <TelemetryRibbonSub>
                         {leaderTeam ? `${leaderTeam.points} PTS • ${leaderTeam.wins} Wins` : 'Awaiting team results'}
-                    </span>
-                </div>
+                    </TelemetryRibbonSub>
+                </TelemetryRibbonCell>
 
                 {/* Metric 3: Title Margin */}
-                <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-                    <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-                        Title Margin (P1-P2)
-                    </span>
-                    <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                <TelemetryRibbonCell>
+                    <TelemetryRibbonLabel>Title Margin (P1-P2)</TelemetryRibbonLabel>
+                    <TelemetryRibbonValue>
                         {driverStandings.length > 1 ? `+${titleMargin} PTS` : '—'}
-                    </p>
-                    <span className="text-[11px] font-mono text-zinc-400 truncate">
+                    </TelemetryRibbonValue>
+                    <TelemetryRibbonSub>
                         {driverStandings.length > 1
                             ? `Gap to ${driverStandings[1]?.Driver?.code || driverStandings[1]?.Driver?.familyName}`
                             : 'Championship battle'}
-                    </span>
-                </div>
+                    </TelemetryRibbonSub>
+                </TelemetryRibbonCell>
 
                 {/* Metric 4: Season Stage */}
-                <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-                    <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-                        Season Stage
-                    </span>
-                    <p className="text-xl sm:text-2xl font-black font-mono text-white">
+                <TelemetryRibbonCell>
+                    <TelemetryRibbonLabel>Season Stage</TelemetryRibbonLabel>
+                    <TelemetryRibbonValue>
                         {currentCompletedCount} / {totalRacesCount}{' '}
                         <span className="text-xs font-mono font-semibold text-zinc-400">Rounds</span>
-                    </p>
+                    </TelemetryRibbonValue>
                     <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden border border-white/5">
                             <div
@@ -153,8 +152,8 @@ export async function StandingsContent({ searchParams, allYears }: StandingsCont
                             {seasonPct}%
                         </span>
                     </div>
-                </div>
-            </div>
+                </TelemetryRibbonCell>
+            </TelemetryRibbon>
 
             {/* ── Standings Matrix (Full Positions) ─────────────────────────── */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-5 items-stretch">

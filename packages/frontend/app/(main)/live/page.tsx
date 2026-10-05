@@ -16,6 +16,13 @@ import { LiveStatusIndicator } from '@/components/live/live-status-indicator';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { Radio, RefreshCw, Layers, Activity, MapPin, Flag, ShieldAlert, Clock } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  TelemetryRibbon,
+  TelemetryRibbonCell,
+  TelemetryRibbonLabel,
+  TelemetryRibbonValue,
+  TelemetryRibbonSub,
+} from '@/components/f1/telemetry-ribbon';
 import { cn } from '@/lib/utils';
 
 import type { LiveDriverState, LiveSessionState } from '@/types/f1';
@@ -204,12 +211,10 @@ function LiveTimingContent() {
       </div>
 
       {/* ── Live Pulse Telemetry Ribbon (Monolithic 4-Metric Bar) ─────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+      <TelemetryRibbon>
         {/* Metric 1: Track Status */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Track Status
-          </span>
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Track Status</TelemetryRibbonLabel>
           <div className="flex items-center gap-2">
             {trackStatus.flag === 'SC' || trackStatus.flag === 'VSC' ? (
               <ShieldAlert className={cn('size-5 shrink-0', trackStatus.color === 'amber' ? 'text-amber-400' : 'text-zinc-400')} />
@@ -227,7 +232,7 @@ function LiveTimingContent() {
             )}
             <span
               className={cn(
-                'text-xl sm:text-2xl font-black font-mono uppercase tracking-tight truncate',
+                'text-xl sm:text-2xl font-black font-mono uppercase tracking-tight truncate leading-tight',
                 trackStatus.color === 'emerald' && 'text-emerald-400',
                 trackStatus.color === 'amber' && 'text-amber-400',
                 trackStatus.color === 'yellow' && 'text-yellow-400',
@@ -238,16 +243,14 @@ function LiveTimingContent() {
               {trackStatus.label}
             </span>
           </div>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
+          <TelemetryRibbonSub>
             {trackStatus.detail}{state?.sessionType ? ` • ${state.sessionType}` : ''}
-          </span>
-        </div>
+          </TelemetryRibbonSub>
+        </TelemetryRibbonCell>
 
         {/* Metric 2: Circuit & Location */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Circuit Venue
-          </span>
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Circuit Venue</TelemetryRibbonLabel>
           <div className="flex items-center gap-2 min-w-0">
             {state?.countryName && (
               <CountryFlag
@@ -255,28 +258,26 @@ function LiveTimingContent() {
                 className="w-6 h-4 sm:w-7 sm:h-4.5 object-cover rounded-xs border border-white/15 shadow-sm shrink-0"
               />
             )}
-            <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+            <p className="text-xl sm:text-2xl font-black font-mono text-white truncate leading-tight">
               {state?.circuitShortName || state?.countryName || 'Championship Track'}
             </p>
           </div>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
+          <TelemetryRibbonSub>
             {state?.countryName ? `${state.countryName} • ` : ''}
             {state?.isActive ? 'Official Session' : 'Standby Mode'}
-          </span>
-        </div>
+          </TelemetryRibbonSub>
+        </TelemetryRibbonCell>
 
         {/* Metric 3: Race Leader (P1) */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Session Leader
-          </span>
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Session Leader</TelemetryRibbonLabel>
           {leader ? (
             <div className="flex items-center gap-2 min-w-0">
               <span
                 className="h-4 w-1.5 rounded-full shrink-0"
                 style={{ backgroundColor: leader.teamColour || '#e10600' }}
               />
-              <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+              <p className="text-xl sm:text-2xl font-black font-mono text-white truncate leading-tight">
                 {leader.code || leader.name || `#${leader.driverNumber}`}
               </p>
               <span className="text-xs font-mono font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded shrink-0">
@@ -284,34 +285,32 @@ function LiveTimingContent() {
               </span>
             </div>
           ) : (
-            <p className="text-xl sm:text-2xl font-black font-mono text-zinc-500 truncate">
+            <p className="text-xl sm:text-2xl font-black font-mono text-zinc-500 truncate leading-tight">
               {state?.isActive ? 'Timing In...' : 'Standby'}
             </p>
           )}
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
+          <TelemetryRibbonSub>
             {leader && p2?.interval
               ? `Lead Gap: +${typeof p2.interval === 'number' ? `${p2.interval.toFixed(3)}s` : p2.interval}`
               : leader?.teamName || 'Awaiting classification'}
-          </span>
-        </div>
+          </TelemetryRibbonSub>
+        </TelemetryRibbonCell>
 
         {/* Metric 4: Pit Wall Conditions */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Track Environment
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Track Environment</TelemetryRibbonLabel>
+          <TelemetryRibbonValue className="truncate">
             {state?.weather?.trackTemperature != null
               ? `${Math.round(state.weather.trackTemperature)}°C Track`
               : `${locations.size || state?.drivers?.length || 0} Cars Active`}
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
+          </TelemetryRibbonValue>
+          <TelemetryRibbonSub>
             {state?.weather
               ? `${state.weather.rainfall ? 'Wet Conditions' : 'Dry Surface'} • ${locations.size || state?.drivers?.length || 0} Cars Monitored`
               : 'GPS & Telemetry Online'}
-          </span>
-        </div>
-      </div>
+          </TelemetryRibbonSub>
+        </TelemetryRibbonCell>
+      </TelemetryRibbon>
 
       {/* Restricted Stream Banner (if applicable) */}
       {state?.isRestricted && (
