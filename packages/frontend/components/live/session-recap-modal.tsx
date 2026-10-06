@@ -20,13 +20,56 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { LiveDriverState, RaceEvent } from '@/types/f1';
+import { clientFetchNullable } from '@/lib/api-client';
+import type { LiveDriverState, RaceEvent, Race } from '@/types/f1';
 
-/** How long after session completion the recap button remains visible (24 hours). */
-const RECAP_VISIBILITY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Resolves the start time of Free Practice 1 (or the first session of the weekend)
+ * for a given race.
+ */
+function getWeekendPracticeStartDate(race: Race): Date | null {
+  // 1. Check FirstPractice
+  if (race.FirstPractice?.date) {
+    const timeStr = race.FirstPractice.time
+      ? (race.FirstPractice.time.endsWith('Z')
+          ? race.FirstPractice.time
+          : `${race.FirstPractice.time}Z`)
+      : '10:00:00Z';
+    const d = new Date(`${race.FirstPractice.date}T${timeStr}`);
+    if (!isNaN(d.getTime())) return d;
+  }
 
-/** localStorage key prefix for storing the first-seen timestamp per session. */
-const STORAGE_KEY_PREFIX = 'ps_recap_seen_';
+  // 2. Check any other practice / sprint qualifying session
+  const otherSessions = [
+    race.SprintQualifying,
+    race.SprintShootout,
+    race.SecondPractice,
+    race.ThirdPractice,
+    race.Qualifying,
+  ];
+  for (const s of otherSessions) {
+    if (s?.date) {
+      const timeStr = s.time
+        ? (s.time.endsWith('Z') ? s.time : `${s.time}Z`)
+        : '10:00:00Z';
+      const d = new Date(`${s.date}T${timeStr}`);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+
+  // 3. Fallback to 2 days before the Sunday race date (Friday at 10:00 UTC)
+  if (race.date) {
+    const timeStr = race.time
+      ? (race.time.endsWith('Z') ? race.time : `${race.time}Z`)
+      : '12:00:00Z';
+    const raceDate = new Date(`${race.date}T${timeStr}`);
+    if (!isNaN(raceDate.getTime())) {
+      return new Date(raceDate.getTime() - 2 * 86400000);
+    }
+  }
+
+  return null;
+}
 
 /** Extract notable race control events (SC, VSC, Red Flag, Penalty). */
 function getNotableEvents(events: RaceEvent[]): RaceEvent[] {
@@ -143,6 +186,7 @@ SessionResultsButton.displayName = 'SessionResultsButton';
 
 interface SessionRecapModalProps {
   className?: string;
+  nextRace?: Race | null;
 }
 
 /**
@@ -150,93 +194,109 @@ interface SessionRecapModalProps {
  *
  * Visibility rules:
  *  - Only shown when status === 'COMPLETED' and drivers data is present.
- *  - Persists for up to 24 hours after first being seen (tracked in localStorage
- *    keyed by sessionKey so it's scoped to the specific weekend).
+ *  - Persists until the start of the next race weekend (specifically until Free Practice 1 begins).
  *  - Disappears immediately when a new live session becomes active.
  *
  * The trigger is the compact `SessionResultsButton` rendered beside CountdownWidget
  * inside NextRaceCard. This component renders the Dialog only (no outer trigger).
  */
-/** In-memory fallback map when localStorage access throws or is disabled (e.g. private mode). */
-const fallbackTimestamps = new Map<number, number>();
-
-/**
- * Read or register the first-seen timestamp from localStorage for this session.
- * Returns null when called server-side or before the session key is known.
- * Safe to call in lazy state initializers and effects.
- */
-function readOrRegisterTimestamp(key: number | null): number | null {
-  if (typeof window === 'undefined' || key == null) return null;
-  const storageKey = `${STORAGE_KEY_PREFIX}${key}`;
-  const fallback = fallbackTimestamps.get(key);
-  try {
-    const stored = localStorage.getItem(storageKey);
-    if (stored) {
-      const parsed = parseInt(stored, 10);
-      fallbackTimestamps.set(key, parsed);
-      return parsed;
-    }
-    const now = fallback ?? Date.now();
-    localStorage.setItem(storageKey, String(now));
-    fallbackTimestamps.set(key, now);
-    return now;
-  } catch {
-    const now = fallback ?? Date.now();
-    fallbackTimestamps.set(key, now);
-    return now;
-  }
-}
-
-export function SessionRecapModal({ className }: SessionRecapModalProps) {
+export function SessionRecapModal({ className, nextRace }: SessionRecapModalProps) {
   const { state } = useSharedLiveSession();
   const [open, setOpen] = useState(false);
 
   // Stable references to avoid optional-chaining in deps (fixes react-hooks/preserve-manual-memoization)
   const drivers = state?.drivers ?? null;
   const raceControlFeed = state?.raceControlFeed ?? null;
-  const sessionKey = state?.sessionKey ?? null;
-  const sessionStatus = state?.status ?? null;
 
-  /**
-   * Whether the recap is still within the 24-hour visibility window.
-   * Stored as state so React re-renders when the interval fires.
-   * Lazy initializer runs once before the first render (avoids setState-in-effect).
-   */
-  const [isWithin24h, setIsWithin24h] = useState<boolean>(() => {
-    // On the server there is no localStorage — default to true and let
-    // the client-side effect correct it if needed.
-    if (typeof window === 'undefined' || sessionStatus !== 'COMPLETED') return true;
-    const ts = readOrRegisterTimestamp(sessionKey);
-    return ts == null || Date.now() - ts < RECAP_VISIBILITY_MS;
-  });
+  // Compute initial practice timestamp from nextRace synchronously (zero render cascade)
+  const initialPracticeMs = useMemo(() => {
+    if (!nextRace) return null;
+    const d = getWeekendPracticeStartDate(nextRace);
+    return d ? d.getTime() : null;
+  }, [nextRace]);
 
-  // When the session key or status changes, persist the timestamp and sync isWithin24h.
-  // We deliberately do not call setIsWithin24h inside this effect's synchronous body;
-  // instead, we schedule the state update via a zero-delay timeout to satisfy
-  // react-hooks/set-state-in-effect (setState must be in a callback, not inline).
-  useEffect(() => {
-    if (sessionStatus !== 'COMPLETED' || sessionKey == null) return;
-    const ts = readOrRegisterTimestamp(sessionKey);
-    const within = ts == null || Date.now() - ts < RECAP_VISIBILITY_MS;
-    // Use a microtask-safe timeout so the state update is treated as async
-    const id = setTimeout(() => setIsWithin24h(within), 0);
-    return () => clearTimeout(id);
-  }, [sessionKey, sessionStatus]);
+  // State for asynchronously fetched subsequent round practice timestamp (if nextRace was completed)
+  const [subsequentPracticeMs, setSubsequentPracticeMs] = useState<number | null>(null);
 
-  // Re-check once per minute so the 24h boundary triggers a re-render automatically.
+  // Reset resolved subsequent practice timestamp whenever nextRace prop changes
+  const raceKey = nextRace ? `${nextRace.season}-${nextRace.round}` : '__none__';
+  const [prevRaceKey, setPrevRaceKey] = useState(raceKey);
+  if (prevRaceKey !== raceKey) {
+    setPrevRaceKey(raceKey);
+    setSubsequentPracticeMs(null);
+  }
+
+  // Clock state to automatically re-evaluate visibility as time advances
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+
   useEffect(() => {
     const interval = setInterval(() => {
-      if (sessionStatus !== 'COMPLETED' || sessionKey == null) return;
-      const ts = readOrRegisterTimestamp(sessionKey);
-      setIsWithin24h(ts == null || Date.now() - ts < RECAP_VISIBILITY_MS);
-    }, 60_000);
+      setNowMs(Date.now());
+    }, 30_000);
     return () => clearInterval(interval);
-  }, [sessionKey, sessionStatus]);
+  }, []);
+
+  const nextPracticeMs =
+    subsequentPracticeMs ??
+    (initialPracticeMs != null && initialPracticeMs > nowMs ? initialPracticeMs : null);
+
+  // Resolve upcoming practice start time asynchronously if needed
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!nextRace) {
+      // If nextRace prop is omitted, fetch current next race automatically
+      clientFetchNullable<Race>('/api/races/next')
+        .then((race) => {
+          if (cancelled || !race) return;
+          const practiceDate = getWeekendPracticeStartDate(race);
+          if (practiceDate && practiceDate.getTime() > Date.now()) {
+            setSubsequentPracticeMs(practiceDate.getTime());
+          }
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const practiceDate = getWeekendPracticeStartDate(nextRace);
+    const now = Date.now();
+
+    // If nextRace's practice is already in the past (e.g. nextRace is the completed race),
+    // look up round + 1 asynchronously from the season schedule
+    if (!practiceDate || practiceDate.getTime() <= now) {
+      const season = nextRace.season || new Date().getFullYear();
+      const currentRoundNum = parseInt(nextRace.round, 10);
+      if (!isNaN(currentRoundNum)) {
+        clientFetchNullable<{ season: string; races: Race[] }>(`/api/races/${season}`)
+          .then((data) => {
+            if (cancelled || !data?.races) return;
+            const subsequentRace = data.races.find(
+              (r) => parseInt(r.round, 10) === currentRoundNum + 1
+            );
+            if (subsequentRace) {
+              const subDate = getWeekendPracticeStartDate(subsequentRace);
+              if (subDate && !cancelled) {
+                setSubsequentPracticeMs(subDate.getTime());
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [nextRace]);
+
+  const isBeforeNextPractice = nextPracticeMs == null || nowMs < nextPracticeMs;
 
   const isVisible =
     state?.status === 'COMPLETED' &&
     !state.isActive &&
-    isWithin24h &&
+    isBeforeNextPractice &&
     drivers &&
     drivers.length > 0;
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { TelemetryRibbonSkeleton } from '@/components/f1/telemetry-ribbon';
 
 export default function HeadToHeadLoading() {
   return (
@@ -14,17 +15,7 @@ export default function HeadToHeadLoading() {
       </div>
 
       {/* Summary Stats Skeleton */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-2"
-          >
-            <div className="h-3 w-24 bg-zinc-800 rounded" />
-            <div className="h-7 w-16 bg-zinc-800 rounded" />
-          </div>
-        ))}
-      </div>
+      <TelemetryRibbonSkeleton />
 
       {/* Control Bar Skeleton */}
       <div className="h-12 w-full bg-zinc-900/50 rounded-2xl border border-zinc-800" />

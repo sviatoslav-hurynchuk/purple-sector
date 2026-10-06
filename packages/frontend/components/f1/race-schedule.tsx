@@ -15,6 +15,13 @@ import { cn, formatDateInTimezone } from '@/lib/utils';
 import { RaceResultsTable } from '@/components/f1/race-results-table';
 import { QualifyingResultsTable } from '@/components/f1/qualifying-results-table';
 import { ChevronDown, Calendar } from 'lucide-react';
+import {
+  TelemetryRibbon,
+  TelemetryRibbonCell,
+  TelemetryRibbonLabel,
+  TelemetryRibbonValue,
+  TelemetryRibbonSub,
+} from '@/components/f1/telemetry-ribbon';
 
 interface RaceScheduleProps {
   race: Race | RaceResult;
@@ -178,13 +185,13 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
   return (
     <div className="space-y-6">
       {/* ── Race Pulse Telemetry Ribbon (Monolithic 4-Metric Bar) ───── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl">
+      <TelemetryRibbon>
         {/* Metric 1: Weekend Status / Lights Out */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>
             {hasResults ? 'Classification' : nextSession ? 'Lights Out' : 'Status'}
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white">
+          </TelemetryRibbonLabel>
+          <TelemetryRibbonValue>
             {hasResults ? (
               <span className="flex items-center gap-2 text-emerald-400">
                 <CheckeredFlagIcon className="size-5 text-emerald-400" />
@@ -201,56 +208,50 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
             ) : (
               <span>COMPLETE</span>
             )}
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
+          </TelemetryRibbonValue>
+          <TelemetryRibbonSub>
             {hasResults && winner
               ? `P1: ${winner.Driver.code || winner.Driver.familyName} (${winner.Constructor.name})`
               : nextSession
                 ? `${nextSession.name} • ${formatDateInTimezone(nextSession.rawDate, activeTimeZone)}`
                 : 'Results unavailable'}
-          </span>
-        </div>
+          </TelemetryRibbonSub>
+        </TelemetryRibbonCell>
 
         {/* Metric 2: Track Local Time */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Track Time
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white tabular-nums">
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Track Time</TelemetryRibbonLabel>
+          <TelemetryRibbonValue className="tabular-nums">
             {trackTimeStr}
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
+          </TelemetryRibbonValue>
+          <TelemetryRibbonSub>
             {trackTzLabel}
-          </span>
-        </div>
+          </TelemetryRibbonSub>
+        </TelemetryRibbonCell>
 
         {/* Metric 3: Your Local Time */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Your Time
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-white tabular-nums">
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Your Time</TelemetryRibbonLabel>
+          <TelemetryRibbonValue className="tabular-nums">
             {myTimeStr}
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
+          </TelemetryRibbonValue>
+          <TelemetryRibbonSub>
             {userTzLabel}
-          </span>
-        </div>
+          </TelemetryRibbonSub>
+        </TelemetryRibbonCell>
 
         {/* Metric 4: Circuit Distance & Specs */}
-        <div className="p-4 sm:p-5 flex flex-col justify-between gap-1">
-          <span className="text-zinc-400 text-xs font-mono uppercase font-bold tracking-wider">
-            Grand Prix Distance
-          </span>
-          <p className="text-xl sm:text-2xl font-black font-mono text-red-400">
+        <TelemetryRibbonCell>
+          <TelemetryRibbonLabel>Grand Prix Distance</TelemetryRibbonLabel>
+          <TelemetryRibbonValue className="text-red-400">
             {circuitDetails?.numberOfLaps ?? '—'}{' '}
             <span className="text-xs font-mono font-semibold text-zinc-400">Laps</span>
-          </p>
-          <span className="text-[11px] font-mono text-zinc-400 truncate">
+          </TelemetryRibbonValue>
+          <TelemetryRibbonSub>
             {circuitDetails?.circuitLength ?? '—'} • {circuitDetails?.raceDistance ?? 'Grand Prix'}
-          </span>
-        </div>
-      </div>
+          </TelemetryRibbonSub>
+        </TelemetryRibbonCell>
+      </TelemetryRibbon>
 
       {/* ── Timetable Controls Bar ───────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
