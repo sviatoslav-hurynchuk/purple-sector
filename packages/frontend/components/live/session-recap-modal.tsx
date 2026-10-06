@@ -218,7 +218,13 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
   // State for asynchronously fetched subsequent round practice timestamp (if nextRace was completed)
   const [subsequentPracticeMs, setSubsequentPracticeMs] = useState<number | null>(null);
 
-  const nextPracticeMs = subsequentPracticeMs ?? initialPracticeMs;
+  // Reset resolved subsequent practice timestamp whenever nextRace prop changes
+  const raceKey = nextRace ? `${nextRace.season}-${nextRace.round}` : '__none__';
+  const [prevRaceKey, setPrevRaceKey] = useState(raceKey);
+  if (prevRaceKey !== raceKey) {
+    setPrevRaceKey(raceKey);
+    setSubsequentPracticeMs(null);
+  }
 
   // Clock state to automatically re-evaluate visibility as time advances
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
@@ -230,20 +236,28 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
     return () => clearInterval(interval);
   }, []);
 
+  const nextPracticeMs =
+    subsequentPracticeMs ??
+    (initialPracticeMs != null && initialPracticeMs > nowMs ? initialPracticeMs : null);
+
   // Resolve upcoming practice start time asynchronously if needed
   useEffect(() => {
+    let cancelled = false;
+
     if (!nextRace) {
       // If nextRace prop is omitted, fetch current next race automatically
       clientFetchNullable<Race>('/api/races/next')
         .then((race) => {
-          if (!race) return;
+          if (cancelled || !race) return;
           const practiceDate = getWeekendPracticeStartDate(race);
           if (practiceDate && practiceDate.getTime() > Date.now()) {
             setSubsequentPracticeMs(practiceDate.getTime());
           }
         })
         .catch(() => {});
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     const practiceDate = getWeekendPracticeStartDate(nextRace);
@@ -257,13 +271,13 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
       if (!isNaN(currentRoundNum)) {
         clientFetchNullable<{ season: string; races: Race[] }>(`/api/races/${season}`)
           .then((data) => {
-            if (!data?.races) return;
+            if (cancelled || !data?.races) return;
             const subsequentRace = data.races.find(
               (r) => parseInt(r.round, 10) === currentRoundNum + 1
             );
             if (subsequentRace) {
               const subDate = getWeekendPracticeStartDate(subsequentRace);
-              if (subDate) {
+              if (subDate && !cancelled) {
                 setSubsequentPracticeMs(subDate.getTime());
               }
             }
@@ -271,6 +285,10 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
           .catch(() => {});
       }
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [nextRace]);
 
   const isBeforeNextPractice = nextPracticeMs == null || nowMs < nextPracticeMs;

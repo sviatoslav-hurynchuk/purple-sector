@@ -5,10 +5,6 @@ import { clientFetch } from '@/lib/api-client';
 import type { Race } from '@/types/f1';
 import { getNextSessionForRace } from '@/lib/sessions';
 
-interface NextRaceResponse {
-    race: Race;
-}
-
 function isSessionActive(race: Race | null | undefined): boolean {
     if (!race) return false;
     const session = getNextSessionForRace(race);
@@ -19,11 +15,11 @@ export function useLiveNextRace(initialRace?: Race | null) {
     const sessionActive = isSessionActive(initialRace);
     const refreshInterval = sessionActive ? 10_000 : 60_000;
 
-    const { data, error, isLoading } = useSWR<NextRaceResponse>(
+    const { data, error, isLoading } = useSWR<Race>(
         '/api/races/next',
-        (path: string) => clientFetch<NextRaceResponse>(path),
+        (path: string) => clientFetch<Race>(path),
         {
-            fallbackData: initialRace ? { race: initialRace } : undefined,
+            fallbackData: initialRace ?? undefined,
             refreshInterval,
             revalidateOnFocus: true,
             dedupingInterval: 5_000,
@@ -31,7 +27,7 @@ export function useLiveNextRace(initialRace?: Race | null) {
     );
 
     return {
-        race: data?.race ?? initialRace ?? null,
+        race: data ?? initialRace ?? null,
         isLoading,
         error,
     };

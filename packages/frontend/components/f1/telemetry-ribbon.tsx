@@ -19,15 +19,20 @@ export function TelemetryRibbon({
 }: TelemetryRibbonProps) {
   const colClass =
     columns === 2
-      ? 'grid-cols-1 sm:grid-cols-2'
+      ? 'grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/10'
       : columns === 3
-        ? 'grid-cols-1 sm:grid-cols-3'
-        : 'grid-cols-2 lg:grid-cols-4';
+        ? 'grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/10'
+        : cn(
+            'grid-cols-2 lg:grid-cols-4',
+            'max-lg:[&>*:nth-child(-n+2)]:border-b max-lg:[&>*:nth-child(-n+2)]:border-white/10',
+            'max-lg:[&>*:nth-child(odd)]:border-r max-lg:[&>*:nth-child(odd)]:border-white/10',
+            'lg:[&>*:not(:last-child)]:border-r lg:[&>*:not(:last-child)]:border-white/10'
+          );
 
   return (
     <div
       className={cn(
-        'grid rounded-2xl border border-white/10 bg-zinc-950/90 divide-y sm:divide-y-0 sm:divide-x divide-white/10 overflow-hidden shadow-xl backdrop-blur-sm',
+        'grid rounded-2xl border border-white/10 bg-zinc-950/90 overflow-hidden shadow-xl backdrop-blur-sm',
         colClass,
         className
       )}
@@ -73,12 +78,12 @@ export function TelemetryRibbonCell({
               {label}
             </span>
           )}
-          {value && (
+          {value != null && (
             <div className="text-xl sm:text-2xl font-black font-mono text-white leading-tight">
               {value}
             </div>
           )}
-          {sub && (
+          {sub != null && (
             <div className="text-[11px] font-mono text-zinc-400 leading-tight truncate">
               {sub}
             </div>
