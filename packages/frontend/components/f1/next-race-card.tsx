@@ -61,15 +61,6 @@ export function NextRaceCard({ race, className }: NextRaceCardProps) {
         className
       )}
     >
-      {/* Cockpit Sub-Header */}
-      <div className="flex items-center justify-end min-h-[33px] px-5 sm:px-7 py-1.5 border-b border-white/10 bg-zinc-900/30">
-        {isClient && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400 font-mono bg-zinc-900/80 px-2 py-0.5 rounded border border-white/5">
-            <Clock className="size-3 text-zinc-500" />
-            <span>{userTimeZone.split('/')[1]?.replace(/_/g, ' ') ?? userTimeZone}</span>
-          </span>
-        )}
-      </div>
 
       {/* Main Hero Header Stage */}
       <div className="p-4 sm:p-5 lg:p-6 relative overflow-hidden bg-zinc-950/60">
@@ -84,12 +75,18 @@ export function NextRaceCard({ race, className }: NextRaceCardProps) {
                 <CountryFlag countryName={race.Circuit.Location.country} preload className="w-7 h-5 rounded shadow" />
               </h2>
             </div>
-            <p className="text-xs sm:text-sm font-mono text-zinc-300 flex items-center gap-2">
+            <p className="text-xs sm:text-sm font-mono text-zinc-300 flex flex-wrap items-center gap-2">
               <span className="font-bold text-white">{race.Circuit.circuitName}</span>
               <span className="text-zinc-500">•</span>
               <span className="text-zinc-400">
                 {race.Circuit.Location.locality}, {race.Circuit.Location.country}
               </span>
+              {isClient && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400 font-mono bg-zinc-900/80 px-2 py-0.5 rounded border border-white/5">
+                  <Clock className="size-3 text-zinc-500" />
+                  <span>{userTimeZone.split('/')[1]?.replace(/_/g, ' ') ?? userTimeZone}</span>
+                </span>
+              )}
             </p>
           </div>
 

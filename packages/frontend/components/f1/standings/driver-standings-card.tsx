@@ -137,11 +137,6 @@ export function DriverStandingsCard({
                                                     {item.Driver.familyName}
                                                 </span>
                                             </Link>
-                                            {item.Driver.code && (
-                                                <span className="text-[10px] font-mono font-bold text-zinc-400 bg-zinc-900 px-1 py-0.2 rounded border border-white/5 uppercase shrink-0">
-                                                    {item.Driver.code}
-                                                </span>
-                                            )}
                                         </div>
                                         {/* Mobile Team Subtitle */}
                                         <div className="sm:hidden flex items-center gap-1.5 mt-0.5">

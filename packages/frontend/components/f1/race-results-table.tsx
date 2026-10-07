@@ -120,11 +120,6 @@ export function RaceResultsTable({ results, highlightPoints = false }: RaceResul
                                                 {result.Driver.familyName}
                                             </span>
                                         </Link>
-                                        {(result.Driver.code || result.number) && (
-                                            <span className="text-[10px] font-mono font-bold text-zinc-400 bg-zinc-900/90 px-1.5 py-0.5 rounded border border-white/5 uppercase shrink-0">
-                                                {result.Driver.code ? result.Driver.code : `#${result.number}`}
-                                            </span>
-                                        )}
                                     </div>
                                 </td>
 

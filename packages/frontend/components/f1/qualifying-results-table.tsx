@@ -65,8 +65,10 @@ export function QualifyingResultsTable({ results }: QualifyingResultsTableProps)
                         const gapSec = bestSec && poleSec ? bestSec - poleSec : null;
 
                         return (
-                            <React.Fragment key={`${result.Driver.driverId}-${result.position}-${idx}`}>
-                                <tr className="group hover:bg-zinc-900/40 transition-colors">
+                            <tr
+                                key={`${result.Driver.driverId}-${result.position}-${idx}`}
+                                className="group hover:bg-zinc-900/40 transition-colors"
+                            >
                                     {/* Position Badge */}
                                     <td className="py-2 px-3 text-center align-middle">
                                         {isPole ? (
@@ -106,11 +108,6 @@ export function QualifyingResultsTable({ results }: QualifyingResultsTableProps)
                                                     {result.Driver.familyName}
                                                 </span>
                                             </Link>
-                                            {(result.Driver.code || result.number) && (
-                                                <span className="text-[10px] font-mono font-bold text-zinc-400 bg-zinc-900/90 px-1.5 py-0.5 rounded border border-white/5 uppercase shrink-0">
-                                                    {result.Driver.code ? result.Driver.code : `#${result.number}`}
-                                                </span>
-                                            )}
                                         </div>
                                     </td>
 
@@ -191,37 +188,10 @@ export function QualifyingResultsTable({ results }: QualifyingResultsTableProps)
                                         )}
                                     </td>
                                 </tr>
-
-                                {/* Q3 Knockout Cutoff Line (after P10) */}
-                                {idx === 9 && results.length > 10 && (
-                                    <tr key="q3-cutoff" className="border-y border-purple-500/20 bg-purple-950/20">
-                                        <td colSpan={7} className="py-1 px-3 text-center">
-                                            <span className="inline-flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-purple-300">
-                                                <span className="w-6 sm:w-12 h-px bg-purple-500/40" />
-                                                <span>Q3 Shootout Cutoff · Top 10</span>
-                                                <span className="w-6 sm:w-12 h-px bg-purple-500/40" />
-                                            </span>
-                                        </td>
-                                    </tr>
-                                )}
-
-                                {/* Q2 Knockout Cutoff Line (after P15) */}
-                                {idx === 14 && results.length > 15 && (
-                                    <tr key="q2-cutoff" className="border-y border-amber-500/20 bg-amber-950/20">
-                                        <td colSpan={7} className="py-1 px-3 text-center">
-                                            <span className="inline-flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-amber-300">
-                                                <span className="w-6 sm:w-12 h-px bg-amber-500/40" />
-                                                <span>Q2 Knockout Cutoff · Positions 11–15</span>
-                                                <span className="w-6 sm:w-12 h-px bg-amber-500/40" />
-                                            </span>
-                                        </td>
-                                    </tr>
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
-                </tbody>
-            </table>
-        </div>
-    );
-}
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        );
+    }
