@@ -5,7 +5,7 @@ import type { LapData, DriverLapSummary, PitStopEntry } from '@/types/f1';
 import { isDnfStatus, isLappedStatus } from '@/lib/f1-status';
 import { TeamLogo } from '@/components/f1/team-logo';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUp, ArrowDown, Minus, Check, Timer, Flag } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Check, Timer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface RaceLeaderboardProps {
@@ -66,15 +66,6 @@ export function RaceLeaderboard({
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
   const prevRectsRef = React.useRef<Map<string, number>>(new Map());
   const activeAnimationsRef = React.useRef<Map<string, Animation>>(new Map());
-
-  // Driver lookup map
-  const driverMap = useMemo(() => {
-    const map = new Map<string, DriverLapSummary>();
-    for (const d of drivers) {
-      map.set(d.driverId, d);
-    }
-    return map;
-  }, [drivers]);
 
   // Find timings for current lap
   const currentLapTimings = useMemo(() => {
@@ -325,38 +316,44 @@ export function RaceLeaderboard({
   return (
     <div
       className={cn(
-        'rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden flex flex-col shadow-md h-full min-h-0',
+        'rounded-2xl border border-white/10 bg-zinc-950/90 overflow-hidden flex flex-col shadow-xl h-full min-h-0',
         isFullscreen ? 'h-full' : 'h-full min-h-0 max-h-full',
         className
       )}
     >
       {/* Leaderboard Header */}
-      <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/40">
-        <h2 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-3">
-          <span>Race Leaderboard</span>
-          <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 border-zinc-700 bg-zinc-800/50">
-            {currentLap === 0 ? 'Starting Grid' : `Lap ${currentLap}/${totalLaps}`}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isPaused ? (
-              <span className="text-primary font-medium">Select drivers to compare</span>
-            ) : (
-              <span>Pause replay to select drivers</span>
+      <div className="p-3.5 sm:p-4 border-b border-white/10 bg-zinc-900/40">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+              <span>Leaderboard</span>
+              <Badge variant="outline" className="text-[10px] font-mono font-bold px-2 py-0.5 border-white/10 bg-zinc-900/80 text-zinc-300">
+                {currentLap === 0 ? 'Grid' : `Lap ${currentLap}/${totalLaps}`}
+              </Badge>
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-mono text-zinc-400">
+              {isPaused ? (
+                <span className="text-zinc-300">Compare up to 4</span>
+              ) : (
+                <span>Replay active</span>
+              )}
+            </span>
+            {selectedDriverIds.size > 0 && (
+              <Badge
+                variant="secondary"
+                className="text-[10px] font-mono font-bold bg-red-600/20 text-red-400 border border-red-500/30 px-1.5 py-0"
+              >
+                {selectedDriverIds.size}
+              </Badge>
             )}
-          </p>
-          {selectedDriverIds.size > 0 && (
-            <Badge
-              variant="secondary"
-              className="text-[10px] font-mono bg-primary/20 text-primary border-primary/30"
-            >
-              {selectedDriverIds.size}
-            </Badge>
-          )}
-        </h2>
+          </div>
+        </div>
       </div>
 
       {/* Driver list */}
-      <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-zinc-900/60 p-2 space-y-1 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-white/5 p-2 space-y-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
         {leaderboardRows.map((row) => {
           const isSelected = selectedDriverIds.has(row.driverId);
           const posDelta = currentLap === 0 ? 0 : (row.gridPosition > 0 ? row.gridPosition - row.position : 0);
@@ -369,26 +366,26 @@ export function RaceLeaderboard({
               onClick={() => isPaused && onToggleDriver(row.driverId)}
               disabled={!isPaused}
               className={cn(
-                'w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors select-none relative will-change-transform',
+                'w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors select-none relative will-change-transform',
                 isSelected
-                  ? 'bg-zinc-800/90 border border-primary/40 shadow-xs'
+                  ? 'bg-zinc-800/80 border border-white/20 ring-1 ring-white/10 shadow-sm'
                   : 'hover:bg-zinc-900/60 border border-transparent',
                 !isPaused && 'cursor-default opacity-90'
               )}
             >
               {/* Left: Position, Overtake Arrow, Team Logo, Driver Surname */}
               <div className="flex items-center gap-2 min-w-0">
-                {/* Position Badge (P1 in broadcast red) */}
+                {/* Position Badge */}
                 <div
                   className={cn(
-                    'size-6 rounded-md flex items-center justify-center font-mono font-bold text-xs shrink-0',
+                    'size-6 rounded-md flex items-center justify-center font-mono text-xs shrink-0',
                     row.isDnf
-                      ? 'bg-zinc-900 text-zinc-500 border border-zinc-800'
+                      ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30 font-black text-[10px]'
                       : row.position === 1
-                      ? 'bg-red-600 text-white font-black border border-red-500 shadow-xs'
+                      ? 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/40 font-black shadow-xs'
                       : row.position <= 3
-                      ? 'bg-zinc-800 text-foreground border border-zinc-700'
-                      : 'bg-zinc-900/80 text-muted-foreground border border-zinc-800'
+                      ? 'bg-zinc-800 text-zinc-200 ring-1 ring-white/10 font-bold'
+                      : 'bg-zinc-900/80 text-zinc-400 border border-white/5 font-semibold'
                   )}
                 >
                   {row.isDnf ? 'DNF' : row.position}
@@ -413,20 +410,20 @@ export function RaceLeaderboard({
                       ▼
                     </span>
                   ) : (
-                    <span className="text-[10px] text-zinc-800 select-none">·</span>
+                    <span className="text-[10px] text-zinc-700 select-none">·</span>
                   )}
                 </div>
 
-                {/* Team Logo (Fetched from Official F1 CDN / Wikimedia) */}
+                {/* Team Logo */}
                 <TeamLogo constructorId={row.constructorId} season={season} size={22} className="size-5.5 shrink-0" />
 
-                {/* Driver Full Surname in Uppercase (F1 Broadcast Style) */}
+                {/* Driver Full Surname in Uppercase */}
                 <div className="min-w-0 flex items-center gap-1.5">
-                  <span className="font-sans font-black text-xs tracking-wider text-foreground uppercase truncate">
+                  <span className="font-mono font-black text-xs tracking-wider text-white uppercase truncate">
                     {row.familyName}
                   </span>
                   {isSelected && (
-                    <Check className="size-3 text-primary shrink-0 ml-0.5" />
+                    <Check className="size-3 text-red-500 shrink-0 ml-0.5" />
                   )}
                 </div>
               </div>
@@ -435,7 +432,7 @@ export function RaceLeaderboard({
               <div className="flex items-center gap-2.5 text-right shrink-0">
                 {/* Pit Stop Badge */}
                 {row.isPitStopThisLap && (
-                  <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[9px] font-mono px-1.5 py-0 flex items-center gap-1">
+                  <Badge className="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[9px] font-mono px-1.5 py-0 flex items-center gap-1">
                     <Timer className="size-2.5" />
                     <span>PIT {row.pitDuration ? `${row.pitDuration}s` : ''}</span>
                   </Badge>
@@ -444,7 +441,7 @@ export function RaceLeaderboard({
                 {/* Status Column: DNF vs Lapped vs Active Lap Time */}
                 {row.isDnf ? (
                   <div className="flex flex-col items-end">
-                    <span className="text-[11px] font-mono font-bold text-red-400">
+                    <span className="text-[11px] font-mono font-bold text-rose-400">
                       OUT L{row.totalLapsCompleted}
                     </span>
                     <span className="text-[10px] font-mono text-zinc-500 truncate max-w-[85px]" title={row.dnfStatus}>
@@ -453,27 +450,27 @@ export function RaceLeaderboard({
                   </div>
                 ) : row.isLapped && currentLap >= row.totalLapsCompleted ? (
                   <div className="flex flex-col items-end">
-                    <span className="text-xs font-mono font-bold text-blue-400">
+                    <span className="text-xs font-mono font-bold text-sky-400">
                       {row.lappedStatus || '+1 Lap'}
                     </span>
-                    <span className="text-[10px] font-mono text-muted-foreground">
+                    <span className="text-[10px] font-mono text-zinc-400">
                       Fin L{row.totalLapsCompleted}
                     </span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-end">
-                    <span className="text-xs font-mono font-medium text-foreground tabular-nums">
+                    <span className="text-xs font-mono font-bold text-white tabular-nums">
                       {row.lapTime ?? '—'}
                     </span>
                     {/* Position Change vs Grid */}
                     {row.gridPosition > 0 && (
                       <div className="flex items-center text-[10px] font-mono">
                         {posDelta > 0 ? (
-                          <span className="text-emerald-400 flex items-center">
+                          <span className="text-emerald-400 flex items-center font-bold">
                             <ArrowUp className="size-2.5 mr-0.5" />+{posDelta}
                           </span>
                         ) : posDelta < 0 ? (
-                          <span className="text-red-400 flex items-center">
+                          <span className="text-rose-400 flex items-center font-bold">
                             <ArrowDown className="size-2.5 mr-0.5" />{posDelta}
                           </span>
                         ) : (

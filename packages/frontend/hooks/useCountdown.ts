@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 
 export interface CountdownTime {
   days: number;
@@ -12,24 +12,36 @@ export interface CountdownTime {
   isReady: boolean;
 }
 
-export function useCountdown(targetDate?: Date | null): CountdownTime {
-  const [now, setNow] = useState<Date | null>(null);
+let currentNowMs = typeof window !== 'undefined' ? Date.now() : 0;
+const listeners = new Set<() => void>();
+let timer: NodeJS.Timeout | null = null;
 
-  useEffect(() => {
-    setNow(new Date());
-
-    if (!targetDate || targetDate.getTime() <= Date.now()) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setNow(new Date());
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  if (!timer) {
+    currentNowMs = Date.now();
+    callback();
+    timer = setInterval(() => {
+      currentNowMs = Date.now();
+      listeners.forEach((listener) => listener());
     }, 1000);
+  }
+  return () => {
+    listeners.delete(callback);
+    if (listeners.size === 0 && timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+}
 
-    return () => clearInterval(timer);
-  }, [targetDate?.getTime()]);
+const getClientSnapshot = () => currentNowMs;
+const getServerSnapshot = () => null;
 
-  if (!targetDate || !now) {
+export function useCountdown(targetDate?: Date | null): CountdownTime {
+  const nowMs = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
+
+  if (!targetDate || nowMs === null) {
     return {
       days: 0,
       hours: 0,
@@ -41,7 +53,7 @@ export function useCountdown(targetDate?: Date | null): CountdownTime {
     };
   }
 
-  const diff = targetDate.getTime() - now.getTime();
+  const diff = targetDate.getTime() - nowMs;
 
   if (diff <= 0) {
     return {

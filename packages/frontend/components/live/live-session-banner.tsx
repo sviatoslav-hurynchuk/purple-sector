@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import type { LiveSessionState } from '@/types/f1';
 import { LiveStatusIndicator } from './live-status-indicator';
-import { ShieldAlert, Flag, ArrowRight, Gauge, Clock, Trophy } from 'lucide-react';
+import { ShieldAlert, Flag, ArrowRight, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LiveSessionBannerProps {

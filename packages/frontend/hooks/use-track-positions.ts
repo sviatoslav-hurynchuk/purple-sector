@@ -33,6 +33,9 @@ interface UseTrackPositionsReturn {
   refetch: () => Promise<void>;
 }
 
+const EMPTY_LOCATIONS = new Map<number, DriverLatestLocation>();
+const EMPTY_SAMPLES: CarLocationSample[] = [];
+
 export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTrackPositionsReturn {
   const {
     sessionKey,
@@ -47,9 +50,20 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
   const [error, setError] = useState<string | null>(null);
 
   const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
 
-  const fetchPositions = useCallback(async () => {
+  const [prevSessionKey, setPrevSessionKey] = useState(sessionKey);
+  if (prevSessionKey !== sessionKey) {
+    setPrevSessionKey(sessionKey);
+    setLocations(new Map());
+    setRawSamples([]);
+    setError(null);
+    setIsLoading(Boolean(sessionKey && enabled));
+  }
+
+  const fetchPositions = useCallback(async (explicitRequestId?: number) => {
     if (!sessionKey || !enabled) return;
+    const currentRequestId = explicitRequestId ?? ++requestIdRef.current;
 
     try {
       const queryParams = new URLSearchParams({
@@ -61,7 +75,7 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
         `/api/live/map/positions?${queryParams.toString()}`
       );
 
-      if (isMountedRef.current && res?.locations) {
+      if (isMountedRef.current && requestIdRef.current === currentRequestId && res?.locations) {
         setRawSamples(res.locations);
 
         // Group by driver and find the most recent sample
@@ -83,11 +97,11 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
         setError(null);
       }
     } catch (err) {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestIdRef.current === currentRequestId) {
         setError(err instanceof Error ? err.message : 'Failed to fetch car positions');
       }
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestIdRef.current === currentRequestId) {
         setIsLoading(false);
       }
     }
@@ -97,26 +111,31 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
     isMountedRef.current = true;
 
     if (!sessionKey || !enabled) {
-      setLocations(new Map());
-      setRawSamples([]);
       return;
     }
 
-    setIsLoading(true);
-    fetchPositions();
+    const initTimer = setTimeout(() => {
+      fetchPositions();
+    }, 0);
 
-    const interval = setInterval(fetchPositions, pollIntervalMs);
+    const interval = setInterval(() => {
+      fetchPositions();
+    }, pollIntervalMs);
+
     return () => {
+      clearTimeout(initTimer);
       clearInterval(interval);
       isMountedRef.current = false;
     };
   }, [sessionKey, enabled, pollIntervalMs, fetchPositions]);
 
+  const isActive = Boolean(sessionKey && enabled);
+
   return {
-    locations,
-    rawSamples,
-    isLoading,
-    error,
+    locations: isActive ? locations : EMPTY_LOCATIONS,
+    rawSamples: isActive ? rawSamples : EMPTY_SAMPLES,
+    isLoading: isActive ? isLoading : false,
+    error: isActive ? error : null,
     refetch: fetchPositions,
   };
 }

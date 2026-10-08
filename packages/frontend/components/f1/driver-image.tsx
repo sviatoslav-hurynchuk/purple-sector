@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Image, { type ImageProps } from 'next/image';
 
 interface DriverImageProps extends Omit<ImageProps, 'src'> {
@@ -27,11 +27,13 @@ export function DriverImage({
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const [prevSrc, setPrevSrc] = useState(src);
+  if (prevSrc !== src) {
+    setPrevSrc(src);
     setImgSrc(src);
     setHasError(false);
     setIsLoading(true);
-  }, [src]);
+  }
 
   return (
     <>

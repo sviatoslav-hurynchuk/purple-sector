@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getRaceDetail, getRaceLaps, getRacePitStops, getRaceSchedule, getOpenF1RaceData, isBackendReachable } from '@/lib/api';
 import { LapChartPageContent } from '@/components/f1/laps/lap-chart-page-content';
+import { RaceCockpitHeader } from '@/components/f1/race-cockpit-header';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
 import type { Race, RaceResult } from '@/types/f1';
 import LapsLoading from './loading';
@@ -76,22 +77,17 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
   // If the race is valid but lap data is not yet available (e.g. upcoming race)
   if (!lapsData || lapsData.laps.length === 0) {
     return (
-      <div className="space-y-8">
-        <div>
-          <Link
-            href={`/calendar/${race.round}?season=${race.season}`}
-            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors mb-3 group"
-          >
-            <span className="transition-transform group-hover:-translate-x-1">←</span>
-            <span>Back to {race.raceName}</span>
-          </Link>
-          <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-foreground">
-            {race.raceName}
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {race.Circuit.circuitName} · Round {race.round} · {year}
-          </p>
+      <div className="space-y-6 sm:space-y-8">
+        {/* ── Top Dual F1 Racing Speed Stripes ───────────────────────────── */}
+        <div className="space-y-1.5" aria-hidden="true">
+          <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
+          <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
         </div>
+
+        <RaceCockpitHeader
+          race={race}
+          sectionTag="Lap-by-Lap Replay"
+        />
 
         <div className="rounded-3xl border border-white/10 bg-zinc-950 p-8 sm:p-12 text-center space-y-4 shadow-xl max-w-2xl mx-auto">
           <div className="size-14 rounded-2xl bg-zinc-900/60 border border-white/10 flex items-center justify-center text-zinc-400 mx-auto font-mono text-2xl">

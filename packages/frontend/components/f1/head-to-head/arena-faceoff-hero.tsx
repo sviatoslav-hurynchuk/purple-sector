@@ -94,8 +94,6 @@ export function ArenaFaceoffHero({
   const d2PtsShare = Number((100 - d1PtsShare).toFixed(1));
   const pD1 = stats.points.d1Points;
   const pD2 = stats.points.d2Points;
-  const pTotal = Math.max(1, pD1 + pD2);
-  const pD1Pct = Math.round((pD1 / pTotal) * 100);
 
   // Proportional bar width calculations with graceful clamping so bars never collapse to 0%
   const calcBarSplit = (val1: number, val2: number) => {

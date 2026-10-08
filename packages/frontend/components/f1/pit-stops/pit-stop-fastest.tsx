@@ -136,11 +136,6 @@ export function PitStopFastest({
               className="font-bold text-white uppercase tracking-tight hover:text-red-400 transition-colors inline-flex items-center gap-2"
             >
               <span>{driverName}</span>
-              {result?.Driver.code && (
-                <span className="text-[11px] font-mono text-zinc-400">
-                  {result.Driver.code}
-                </span>
-              )}
             </Link>
           </div>
         </td>

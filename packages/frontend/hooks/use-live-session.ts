@@ -39,6 +39,7 @@ export function useLiveSession(options: UseLiveSessionOptions = {}): UseLiveSess
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
+  const connectSSERef = useRef<() => void>(() => {});
 
   // Direct fetch snapshot
   const fetchSnapshot = useCallback(async () => {
@@ -149,7 +150,7 @@ export function useLiveSession(options: UseLiveSessionOptions = {}): UseLiveSess
               clearInterval(pollIntervalRef.current);
               pollIntervalRef.current = null;
             }
-            connectSSE();
+            connectSSERef.current();
           }, reconnectDelay);
         }
       };
@@ -161,6 +162,10 @@ export function useLiveSession(options: UseLiveSessionOptions = {}): UseLiveSess
       }
     }
   }, [enabled, reconnectDelay, fallbackPollInterval, fetchSnapshot]);
+
+  useEffect(() => {
+    connectSSERef.current = connectSSE;
+  }, [connectSSE]);
 
   const reconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -177,13 +182,19 @@ export function useLiveSession(options: UseLiveSessionOptions = {}): UseLiveSess
 
   useEffect(() => {
     isMountedRef.current = true;
+    let initTimer: NodeJS.Timeout | null = null;
     if (enabled) {
-      fetchSnapshot();
-      connectSSE();
+      initTimer = setTimeout(() => {
+        fetchSnapshot();
+        connectSSE();
+      }, 0);
     }
 
     return () => {
       isMountedRef.current = false;
+      if (initTimer) {
+        clearTimeout(initTimer);
+      }
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
