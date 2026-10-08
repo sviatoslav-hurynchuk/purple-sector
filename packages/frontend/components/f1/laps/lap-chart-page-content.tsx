@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Race, RaceResult, RaceLapsResponse, PitStopEntry, RaceResultEntry, RaceSessionData } from '@/types/f1';
+import type { Race, RaceResult, RaceLapsResponse, PitStopEntry, RaceSessionData } from '@/types/f1';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, LineChart, Minimize2 } from 'lucide-react';
-import Link from 'next/link';
+import { Minimize2 } from 'lucide-react';
+import { RaceCockpitHeader } from '@/components/f1/race-cockpit-header';
 import { PlaybackControls } from './playback-controls';
 import { RaceLeaderboard } from './race-leaderboard';
 import { PositionChart } from './position-chart';
@@ -60,24 +60,24 @@ export function LapChartPageContent({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen]);
 
-  // Playback timer loop
+  // Playback timer loop with auto-stop on race finish
   useEffect(() => {
     if (!isPlaying) return;
 
     const intervalMs = Math.max(200, Math.round(1000 / playbackSpeed));
     const timer = setInterval(() => {
-      setCurrentLap((prev) => (prev >= totalLaps ? totalLaps : prev + 1));
+      setCurrentLap((prev) => {
+        const next = prev + 1;
+        if (next >= totalLaps) {
+          setIsPlaying(false);
+          return totalLaps;
+        }
+        return next;
+      });
     }, intervalMs);
 
     return () => clearInterval(timer);
   }, [isPlaying, playbackSpeed, totalLaps]);
-
-  // Auto-stop playback when race ends
-  useEffect(() => {
-    if (isPlaying && currentLap >= totalLaps) {
-      setIsPlaying(false);
-    }
-  }, [isPlaying, currentLap, totalLaps]);
 
   const handlePlayToggle = useCallback(() => {
     if (currentLap >= totalLaps && !isPlaying) {
@@ -119,49 +119,27 @@ export function LapChartPageContent({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Top Breadcrumb Navigation */}
-      <div>
-        <Link
-          href={`/calendar/${race.round}?season=${race.season}`}
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors mb-3 group"
-        >
-          <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-1" />
-          <span>Back to {race.raceName}</span>
-        </Link>
+      {/* ── Top Dual F1 Racing Speed Stripes ───────────────────────────── */}
+      <div className="space-y-1.5" aria-hidden="true">
+        <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
+        <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
+      </div>
 
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-1 uppercase tracking-wider">
-              <LineChart className="size-3.5 text-primary" />
-              <span>Lap-by-Lap Replay</span>
-              <span>·</span>
-              <span>Round {race.round}</span>
-              <span>·</span>
-              <span>{race.date}</span>
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-foreground flex items-center gap-3">
-              <span>{race.raceName}</span>
-              <CountryFlag
-                countryName={race.Circuit.Location.country}
-                className="w-7 h-5 rounded-xs shrink-0 shadow-xs"
-              />
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              {race.Circuit.circuitName} · {race.Circuit.Location.locality}, {race.Circuit.Location.country}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-mono border-zinc-700 bg-zinc-900/60 px-3 py-1">
+      {/* ── Cockpit Header ────────────────────────────────────────── */}
+      <RaceCockpitHeader
+        race={race}
+        sectionTag="Lap-by-Lap Replay"
+        actions={
+          <>
+            <Badge variant="outline" className="text-xs font-mono font-bold text-zinc-300 border-white/10 bg-zinc-900/60 px-3 py-1">
               {totalLaps} Total Laps
             </Badge>
-            <Badge variant="outline" className="text-xs font-mono border-zinc-700 bg-zinc-900/60 px-3 py-1">
+            <Badge variant="outline" className="text-xs font-mono font-bold text-zinc-300 border-white/10 bg-zinc-900/60 px-3 py-1">
               {lapsData.drivers.length} Drivers
             </Badge>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Fastest Lap & Race Control Overview Cards */}
       <RaceEventsOverlay
@@ -243,16 +221,16 @@ export function LapChartPageContent({
       {isFullscreen && (
         <div className="fixed inset-0 z-50 bg-zinc-950/98 p-3 sm:p-4 lg:p-5 flex flex-col justify-between overflow-hidden backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200">
           {/* Fullscreen Top Bar */}
-          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5 sm:pb-3 shrink-0">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2.5 sm:pb-3 shrink-0">
             <div className="flex items-center gap-3">
-              <h2 className="text-base sm:text-xl font-black uppercase tracking-tight text-foreground flex items-center gap-2.5">
+              <h2 className="text-base sm:text-xl font-black font-mono uppercase tracking-tight text-white flex items-center gap-2.5">
                 <span>{race.raceName}</span>
                 <CountryFlag
                   countryName={race.Circuit.Location.country}
-                  className="w-7 h-5 rounded-xs shrink-0 shadow-xs"
+                  className="w-7 h-5 rounded-xs shrink-0 shadow-sm border border-white/10"
                 />
               </h2>
-              <Badge variant="outline" className="font-mono text-xs sm:text-sm border-zinc-700 bg-zinc-900/80 px-2.5 py-0.5">
+              <Badge variant="outline" className="font-mono font-bold text-xs sm:text-sm border-white/10 bg-zinc-900/80 text-zinc-300 px-2.5 py-0.5">
                 {currentLap === 0 ? 'Round ' + race.round + ' · Starting Grid' : `Round ${race.round} · Lap ${currentLap}/${totalLaps}`}
               </Badge>
             </div>
@@ -262,7 +240,7 @@ export function LapChartPageContent({
                 variant="outline"
                 size="sm"
                 onClick={() => setIsFullscreen(false)}
-                className="h-8 sm:h-9 px-3 sm:px-4 border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-foreground text-xs sm:text-sm font-semibold gap-2 shadow-sm"
+                className="h-8 sm:h-9 px-3 sm:px-4 border-white/10 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 text-xs sm:text-sm font-semibold gap-2 shadow-sm"
               >
                 <Minimize2 className="size-4" />
               </Button>

@@ -4,9 +4,7 @@ import React from 'react';
 import type { DriverLapSummary, RaceEvent } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
 import { isDnfStatus } from '@/lib/f1-status';
-import { Card, CardContent } from '@/components/ui/card';
 import { Trophy, AlertTriangle, ShieldAlert, Flag, CheckCircle2, Award } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface RaceEventsOverlayProps {
@@ -72,41 +70,43 @@ export function RaceEventsOverlay({
   );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Fastest Lap KPI Card */}
-      <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
+    <div className="rounded-2xl border border-white/10 bg-zinc-950/90 divide-y md:divide-y-0 md:divide-x divide-white/10 overflow-hidden shadow-xl backdrop-blur-sm grid grid-cols-1 md:grid-cols-2">
+      {/* ── Fastest Lap Instrument Cell ───────────────────────────────── */}
+      <div className="p-4 sm:p-5 relative overflow-hidden group bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors">
         {/* Top team accent stripe */}
         <div
           className="absolute top-0 left-0 right-0 h-0.5 transition-all duration-300"
-          style={{ backgroundColor: isFastestLapSetYet && fastestLapDriver && theme ? theme.primary : '#71717a' }}
+          style={{ backgroundColor: isFastestLapSetYet && fastestLapDriver && theme ? theme.primary : '#52525b' }}
         />
 
-        {/* Large right-aligned feature icon */}
+        {/* Large right-aligned feature watermark icon */}
         <div
-          className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 transition-all duration-300 group-hover:scale-110 group-hover:opacity-75"
+          className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 transition-all duration-300 group-hover:scale-110 group-hover:opacity-40"
           style={{ color: isFastestLapSetYet && fastestLapDriver && theme ? theme.primary : '#71717a' }}
         >
           <Trophy className="size-14 sm:size-16 stroke-[1.25]" />
         </div>
 
-        <CardContent className="p-5 relative z-10">
-          <div className="text-muted-foreground mb-2 flex items-center justify-between pr-16">
-            <span className="text-xs font-semibold uppercase tracking-wider">Official Fastest Lap</span>
+        <div className="relative z-10 space-y-2">
+          <div className="flex items-center justify-between pr-14">
+            <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+              Official Fastest Lap
+            </span>
           </div>
 
           {fastestLapDriver ? (
             <>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground tabular-nums">
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white tabular-nums">
                   {fastestLapDriver.fastestLap?.time ?? '—'}
                 </span>
                 {fastestLapDriver.fastestLap?.lap && (
                   <span
                     className={cn(
-                      'text-xs font-mono font-semibold px-2 py-0.5 rounded-md border',
+                      'text-xs font-mono font-bold px-2 py-0.5 rounded-md border',
                       isFastestLapSetYet
-                        ? 'border-purple-500/30 bg-purple-500/10 text-purple-300'
-                        : 'border-zinc-800 bg-zinc-900 text-zinc-500'
+                        ? 'border-purple-500/30 bg-purple-500/15 text-purple-300'
+                        : 'border-white/10 bg-zinc-900/80 text-zinc-400'
                     )}
                   >
                     {isFastestLapSetYet ? `Lap ${fastestLapDriver.fastestLap.lap}` : `Set on Lap ${fastestLapDriver.fastestLap.lap}`}
@@ -114,38 +114,39 @@ export function RaceEventsOverlay({
                 )}
               </div>
 
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 pt-0.5">
                 {theme && (
-                  <div
+                  <span
                     className="w-1.5 h-3.5 rounded-full shrink-0"
                     style={{ backgroundColor: isFastestLapSetYet ? theme.primary : '#52525b' }}
                   />
                 )}
-                <p className="text-xs font-medium text-muted-foreground truncate">
-                  <span className="font-semibold text-foreground">
+                <p className="text-xs font-mono text-zinc-300 truncate">
+                  <span className="font-bold text-white uppercase">
                     {fastestLapDriver.givenName} {fastestLapDriver.familyName}
                   </span>{' '}
-                  ({fastestLapDriver.code}) · {fastestLapDriver.constructorName}
+                  <span className="text-zinc-500">•</span>{' '}
+                  <span className="text-zinc-400">{fastestLapDriver.constructorName}</span>
                 </p>
               </div>
             </>
           ) : (
-            <div className="text-2xl font-black font-mono text-muted-foreground">—</div>
+            <div className="text-2xl font-black font-mono text-zinc-500">—</div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Dynamic Second Card: FIA Race Control (if OpenF1 available) or Grand Prix Winner (if pre-2023) */}
+      {/* ── Dynamic Second Cell: FIA Race Control or Grand Prix Winner ── */}
       {hasEventsData ? (
-        <Card
+        <div
           className={cn(
-            'border-zinc-800 bg-zinc-950/70 relative overflow-hidden group transition-colors duration-300',
+            'p-4 sm:p-5 relative overflow-hidden group transition-colors duration-300 bg-zinc-900/20 hover:bg-zinc-900/40',
             activeRedFlag
-              ? 'border-red-500/40 bg-red-950/20'
+              ? 'bg-red-950/25'
               : activeSC
-              ? 'border-amber-500/40 bg-amber-950/20'
+              ? 'bg-amber-950/25'
               : activeVSC
-              ? 'border-orange-500/40 bg-orange-950/20'
+              ? 'bg-orange-950/25'
               : ''
           )}
         >
@@ -163,10 +164,10 @@ export function RaceEventsOverlay({
             )}
           />
 
-          {/* Large right-aligned feature icon */}
+          {/* Large right-aligned feature watermark icon */}
           <div
             className={cn(
-              'absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 transition-all duration-300 group-hover:scale-110 group-hover:opacity-75',
+              'absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 transition-all duration-300 group-hover:scale-110 group-hover:opacity-40',
               activeRedFlag
                 ? 'text-red-400'
                 : activeSC
@@ -187,13 +188,14 @@ export function RaceEventsOverlay({
             )}
           </div>
 
-          <CardContent className="p-5 relative z-10">
-            <div className="text-muted-foreground mb-2 flex items-center justify-between gap-2 pr-16">
-              <span className="text-xs font-semibold uppercase tracking-wider">FIA Race Control</span>
-              <Badge
-                variant="outline"
+          <div className="relative z-10 space-y-2">
+            <div className="flex items-center justify-between gap-2 pr-14">
+              <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                FIA Race Control
+              </span>
+              <span
                 className={cn(
-                  'text-[9px] font-mono px-1.5 py-0',
+                  'text-[10px] font-mono font-bold px-2 py-0.5 rounded border uppercase',
                   activeRedFlag
                     ? 'border-red-500/40 text-red-300 bg-red-500/20 animate-pulse'
                     : activeSC
@@ -201,16 +203,16 @@ export function RaceEventsOverlay({
                     : activeVSC
                     ? 'border-orange-500/40 text-orange-300 bg-orange-500/20 animate-pulse'
                     : currentLap === 0
-                    ? 'border-zinc-700 text-zinc-300 bg-zinc-800/60'
+                    ? 'border-white/10 text-zinc-300 bg-zinc-900/80'
                     : 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
                 )}
               >
                 {currentLap === 0 ? 'Starting Grid' : currentLap ? `Replay L${currentLap}/${totalLaps}` : 'FIA Session Feed'}
-              </Badge>
+              </span>
             </div>
 
             {/* Dynamic Title based on current replay lap */}
-            <div className="text-xl sm:text-2xl font-black font-mono tracking-tight text-foreground flex items-center gap-2 truncate">
+            <div className="text-xl sm:text-2xl font-black font-mono tracking-tight text-white flex items-center gap-2 truncate">
               {activeRedFlag ? (
                 <span className="text-red-400 flex items-center gap-2">
                   <Flag className="size-5 text-red-500 fill-red-500/20 shrink-0" />
@@ -240,7 +242,7 @@ export function RaceEventsOverlay({
             </div>
 
             {/* Subtitle / summary breakdown */}
-            <div className="flex items-center gap-2.5 mt-2 text-xs text-muted-foreground flex-wrap font-mono">
+            <div className="flex items-center gap-2.5 pt-0.5 text-xs text-zinc-400 flex-wrap font-mono">
               {currentLap === 0 ? (
                 <span className="text-zinc-400 font-semibold">
                   Grid formation complete · Ready for lights out
@@ -255,12 +257,12 @@ export function RaceEventsOverlay({
                     <ShieldAlert className="size-3 text-amber-400" />
                     <span>{scCount} Safety Car</span>
                   </span>
-                  <span>·</span>
+                  <span className="text-zinc-600">•</span>
                   <span className="flex items-center gap-1 font-semibold text-zinc-300">
                     <AlertTriangle className="size-3 text-orange-400" />
                     <span>{vscCount} VSC</span>
                   </span>
-                  <span>·</span>
+                  <span className="text-zinc-600">•</span>
                   <span className="flex items-center gap-1 font-semibold text-zinc-300">
                     <Flag className="size-3 text-red-400" />
                     <span>{redFlagCount} Red Flag</span>
@@ -268,58 +270,59 @@ export function RaceEventsOverlay({
                 </>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : (
-        /* Grand Prix Winner Card (Historical / pre-2023 races) */
-        <Card className="border-zinc-800 bg-zinc-950/70 relative overflow-hidden group">
+        /* Grand Prix Winner Cell (Historical / pre-2023 races) */
+        <div className="p-4 sm:p-5 relative overflow-hidden group bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors">
           {/* Top team accent stripe */}
           <div
             className="absolute top-0 left-0 right-0 h-0.5 transition-all duration-300"
             style={{ backgroundColor: winnerTheme ? winnerTheme.primary : '#eab308' }}
           />
 
-          {/* Large right-aligned feature icon */}
+          {/* Large right-aligned feature watermark icon */}
           <div
-            className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 transition-all duration-300 group-hover:scale-110 group-hover:opacity-75"
+            className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 transition-all duration-300 group-hover:scale-110 group-hover:opacity-40"
             style={{ color: winnerTheme ? winnerTheme.primary : '#eab308' }}
           >
             <Award className="size-14 sm:size-16 stroke-[1.25]" />
           </div>
 
-          <CardContent className="p-5 relative z-10">
-            <div className="text-muted-foreground mb-2 flex items-center justify-between pr-16">
-              <span className="text-xs font-semibold uppercase tracking-wider">Grand Prix Winner</span>
+          <div className="relative z-10 space-y-2">
+            <div className="flex items-center justify-between pr-14">
+              <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                Grand Prix Winner
+              </span>
             </div>
 
             {winner ? (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground truncate">
+                  <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white uppercase truncate">
                     {winner.givenName} {winner.familyName}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 pt-0.5">
                   {winnerTheme && (
-                    <div
+                    <span
                       className="w-1.5 h-3.5 rounded-full shrink-0"
                       style={{ backgroundColor: winnerTheme.primary }}
                     />
                   )}
-                  <p className="text-xs font-medium text-muted-foreground truncate">
-                    <span className="font-semibold text-foreground">{winner.constructorName}</span>
-                    {winner.code && ` (${winner.code})`}
+                  <p className="text-xs font-mono text-zinc-300 truncate">
+                    <span className="font-bold text-white">{winner.constructorName}</span>
                     {winner.gridPosition > 0 && ` · Started P${winner.gridPosition}`}
                     {` · ${classifiedCount} Classified (${dnfCount} DNF)`}
                   </p>
                 </div>
               </>
             ) : (
-              <div className="text-2xl font-black font-mono text-muted-foreground">—</div>
+              <div className="text-2xl font-black font-mono text-zinc-500">—</div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

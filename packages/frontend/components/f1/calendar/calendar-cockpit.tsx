@@ -82,10 +82,6 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
               RACE CALENDAR
             </span>
           </h1>
-
-          <p className="text-xs sm:text-sm font-mono text-zinc-400 mt-1">
-            Official FIA tour schedule • {stats.totalRaces} Grands Prix
-          </p>
         </div>
 
         <div className="shrink-0">

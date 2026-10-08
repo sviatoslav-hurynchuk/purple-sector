@@ -63,18 +63,18 @@ export function PlaybackControls({
   const progressPercent = totalLaps > 0 ? (currentLap / totalLaps) * 100 : 0;
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:p-5 shadow-lg backdrop-blur-sm space-y-4">
+    <div className="rounded-2xl border border-white/10 bg-zinc-950/90 p-4 sm:p-5 shadow-xl backdrop-blur-xs space-y-4">
       {/* Top row: Lap indicator & Timeline scrubber */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
+        <div className="flex items-center justify-between text-xs font-mono">
           {currentLap === 0 ? (
-            <span className="font-semibold text-foreground flex items-center gap-1.5">
-              <span className="text-base font-bold text-amber-400 tabular-nums">STARTING GRID</span>
-              <span className="text-zinc-500 font-normal">/ {totalLaps} Laps</span>
+            <span className="font-semibold text-white flex items-center gap-1.5">
+              <span className="text-sm sm:text-base font-black text-amber-400 tracking-wider">STARTING GRID</span>
+              <span className="text-zinc-400 font-normal">/ {totalLaps} Laps</span>
             </span>
           ) : (
-            <span className="font-semibold text-foreground">
-              LAP <span className="text-base font-bold text-primary tabular-nums">{currentLap}</span> / {totalLaps}
+            <span className="font-bold text-zinc-300 uppercase tracking-wider">
+              LAP <span className="text-base sm:text-lg font-black text-white tabular-nums">{currentLap}</span> <span className="text-zinc-400 font-normal">/ {totalLaps}</span>
             </span>
           )}
           <span className="text-zinc-400 font-medium">
@@ -91,14 +91,14 @@ export function PlaybackControls({
             value={currentLap}
             disabled={disabled}
             onChange={(e) => onLapChange(parseInt(e.target.value, 10))}
-            className="w-full h-2.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none transition-all disabled:opacity-50"
+            className="w-full h-2.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-red-600 focus:outline-none transition-all disabled:opacity-50"
             aria-label="Race Lap Timeline Scrubber"
           />
         </div>
       </div>
 
       {/* Bottom row: Action Buttons */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-zinc-900">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/10">
         {/* Playback step buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Jump to start */}
@@ -108,7 +108,7 @@ export function PlaybackControls({
             onClick={() => onLapChange(0)}
             disabled={currentLap === 0 || disabled}
             title="Jump to Starting Grid (Home)"
-            className="size-8 sm:size-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
+            className="size-8 sm:size-9 border-white/10 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg"
           >
             <RotateCcw className="size-3.5 sm:size-4" />
           </Button>
@@ -120,7 +120,7 @@ export function PlaybackControls({
             onClick={() => onLapChange(Math.max(0, currentLap - 1))}
             disabled={currentLap === 0 || disabled}
             title="Previous Lap (←)"
-            className="size-8 sm:size-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
+            className="size-8 sm:size-9 border-white/10 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg"
           >
             <SkipBack className="size-3.5 sm:size-4" />
           </Button>
@@ -131,16 +131,16 @@ export function PlaybackControls({
             size="sm"
             onClick={onPlayToggle}
             disabled={disabled}
-            className="px-4 h-8 sm:h-9 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-transform active:scale-95 gap-2 select-none"
+            className="px-4 h-8 sm:h-9 font-mono font-bold uppercase tracking-wider text-xs bg-[#e10600] hover:bg-[#c00500] text-white rounded-lg shadow-md shadow-red-950/40 transition-transform active:scale-95 gap-2 select-none"
           >
             {isPlaying ? (
               <>
-                <Pause className="size-4 fill-current" />
+                <Pause className="size-3.5 fill-current" />
                 <span>Pause</span>
               </>
             ) : (
               <>
-                <Play className="size-4 fill-current" />
+                <Play className="size-3.5 fill-current" />
                 <span>Play Replay</span>
               </>
             )}
@@ -153,7 +153,7 @@ export function PlaybackControls({
             onClick={() => onLapChange(Math.min(totalLaps, currentLap + 1))}
             disabled={currentLap === totalLaps || disabled}
             title="Next Lap (→)"
-            className="size-8 sm:size-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
+            className="size-8 sm:size-9 border-white/10 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg"
           >
             <SkipForward className="size-3.5 sm:size-4" />
           </Button>
@@ -165,14 +165,14 @@ export function PlaybackControls({
             onClick={() => onLapChange(totalLaps)}
             disabled={currentLap === totalLaps || disabled}
             title="Jump to Finish (End)"
-            className="size-8 sm:size-9 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
+            className="size-8 sm:size-9 border-white/10 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg"
           >
             <FastForward className="size-3.5 sm:size-4" />
           </Button>
         </div>
 
         {/* Speed Selector */}
-        <div className="flex items-center gap-1 bg-zinc-900/80 border border-zinc-800 p-0.5 rounded-lg">
+        <div className="flex items-center gap-1 bg-zinc-900 border border-white/10 p-0.5 rounded-lg shadow-xs">
           {SPEED_OPTIONS.map((speed) => (
             <button
               key={speed}
@@ -180,10 +180,10 @@ export function PlaybackControls({
               disabled={disabled}
               onClick={() => onSpeedChange(speed)}
               className={cn(
-                'px-2 sm:px-2.5 py-1 text-xs font-mono font-bold rounded transition-colors disabled:opacity-50 disabled:pointer-events-none',
+                'px-2 sm:px-2.5 py-1 text-xs font-mono font-bold rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none',
                 playbackSpeed === speed
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-zinc-800/60'
+                  ? 'bg-zinc-800 text-white shadow-xs'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/40'
               )}
             >
               {speed}x

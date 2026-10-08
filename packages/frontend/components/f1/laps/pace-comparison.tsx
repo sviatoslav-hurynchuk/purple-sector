@@ -7,7 +7,7 @@ import { getTeamTheme } from '@/lib/team-colors';
 import { formatRaceOutcome } from '@/lib/f1-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Swords, X, Trophy, Timer, TrendingUp, Gauge, Disc, ChevronRight } from 'lucide-react';
+import { Swords, X, TrendingUp, Disc } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PaceComparisonProps {
@@ -202,23 +202,23 @@ export function PaceComparison({
   }
 
   return (
-    <div className="rounded-xl border border-primary/30 bg-zinc-950/90 p-5 shadow-xl space-y-6">
+    <div className="rounded-2xl border border-white/10 bg-zinc-950/90 p-4 sm:p-5 shadow-xl space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-900 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
         <div className="flex items-center gap-2.5">
-          <div className="size-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center text-primary">
+          <div className="size-8 rounded-lg bg-red-600/10 border border-red-500/20 flex items-center justify-center text-red-500">
             <Swords className="size-4" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+            <h3 className="text-sm sm:text-base font-mono font-bold uppercase tracking-wider text-white flex items-center gap-2">
               <span>Pace Comparison</span>
-              <Badge variant="outline" className="font-mono text-xs border-primary/40 text-primary">
+              <Badge variant="outline" className="font-mono text-xs border-white/10 bg-zinc-900/80 text-zinc-300">
                 {selectedDrivers.length} Drivers
               </Badge>
               {isTeammateDuel && (
                 <Link
                   href="/head-to-head"
-                  className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-purple-400 hover:text-purple-300 hover:underline px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30"
+                  className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-purple-300 hover:text-purple-200 hover:underline px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30"
                 >
                   <Swords className="size-3" />
                   <span>Teammate Duel</span>
@@ -238,10 +238,10 @@ export function PaceComparison({
               size="sm"
               disabled={isPaused === false}
               onClick={() => onAddDriver(teammate.driverId)}
-              className="text-xs h-7 border-purple-500/40 text-purple-300 hover:bg-purple-500/15 hover:text-white flex items-center gap-1.5 disabled:opacity-50"
+              className="text-xs h-7 border-purple-500/30 text-purple-300 hover:bg-purple-500/15 hover:text-white font-mono flex items-center gap-1.5 disabled:opacity-50"
             >
               <Swords className="size-3 text-purple-400" />
-              <span>Compare Teammate ({teammate.code})</span>
+              <span>Compare Teammate ({teammate.familyName})</span>
             </Button>
           )}
           {selectedDrivers.map((d) => {
@@ -250,17 +250,17 @@ export function PaceComparison({
               <Badge
                 key={d.driverId}
                 variant="secondary"
-                className="pl-2.5 pr-1 py-1 flex items-center gap-1.5 font-mono text-xs border border-zinc-800 bg-zinc-900"
+                className="pl-2.5 pr-1 py-1 flex items-center gap-1.5 font-mono text-xs border border-white/10 bg-zinc-900/80 text-zinc-200"
               >
                 <span
                   className="size-2 rounded-full inline-block"
                   style={{ backgroundColor: theme.primary }}
                 />
-                <span className="font-bold text-foreground">{d.code}</span>
+                <span className="font-bold text-white">{d.code}</span>
                 <button
                   type="button"
                   onClick={() => onRemoveDriver(d.driverId)}
-                  className="size-4 rounded hover:bg-zinc-800 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  className="size-4 rounded hover:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white"
                 >
                   <X className="size-3" />
                 </button>
@@ -272,7 +272,7 @@ export function PaceComparison({
             variant="ghost"
             size="sm"
             onClick={onClearAll}
-            className="text-xs h-7 text-muted-foreground hover:text-foreground"
+            className="text-xs font-mono h-7 text-zinc-400 hover:text-white"
           >
             Clear All
           </Button>
@@ -284,7 +284,7 @@ export function PaceComparison({
         {driverStats.map((stat) => (
           <div
             key={stat.driver.driverId}
-            className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3 relative overflow-hidden"
+            className="rounded-xl border border-white/10 bg-zinc-900/30 p-4 space-y-3 relative overflow-hidden backdrop-blur-xs"
           >
             {/* Top team accent line */}
             <div
@@ -299,9 +299,9 @@ export function PaceComparison({
                   className="w-1.5 h-4 rounded-full"
                   style={{ backgroundColor: stat.theme.primary }}
                 />
-                <span className="font-bold text-sm text-foreground">{stat.driver.givenName} {stat.driver.familyName}</span>
+                <span className="font-mono font-bold text-sm text-white">{stat.driver.givenName} {stat.driver.familyName}</span>
               </div>
-              <Badge variant="outline" className="font-mono text-xs border-zinc-700">
+              <Badge variant="outline" className="font-mono text-xs border-white/10 bg-zinc-900/80 text-zinc-300">
                 {formatRaceOutcome(stat.driver.status, stat.driver.positionText, stat.finishPosition)}
               </Badge>
             </div>
@@ -309,23 +309,23 @@ export function PaceComparison({
             {/* Key Metrics */}
             <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
               <div>
-                <span className="text-[10px] text-muted-foreground uppercase">Best Lap</span>
-                <div className="font-bold text-foreground tabular-nums">{stat.bestLapTime}</div>
-                {stat.bestLapNum && <div className="text-[10px] text-zinc-500">Lap {stat.bestLapNum}</div>}
+                <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">Best Lap</span>
+                <div className="font-bold text-white tabular-nums">{stat.bestLapTime}</div>
+                {stat.bestLapNum && <div className="text-[10px] text-zinc-400">Lap {stat.bestLapNum}</div>}
               </div>
               <div>
-                <span className="text-[10px] text-muted-foreground uppercase">Clean Avg Pace</span>
-                <div className="font-bold text-foreground tabular-nums">
+                <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">Clean Avg Pace</span>
+                <div className="font-bold text-white tabular-nums">
                   {stat.avgPaceSec > 0 ? formatSecondsToLapTime(stat.avgPaceSec) : '—'}
                 </div>
               </div>
               <div>
-                <span className="text-[10px] text-muted-foreground uppercase">Pit Stops</span>
-                <div className="font-bold text-foreground tabular-nums">{stat.pitCount} stops</div>
+                <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">Pit Stops</span>
+                <div className="font-bold text-white tabular-nums">{stat.pitCount} stops</div>
               </div>
               <div>
-                <span className="text-[10px] text-muted-foreground uppercase">Grid → Finish</span>
-                <div className="font-bold text-foreground tabular-nums truncate" title={formatRaceOutcome(stat.driver.status, stat.driver.positionText, stat.finishPosition)}>
+                <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">Grid → Finish</span>
+                <div className="font-bold text-white tabular-nums truncate" title={formatRaceOutcome(stat.driver.status, stat.driver.positionText, stat.finishPosition)}>
                   P{stat.gridPosition} → {formatRaceOutcome(stat.driver.status, stat.driver.positionText, stat.finishPosition)}
                 </div>
               </div>
@@ -335,15 +335,15 @@ export function PaceComparison({
       </div>
 
       {/* Lap Time Progression Line Chart (SVG) */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-2">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="font-bold text-foreground uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-            <TrendingUp className="size-3.5 text-primary" />
+      <div className="rounded-xl border border-white/10 bg-zinc-900/30 p-4 space-y-2">
+        <div className="flex items-center justify-between text-xs font-mono">
+          <span className="font-bold text-zinc-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+            <TrendingUp className="size-3.5 text-red-500" />
             Lap Time Progression (Seconds)
           </span>
         </div>
 
-        <div className="w-full overflow-x-auto custom-scrollbar">
+        <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
           <svg
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
             className="w-full h-auto min-w-[620px]"
@@ -370,7 +370,7 @@ export function PaceComparison({
                     textAnchor="end"
                     fontSize="9"
                     fontFamily="monospace"
-                    fill="#71717a"
+                    fill="#a1a1aa"
                   >
                     {formatSecondsToLapTime(sec).split('.')[0]}
                   </text>
@@ -437,7 +437,7 @@ export function PaceComparison({
                   textAnchor="middle"
                   fontSize="9"
                   fontFamily="monospace"
-                  fill="#71717a"
+                  fill="#a1a1aa"
                 >
                   L{lap}
                 </text>
@@ -448,11 +448,11 @@ export function PaceComparison({
       </div>
 
       {/* Real Stint Evolution Derived from Pit Stops & OpenF1 */}
-      <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-4 space-y-3">
+      <div className="rounded-xl border border-white/10 bg-zinc-900/20 p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <div className="flex items-center gap-2">
-            <Disc className="size-4 text-muted-foreground" />
-            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+            <Disc className="size-4 text-zinc-400" />
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
               Stint Evolution & Tyre Strategy
             </span>
           </div>
@@ -547,13 +547,13 @@ export function PaceComparison({
 
             return (
               <div key={`stint-${d.driverId}`} className="flex items-center gap-3">
-                <span className="w-12 text-xs font-mono font-bold text-foreground shrink-0 flex items-center gap-1">
+                <span className="w-12 text-xs font-mono font-bold text-white shrink-0 flex items-center gap-1">
                   <span className="size-1.5 rounded-full inline-block" style={{ backgroundColor: theme.primary }} />
                   {d.code}
                 </span>
 
                 {/* Stint Segments */}
-                <div className="flex-1 h-6 rounded-md bg-zinc-950 flex overflow-hidden border border-zinc-800 font-mono text-[10px]">
+                <div className="flex-1 h-6 rounded-md bg-zinc-950 flex overflow-hidden border border-white/10 font-mono text-[10px]">
                   {stints.map((stint, idx) => {
                     const compound = stint.compound?.toUpperCase();
                     const isSoft = compound === 'SOFT';

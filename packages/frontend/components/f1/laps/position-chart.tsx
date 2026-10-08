@@ -113,7 +113,10 @@ export function PositionChart({
   // Zoom scale state for touch pinch-to-zoom and precision inspection (1.0x to 3.0x)
   const [zoomScale, setZoomScale] = useState(1);
   const zoomScaleRef = useRef(1);
-  zoomScaleRef.current = zoomScale;
+
+  useEffect(() => {
+    zoomScaleRef.current = zoomScale;
+  }, [zoomScale]);
 
   // Touch pinch-to-zoom & double-tap zoom for mobile devices
   useEffect(() => {
@@ -310,7 +313,7 @@ export function PositionChart({
     }
 
     return lines;
-  }, [drivers, lapsData, pitMap, getX, getY, totalLaps]);
+  }, [drivers, lapsData, pitMap, getX, getY, maxPosition]);
 
   // X-axis lap ticks (Lap 0 Grid, then regular intervals)
   const lapTicks = useMemo(() => {
@@ -371,27 +374,27 @@ export function PositionChart({
   return (
     <div
       className={cn(
-        'rounded-xl border border-zinc-800 bg-zinc-950/80 p-3 sm:p-4 shadow-lg flex flex-col justify-between relative overflow-hidden',
+        'rounded-2xl border border-white/10 bg-zinc-950/90 p-3 sm:p-4 shadow-xl flex flex-col justify-between relative overflow-hidden',
         isFullscreen ? 'h-full' : 'space-y-2'
       )}
     >
       {/* Chart Title & Hint */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900 pb-2 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-2.5 shrink-0">
         <div>
-          <h3 className="text-xs sm:text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
+          <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
             <span>Lap Chart</span>
           </h3>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-mono">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-300 font-mono">
           <span className="flex items-center gap-1 font-medium">
             <span className="size-2.5 rounded-full bg-amber-400 border border-zinc-950 inline-block shadow-xs" /> Pit Stop
           </span>
           <span className="flex items-center gap-1 font-medium">
-            <span className="size-2.5 rounded-full bg-blue-400 border border-zinc-950 inline-block shadow-xs" /> Lapped
+            <span className="size-2.5 rounded-full bg-sky-400 border border-zinc-950 inline-block shadow-xs" /> Lapped
           </span>
           <span className="flex items-center gap-1 font-medium">
-            <X className="size-3 text-red-400 stroke-[3]" /> DNF
+            <X className="size-3 text-rose-400 stroke-[3]" /> DNF
           </span>
 
           {effectiveEvents.some((e) => e.type === 'safety_car') && (
@@ -405,8 +408,8 @@ export function PositionChart({
             </span>
           )}
           {effectiveEvents.some((e) => e.type === 'red_flag') && (
-            <span className="flex items-center gap-1 font-medium text-red-300">
-              <Flag className="size-3.5 text-red-500 fill-red-500/20" /> Red Flag
+            <span className="flex items-center gap-1 font-medium text-rose-300">
+              <Flag className="size-3.5 text-rose-500 fill-rose-500/20" /> Red Flag
             </span>
           )}
           {fastestLapDriver?.fastestLap && (
@@ -416,14 +419,14 @@ export function PositionChart({
           )}
 
           {/* Zoom controls */}
-          <div className="flex items-center gap-0.5 bg-zinc-900/80 border border-zinc-800 rounded-md p-0.5 shadow-xs">
+          <div className="flex items-center gap-0.5 bg-zinc-900 border border-white/10 rounded-lg p-0.5 shadow-xs">
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => setZoomScale((s) => Math.max(1, Number((s - 0.25).toFixed(2))))}
               disabled={zoomScale <= 1}
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              className="h-6 w-6 p-0 text-zinc-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
               title="Zoom Out"
             >
               <ZoomOut className="size-3" />
@@ -437,7 +440,7 @@ export function PositionChart({
               size="sm"
               onClick={() => setZoomScale((s) => Math.min(3, Number((s + 0.25).toFixed(2))))}
               disabled={zoomScale >= 3}
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              className="h-6 w-6 p-0 text-zinc-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
               title="Zoom In (Pinch on Mobile)"
             >
               <ZoomIn className="size-3" />
@@ -448,7 +451,7 @@ export function PositionChart({
                 variant="ghost"
                 size="sm"
                 onClick={() => setZoomScale(1)}
-                className="h-6 px-1.5 text-[10px] font-mono text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1"
+                className="h-6 px-1.5 text-[10px] font-mono font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1"
                 title="Reset Zoom"
               >
                 <RotateCcw className="size-3" />
@@ -463,7 +466,7 @@ export function PositionChart({
               size="sm"
               onClick={onToggleFullscreen}
               title={isFullscreen ? "Exit Fullscreen (Esc)" : "Fullscreen"}
-              className="h-7 px-2.5 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-muted-foreground hover:text-foreground text-xs gap-1.5 ml-1 font-medium"
+              className="h-7 px-2.5 border-white/10 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs gap-1.5 ml-1 font-mono font-bold uppercase rounded-lg"
             >
               {isFullscreen ? (
                 <>
@@ -925,36 +928,36 @@ export function PositionChart({
           {/* Floating Hover Tooltip positioned accurately in zoom coordinate space */}
           {hoveredPoint && (
             <div
-              className="absolute z-20 pointer-events-none rounded-lg border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-xl text-xs font-mono backdrop-blur-sm -translate-x-1/2 -translate-y-full -mt-2.5 pointer-events-none"
+              className="absolute z-20 pointer-events-none rounded-xl border border-white/15 bg-zinc-950/95 p-3 shadow-2xl text-xs font-mono backdrop-blur-md -translate-x-1/2 -translate-y-full -mt-2.5 pointer-events-none"
               style={{
                 left: `${hoveredPoint.x}px`,
                 top: `${hoveredPoint.y}px`,
               }}
             >
-              <div className="flex items-center gap-2 font-bold text-foreground">
+              <div className="flex items-center gap-2 font-black font-mono text-white">
                 <span
-                  className="size-2 rounded-full inline-block"
+                  className="size-2 rounded-full inline-block shrink-0"
                   style={{ backgroundColor: hoveredPoint.color }}
                 />
-                <span>{hoveredPoint.name} ({hoveredPoint.code})</span>
+                <span className="uppercase tracking-wider">{hoveredPoint.name}</span>
               </div>
-              <div className="text-muted-foreground mt-1 space-y-0.5 text-[11px]">
+              <div className="text-zinc-400 mt-1.5 space-y-0.5 text-[11px]">
                 <div>
                   {hoveredPoint.lap === 0 ? 'Starting Grid' : `Lap ${hoveredPoint.lap}`} ·{' '}
-                  <span className="font-bold text-foreground">P{hoveredPoint.position}</span>
+                  <span className="font-bold text-white">P{hoveredPoint.position}</span>
                 </div>
                 <div>
                   {hoveredPoint.lap === 0 ? (
                     <span className="text-zinc-400">Grid Slot {hoveredPoint.position}</span>
                   ) : (
-                    <>Time: <span className="text-zinc-300">{hoveredPoint.time}</span></>
+                    <>Time: <span className="text-zinc-200 font-bold">{hoveredPoint.time}</span></>
                   )}
                 </div>
                 {hoveredPoint.pitStop && (
-                  <div className="flex items-center gap-1.5 text-amber-300 font-semibold bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 mt-1 text-[10px]">
+                  <div className="flex items-center gap-1.5 text-amber-300 font-bold bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 mt-1 text-[10px]">
                     <span className="size-2 rounded-full bg-amber-400 inline-block shadow-xs" />
                     <span>Pit Stop #{hoveredPoint.pitStop.stop}:</span>
-                    <span className="font-mono text-foreground font-bold">
+                    <span className="font-mono text-white font-bold">
                       {hoveredPoint.pitStop.duration}s
                     </span>
                     {hoveredPoint.pitStop.time && (
@@ -965,12 +968,12 @@ export function PositionChart({
                   </div>
                 )}
                 {hoveredPoint.isDnf && (
-                  <div className="text-red-400 font-bold">
+                  <div className="text-rose-400 font-bold">
                     DNF · {hoveredPoint.dnfStatus}
                   </div>
                 )}
                 {hoveredPoint.isLapped && (
-                  <div className="text-blue-400 font-medium">
+                  <div className="text-sky-400 font-medium">
                     {hoveredPoint.lappedStatus}
                   </div>
                 )}
