@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, SkipBack, SkipForward, FastForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,11 @@ export function PlaybackControls({
   onSpeedChange,
   disabled = false,
 }: PlaybackControlsProps) {
+  const currentLapRef = useRef(currentLap);
+  useEffect(() => {
+    currentLapRef.current = currentLap;
+  }, [currentLap]);
+
   // Keyboard navigation shortcuts
   useEffect(() => {
     if (disabled) return;
@@ -43,10 +48,10 @@ export function PlaybackControls({
         onPlayToggle();
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
-        onLapChange(Math.max(0, currentLap - 1));
+        onLapChange(Math.max(0, currentLapRef.current - 1));
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
-        onLapChange(Math.min(totalLaps, currentLap + 1));
+        onLapChange(Math.min(totalLaps, currentLapRef.current + 1));
       } else if (e.code === 'Home') {
         e.preventDefault();
         onLapChange(0);
@@ -58,7 +63,7 @@ export function PlaybackControls({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentLap, totalLaps, onPlayToggle, onLapChange, disabled]);
+  }, [totalLaps, onPlayToggle, onLapChange, disabled]);
 
   const progressPercent = totalLaps > 0 ? (currentLap / totalLaps) * 100 : 0;
 

@@ -60,24 +60,22 @@ export function LapChartPageContent({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen]);
 
-  // Playback timer loop with auto-stop on race finish
+  // Playback timer loop
   useEffect(() => {
     if (!isPlaying) return;
 
     const intervalMs = Math.max(200, Math.round(1000 / playbackSpeed));
     const timer = setInterval(() => {
-      setCurrentLap((prev) => {
-        const next = prev + 1;
-        if (next >= totalLaps) {
-          setIsPlaying(false);
-          return totalLaps;
-        }
-        return next;
-      });
+      setCurrentLap((prev) => (prev >= totalLaps ? totalLaps : prev + 1));
     }, intervalMs);
 
     return () => clearInterval(timer);
   }, [isPlaying, playbackSpeed, totalLaps]);
+
+  // Auto-stop playback when race ends (adjusted during render per React guidelines)
+  if (isPlaying && currentLap >= totalLaps) {
+    setIsPlaying(false);
+  }
 
   const handlePlayToggle = useCallback(() => {
     if (currentLap >= totalLaps && !isPlaying) {

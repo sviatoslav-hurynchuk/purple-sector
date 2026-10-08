@@ -19,6 +19,8 @@ let timer: NodeJS.Timeout | null = null;
 function subscribe(callback: () => void) {
   listeners.add(callback);
   if (!timer) {
+    currentNowMs = Date.now();
+    callback();
     timer = setInterval(() => {
       currentNowMs = Date.now();
       listeners.forEach((listener) => listener());

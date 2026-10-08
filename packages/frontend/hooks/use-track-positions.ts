@@ -50,9 +50,20 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
   const [error, setError] = useState<string | null>(null);
 
   const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
 
-  const fetchPositions = useCallback(async () => {
+  const [prevSessionKey, setPrevSessionKey] = useState(sessionKey);
+  if (prevSessionKey !== sessionKey) {
+    setPrevSessionKey(sessionKey);
+    setLocations(new Map());
+    setRawSamples([]);
+    setError(null);
+    setIsLoading(Boolean(sessionKey && enabled));
+  }
+
+  const fetchPositions = useCallback(async (explicitRequestId?: number) => {
     if (!sessionKey || !enabled) return;
+    const currentRequestId = explicitRequestId ?? ++requestIdRef.current;
 
     try {
       const queryParams = new URLSearchParams({
@@ -64,7 +75,7 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
         `/api/live/map/positions?${queryParams.toString()}`
       );
 
-      if (isMountedRef.current && res?.locations) {
+      if (isMountedRef.current && requestIdRef.current === currentRequestId && res?.locations) {
         setRawSamples(res.locations);
 
         // Group by driver and find the most recent sample
@@ -86,16 +97,15 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
         setError(null);
       }
     } catch (err) {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestIdRef.current === currentRequestId) {
         setError(err instanceof Error ? err.message : 'Failed to fetch car positions');
       }
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestIdRef.current === currentRequestId) {
         setIsLoading(false);
       }
     }
   }, [sessionKey, windowSeconds, enabled]);
-
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -104,8 +114,14 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
       return;
     }
 
-    const initTimer = setTimeout(fetchPositions, 0);
-    const interval = setInterval(fetchPositions, pollIntervalMs);
+    const initTimer = setTimeout(() => {
+      fetchPositions();
+    }, 0);
+
+    const interval = setInterval(() => {
+      fetchPositions();
+    }, pollIntervalMs);
+
     return () => {
       clearTimeout(initTimer);
       clearInterval(interval);
