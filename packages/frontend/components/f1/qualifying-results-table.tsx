@@ -62,7 +62,10 @@ export function QualifyingResultsTable({ results }: QualifyingResultsTableProps)
                         const theme = getTeamTheme(result.Constructor.constructorId);
                         const best = getDriverBestTime(result);
                         const bestSec = best ? parseTimeToSeconds(best.time) : null;
-                        const gapSec = bestSec && poleSec ? bestSec - poleSec : null;
+                        const gapSec =
+                            bestSec && poleSec && best?.phase === poleBest?.phase
+                                ? bestSec - poleSec
+                                : null;
 
                         return (
                             <tr
