@@ -5,7 +5,7 @@ import type { TeammatePairBattle } from '@/types/f1';
 import { TeamLogo } from '@/components/f1/team-logo';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { getTeamTheme } from '@/lib/team-colors';
-import { Swords, Zap, Trophy, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DominanceMatrixProps {

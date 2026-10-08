@@ -36,6 +36,8 @@ interface UseLiveTelemetryReturn {
   refetch: () => Promise<void>;
 }
 
+const EMPTY_SAMPLES: CarTelemetrySample[] = [];
+
 export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLiveTelemetryReturn {
   const {
     sessionKey,
@@ -118,23 +120,23 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
     }
   }, [sessionKey, driverNumber, compareDriverNumber, lapNumber, windowSeconds, enabled]);
 
+
   useEffect(() => {
     isMountedRef.current = true;
-    const currentRequestId = ++requestIdRef.current;
 
     if (!driverNumber || !sessionKey || !enabled) {
-      setSamples([]);
-      setCompareSamples([]);
-      setError(null);
-      setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setSamples([]);
-    setCompareSamples([]);
-    setError(null);
-    fetchTelemetry(currentRequestId);
+    const currentRequestId = ++requestIdRef.current;
+
+    const initTimer = setTimeout(() => {
+      setSamples([]);
+      setCompareSamples([]);
+      setError(null);
+      setIsLoading(true);
+      fetchTelemetry(currentRequestId);
+    }, 0);
 
     // Only poll continuously if not viewing a specific static completed lap
     if (!lapNumber) {
@@ -143,23 +145,25 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}): UseLive
       }, pollIntervalMs);
 
       return () => {
+        clearTimeout(initTimer);
         clearInterval(interval);
-        requestIdRef.current++;
         isMountedRef.current = false;
       };
     }
 
     return () => {
-      requestIdRef.current++;
+      clearTimeout(initTimer);
       isMountedRef.current = false;
     };
   }, [sessionKey, driverNumber, compareDriverNumber, lapNumber, enabled, pollIntervalMs, fetchTelemetry]);
 
+  const isActive = Boolean(sessionKey && driverNumber && enabled);
+
   return {
-    samples,
-    compareSamples,
-    isLoading,
-    error,
+    samples: isActive ? samples : EMPTY_SAMPLES,
+    compareSamples: isActive ? compareSamples : EMPTY_SAMPLES,
+    isLoading: isActive ? isLoading : false,
+    error: isActive ? error : null,
     refetch: fetchTelemetry,
   };
 }

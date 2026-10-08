@@ -15,15 +15,21 @@ export function PreloadedContent({
   children,
   maxWaitMs = 1500,
 }: PreloadedContentProps) {
-  const [isReady, setIsReady] = useState(false);
+  const hasValidUrls = imageUrls.some(Boolean);
+  const [isReady, setIsReady] = useState(!hasValidUrls);
+
+  const urlsKey = imageUrls.join(',');
+  const [prevUrlsKey, setPrevUrlsKey] = useState(urlsKey);
+  if (prevUrlsKey !== urlsKey) {
+    setPrevUrlsKey(urlsKey);
+    setIsReady(!hasValidUrls);
+  }
 
   useEffect(() => {
-    setIsReady(false);
     let isCancelled = false;
 
     const validUrls = Array.from(new Set(imageUrls.filter(Boolean)));
     if (validUrls.length === 0) {
-      setIsReady(true);
       return;
     }
 

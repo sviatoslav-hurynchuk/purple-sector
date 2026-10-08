@@ -33,6 +33,9 @@ interface UseTrackPositionsReturn {
   refetch: () => Promise<void>;
 }
 
+const EMPTY_LOCATIONS = new Map<number, DriverLatestLocation>();
+const EMPTY_SAMPLES: CarLocationSample[] = [];
+
 export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTrackPositionsReturn {
   const {
     sessionKey,
@@ -93,30 +96,30 @@ export function useTrackPositions(options: UseTrackPositionsOptions = {}): UseTr
     }
   }, [sessionKey, windowSeconds, enabled]);
 
+
   useEffect(() => {
     isMountedRef.current = true;
 
     if (!sessionKey || !enabled) {
-      setLocations(new Map());
-      setRawSamples([]);
       return;
     }
 
-    setIsLoading(true);
-    fetchPositions();
-
+    const initTimer = setTimeout(fetchPositions, 0);
     const interval = setInterval(fetchPositions, pollIntervalMs);
     return () => {
+      clearTimeout(initTimer);
       clearInterval(interval);
       isMountedRef.current = false;
     };
   }, [sessionKey, enabled, pollIntervalMs, fetchPositions]);
 
+  const isActive = Boolean(sessionKey && enabled);
+
   return {
-    locations,
-    rawSamples,
-    isLoading,
-    error,
+    locations: isActive ? locations : EMPTY_LOCATIONS,
+    rawSamples: isActive ? rawSamples : EMPTY_SAMPLES,
+    isLoading: isActive ? isLoading : false,
+    error: isActive ? error : null,
     refetch: fetchPositions,
   };
 }
