@@ -12,7 +12,14 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+    searchParams?: Promise<{ mockScheduleChange?: string; mock?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+    const sp = await searchParams;
+    const mockParam = sp?.mockScheduleChange || sp?.mock;
+
     return (
         <div className="space-y-4 sm:space-y-5">
             <h1 className="sr-only">Formula 1 Dashboard</h1>
@@ -24,7 +31,7 @@ export default function DashboardPage() {
             </div>
 
             <Suspense fallback={<NextRaceSkeleton />}>
-                <NextRaceSection />
+                <NextRaceSection mockParam={mockParam} />
             </Suspense>
 
             <Suspense fallback={<StandingsSkeleton />}>

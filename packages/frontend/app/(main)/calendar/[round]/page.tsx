@@ -20,7 +20,7 @@ export async function generateStaticParams() {
 
 interface RaceDetailPageProps {
     params: Promise<{ round: string }>;
-    searchParams: Promise<{ season?: string }>;
+    searchParams: Promise<{ season?: string; mockScheduleChange?: string; mock?: string }>;
 }
 
 export async function generateMetadata({ params, searchParams }: RaceDetailPageProps): Promise<Metadata> {

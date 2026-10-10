@@ -15,8 +15,17 @@ export function useLiveNextRace(initialRace?: Race | null) {
     const sessionActive = isSessionActive(initialRace);
     const refreshInterval = sessionActive ? 10_000 : 60_000;
 
+    const mockParam = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('mockScheduleChange') ||
+          new URLSearchParams(window.location.search).get('mock')
+        : null;
+
+    const endpoint = mockParam
+        ? `/api/races/next?mockScheduleChange=${encodeURIComponent(mockParam)}`
+        : '/api/races/next';
+
     const { data, error, isLoading } = useSWR<Race>(
-        '/api/races/next',
+        endpoint,
         (path: string) => clientFetch<Race>(path),
         {
             fallbackData: initialRace ?? undefined,

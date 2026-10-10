@@ -22,6 +22,25 @@ export interface Circuit {
     };
 }
 
+// ── Session Schedule Overrides ──────────────────────────────────────────────
+
+export type SessionScheduleStatus = 'RESCHEDULED' | 'DELAYED' | 'POSTPONED' | 'CANCELLED';
+
+export interface SessionScheduleOverride {
+    sessionCode: 'P1' | 'P2' | 'P3' | 'QUALY' | 'SQ' | 'SPRINT' | 'RACE';
+    sessionName: string;
+    status: SessionScheduleStatus;
+    originalDate: string;
+    originalTime?: string;
+    revisedDate: string;
+    revisedTime?: string;
+    deltaMinutes: number;
+    reason?: string;
+    lastNotice?: string;
+    lastUpdated: string;
+    isCompleted?: boolean;
+}
+
 // ── Race ────────────────────────────────────────────────────────────────────
 
 export interface Race {
@@ -39,6 +58,7 @@ export interface Race {
     Sprint?: F1Session;
     SprintQualifying?: F1Session;
     SprintShootout?: F1Session;
+    scheduleOverrides?: SessionScheduleOverride[];
 }
 
 // ── Driver ──────────────────────────────────────────────────────────────────
@@ -474,6 +494,7 @@ export interface LiveSessionState {
     weather: WeatherSnapshot | null;
     isRestricted?: boolean;
     restrictionMessage?: string;
+    scheduleOverrides?: SessionScheduleOverride[];
 }
 
 // ── Telemetry & Track Coordinates ─────────────────────────────────────────────

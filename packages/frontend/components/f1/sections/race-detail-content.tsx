@@ -10,12 +10,14 @@ import type { Race } from '@/types/f1';
 
 interface RaceDetailContentProps {
     params: Promise<{ round: string }>;
-    searchParams: Promise<{ season?: string }>;
+    searchParams: Promise<{ season?: string; mockScheduleChange?: string; mock?: string }>;
 }
 
 export async function RaceDetailContent({ params, searchParams }: RaceDetailContentProps) {
     const { round } = await params;
-    const { season } = await searchParams;
+    const sp = await searchParams;
+    const season = sp?.season;
+    const mockParam = sp?.mockScheduleChange || sp?.mock;
 
     const parsedRound = parseRound(round);
     const maxYear = getMaxYear();
@@ -25,7 +27,7 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
         notFound();
     }
 
-    let race: Race | null = await getRaceDetail(year, parsedRound);
+    let race: Race | null = await getRaceDetail(year, parsedRound, mockParam);
 
     if (!race) {
         const schedule = await getRaceSchedule(year).catch(() => [] as Race[]);

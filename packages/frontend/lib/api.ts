@@ -139,12 +139,14 @@ export async function getRaceSchedule(season?: number): Promise<Race[]> {
 
 export async function getRaceDetail(
   season: number,
-  round: number
+  round: number,
+  mockParam?: string
 ): Promise<RaceResult | Race | null> {
   const currentYear = getCurrentYear();
   // Current season gets 1h revalidate; all non-current seasons (past & future) get 24h
   const revalidate = season === currentYear ? 3600 : 86400;
-  return apiFetchNullable<RaceResult | Race>(`/api/races/${season}/${round}`, revalidate);
+  const query = mockParam ? `?mockScheduleChange=${encodeURIComponent(mockParam)}` : '';
+  return apiFetchNullable<RaceResult | Race>(`/api/races/${season}/${round}${query}`, revalidate);
 }
 
 export async function getRacePitStops(
@@ -170,9 +172,10 @@ export async function getRaceLaps(
 
 // ── Next Race ────────────────────────────────────────────────────────────────
 
-export async function getNextRace(): Promise<Race | null> {
+export async function getNextRace(mockParam?: string): Promise<Race | null> {
+  const query = mockParam ? `?mockScheduleChange=${encodeURIComponent(mockParam)}` : '';
   // Revalidate every 30s — aligned with backend Redis TTL (20s-60s)
-  return apiFetchNullable<Race>('/api/races/next', 30);
+  return apiFetchNullable<Race>(`/api/races/next${query}`, 30);
 }
 
 // ── Drivers ──────────────────────────────────────────────────────────────────
