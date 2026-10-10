@@ -26,9 +26,17 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 /**
  * Checks if the backend API server is reachable.
  * Used by generateStaticParams to avoid build failures in CI/Vercel
- * when the backend server is not running during the static build phase.
+ * when the backend server is not running or under heavy load during the static build phase.
  */
 export async function isBackendReachable(): Promise<boolean> {
+  // In CI and Vercel build environments, skip build-time static pre-rendering.
+  // Burst-requesting 114+ pages against a remote backend during CI causes gateway timeouts
+  // (502 Bad Gateway) and Jolpica rate limits. Next.js ISR (revalidate) seamlessly renders
+  // and caches these dynamic pages on-demand at runtime.
+  if (process.env.VERCEL || process.env.CI || process.env.SKIP_SSG === 'true') {
+    return false;
+  }
+
   try {
     const res = await fetch(`${BACKEND_URL}/api/health`, {
       signal: AbortSignal.timeout(1500),
@@ -85,20 +93,26 @@ async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
 
 /**
  * Fetches a resource that may not exist (e.g. 404).
- * Returns null only on 404. Throws on other non-2xx responses or network failures.
+ * Returns null on 404, server errors (500/502/503), or network failures.
  */
 async function apiFetchNullable<T>(path: string, revalidate = 60): Promise<T | null> {
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    next: { revalidate },
-  });
+  try {
+    const res = await fetch(`${BACKEND_URL}${path}`, {
+      next: { revalidate },
+    });
 
-  if (res.status === 404) return null;
+    if (res.status === 404) return null;
 
-  if (!res.ok) {
-    throw new Error(`Backend API error: ${res.status} ${res.statusText} — ${path}`);
+    if (!res.ok) {
+      console.warn(`[apiFetchNullable] Backend API returned ${res.status} ${res.statusText} for ${path}`);
+      return null;
+    }
+
+    return (await res.json()) as T;
+  } catch (err) {
+    console.warn(`[apiFetchNullable] Network/fetch error for ${path}:`, err instanceof Error ? err.message : err);
+    return null;
   }
-
-  return (await res.json()) as T;
 }
 
 // ── Standings ────────────────────────────────────────────────────────────────

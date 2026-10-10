@@ -35,7 +35,7 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
   // Lean parallel fetch: constructor profile and season standings
   const [profile, constructorStandings, driverStandings] = await Promise.all([
-    getConstructorProfile(constructorId),
+    getConstructorProfile(constructorId).catch(() => null),
     getConstructorStandings(currentYear).catch(() => [] as ConstructorStanding[]),
     getDriverStandings(currentYear).catch(() => [] as DriverStanding[]),
   ]);
