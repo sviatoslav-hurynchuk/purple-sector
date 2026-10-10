@@ -1,4 +1,4 @@
-import type { Race, F1Session } from '@/types/f1';
+import type { Race, F1Session, SessionScheduleOverride } from '@/types/f1';
 
 export interface TargetSessionInfo {
   code: string;       // e.g. 'P1', 'P2', 'P3', 'QUALY', 'SQ', 'SPRINT', 'RACE'
@@ -6,13 +6,14 @@ export interface TargetSessionInfo {
   rawDate: Date;      // Start date/time of session
   isOngoing: boolean; // True if session currently in progress
   durationMinutes: number;
+  override?: SessionScheduleOverride;
 }
 
 export function getNextSessionForRace(race: Race, now: Date = new Date()): TargetSessionInfo | null {
   const isRaceFinished = 'Results' in race && Array.isArray(race.Results) && race.Results.length > 0;
 
   const sessionList: Array<{
-    code: string;
+    code: 'P1' | 'P2' | 'P3' | 'SQ' | 'SPRINT' | 'QUALY' | 'RACE';
     name: string;
     session?: F1Session;
     durationMinutes: number;
@@ -26,17 +27,28 @@ export function getNextSessionForRace(race: Race, now: Date = new Date()): Targe
     { code: 'RACE', name: 'RACE', session: { date: race.date, time: race.time }, durationMinutes: 180 },
   ];
 
-  const validSessions: Array<{ code: string; name: string; rawDate: Date; durationMinutes: number }> = [];
+  const validSessions: Array<{
+    code: string;
+    name: string;
+    rawDate: Date;
+    durationMinutes: number;
+    override?: SessionScheduleOverride;
+  }> = [];
 
   for (const item of sessionList) {
     if (!item.session) continue;
 
+    const override = race.scheduleOverrides?.find((o) => o.sessionCode === item.code);
+
     let rawDate: Date;
-    if (item.session.time) {
-      const cleanTime = item.session.time.endsWith('Z') ? item.session.time : `${item.session.time}Z`;
-      rawDate = new Date(`${item.session.date}T${cleanTime}`);
+    const dateSource = override?.revisedDate ?? item.session.date;
+    const timeSource = override?.revisedTime ?? item.session.time;
+
+    if (timeSource) {
+      const cleanTime = timeSource.endsWith('Z') ? timeSource : `${timeSource}Z`;
+      rawDate = new Date(`${dateSource}T${cleanTime}`);
     } else {
-      rawDate = new Date(`${item.session.date}T12:00:00Z`);
+      rawDate = new Date(`${dateSource}T12:00:00Z`);
     }
 
     if (isNaN(rawDate.getTime())) continue;
@@ -46,6 +58,7 @@ export function getNextSessionForRace(race: Race, now: Date = new Date()): Targe
       name: item.name,
       rawDate,
       durationMinutes: item.durationMinutes,
+      override,
     });
   }
 
@@ -65,6 +78,7 @@ export function getNextSessionForRace(race: Race, now: Date = new Date()): Targe
         rawDate: s.rawDate,
         isOngoing: true,
         durationMinutes: s.durationMinutes,
+        override: s.override,
       };
     }
   }
@@ -79,6 +93,7 @@ export function getNextSessionForRace(race: Race, now: Date = new Date()): Targe
         rawDate: s.rawDate,
         isOngoing: false,
         durationMinutes: s.durationMinutes,
+        override: s.override,
       };
     }
   }

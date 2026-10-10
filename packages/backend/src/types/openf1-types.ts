@@ -33,6 +33,7 @@ export interface OpenF1Session {
   date_start: string;
   date_end: string;
   gmt_offset: string;
+  is_cancelled?: boolean;
 }
 
 export interface OpenF1Driver {

@@ -14,7 +14,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { cn, formatDateInTimezone } from '@/lib/utils';
 import { RaceResultsTable } from '@/components/f1/race-results-table';
 import { QualifyingResultsTable } from '@/components/f1/qualifying-results-table';
-import { ChevronDown, Calendar } from 'lucide-react';
+import { ChevronDown, Calendar, AlertTriangle } from 'lucide-react';
 import {
   TelemetryRibbon,
   TelemetryRibbonCell,
@@ -310,6 +310,17 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
             const isRace = item.id === 'race';
             const isSprint = item.id === 'sprint';
             const isQualy = item.id === 'qualifying';
+            const sessionOverride = race.scheduleOverrides?.find((o) => {
+              if (isRace) return o.sessionCode === 'RACE';
+              if (isSprint) return o.sessionCode === 'SPRINT';
+              if (isQualy) return o.sessionCode === 'QUALY';
+              if (item.id === 'fp1') return o.sessionCode === 'P1';
+              if (item.id === 'fp2') return o.sessionCode === 'P2';
+              if (item.id === 'fp3') return o.sessionCode === 'P3';
+              if (item.id === 'sprint_qualifying' || item.id === 'sprint_shootout') return o.sessionCode === 'SQ';
+              return false;
+            });
+
             const resultData = getResultsForSession(race, item.id);
             const hasSessionResults = !!resultData && resultData.data.length > 0;
             const completed = isSessionCompleted(item, now, hasSessionResults);
@@ -359,22 +370,51 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-                      <span
-                        className={cn(
-                          'text-sm sm:text-base font-black font-mono tracking-wide uppercase',
-                          isRace ? 'text-red-400' : 'text-zinc-100'
-                        )}
-                      >
-                        {item.name}
-                      </span>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                        <span
+                          className={cn(
+                            'text-sm sm:text-base font-black font-mono tracking-wide uppercase',
+                            isRace ? 'text-red-400' : 'text-zinc-100'
+                          )}
+                        >
+                          {item.name}
+                        </span>
 
-                      {/* Completed: inline time + Checkered Flag */}
-                      {completed && (
-                        <div className="flex items-center gap-1.5 font-mono font-bold text-xs tabular-nums text-zinc-400">
-                          <span>{item.timeString}</span>
-                          <CheckeredFlagIcon className="size-3.5 text-zinc-400" />
-                        </div>
+                        {/* Schedule Override Badge (Only when not completed) */}
+                        {sessionOverride && !completed && !sessionOverride.isCompleted && (
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider',
+                              sessionOverride.status === 'DELAYED'
+                                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                                : 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
+                            )}
+                            title={sessionOverride.reason}
+                          >
+                            <AlertTriangle className="size-2.5" />
+                            <span>
+                              {sessionOverride.status === 'DELAYED'
+                                ? `DELAYED ${sessionOverride.deltaMinutes > 0 ? `+${sessionOverride.deltaMinutes}M` : ''}`
+                                : 'REVISED'}
+                            </span>
+                          </span>
+                        )}
+
+                        {/* Completed: inline time + Checkered Flag */}
+                        {completed && (
+                          <div className="flex items-center gap-1.5 font-mono font-bold text-xs tabular-nums text-zinc-400">
+                            <span>{item.timeString}</span>
+                            <CheckeredFlagIcon className="size-3.5 text-zinc-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Schedule Override Reason */}
+                      {sessionOverride?.reason && !completed && !sessionOverride.isCompleted && (
+                        <p className="text-[10px] font-mono text-amber-300/90 truncate max-w-md" title={sessionOverride.reason}>
+                          {sessionOverride.reason}
+                        </p>
                       )}
                     </div>
                   </div>

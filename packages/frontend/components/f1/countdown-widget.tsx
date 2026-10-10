@@ -239,6 +239,20 @@ export function CountdownWidget({
             {nextSession.code}
           </span>
 
+          {nextSession.override && !nextSession.override.isCompleted && !nextSession.isOngoing && (
+            <span
+              className={cn(
+                'inline-flex items-center text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider',
+                nextSession.override.status === 'DELAYED'
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                  : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+              )}
+              title={nextSession.override.reason}
+            >
+              {nextSession.override.status === 'DELAYED' ? 'DELAYED' : 'REVISED'}
+            </span>
+          )}
+
           <div className="h-4 sm:h-5 w-px bg-zinc-700/80 mx-0.5" />
 
           {!isReady ? (

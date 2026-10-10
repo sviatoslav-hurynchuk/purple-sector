@@ -38,8 +38,12 @@ function subscribe(callback: () => void) {
 const getClientSnapshot = () => currentNowMs;
 const getServerSnapshot = () => null;
 
+export function useCurrentNowMs(): number | null {
+  return useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
+}
+
 export function useCountdown(targetDate?: Date | null): CountdownTime {
-  const nowMs = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
+  const nowMs = useCurrentNowMs();
 
   if (!targetDate || nowMs === null) {
     return {

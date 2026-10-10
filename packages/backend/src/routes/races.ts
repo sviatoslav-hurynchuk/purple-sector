@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getRaceSchedule, getRaceResult, getNextRace, isRaceWeekend, getRacePitStops, getRaceLaps } from '../services/jolpica';
+import { enrichRaceWithScheduleOverrides } from '../services/schedule-detector';
 
 const router: Router = Router();
 function getCurrentSeason(): string {
@@ -17,16 +18,19 @@ function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
  * GET /api/races/next
  * Returns the next upcoming race.
  * Placed BEFORE /:season to prevent matching "next" as a season parameter.
+ * Enriched with real-time FIA schedule revisions and delays.
  */
-router.get('/next', async (_req: Request, res: Response) => {
+router.get('/next', async (req: Request, res: Response) => {
   try {
+    const mockParam = (req.query.mockScheduleChange as string) || (req.query.mock as string);
     const race = await getNextRace();
     if (!race) {
       res.status(404).json({ error: 'No upcoming races found' });
       return;
     }
+    const enrichedRace = await enrichRaceWithScheduleOverrides(race, mockParam);
     setCacheHeaders(res, isRaceWeekend() ? 20 : 60);
-    res.json(race);
+    res.json(enrichedRace);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -57,6 +61,7 @@ router.get('/:season', async (req: Request, res: Response) => {
 router.get('/:season/:round', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
+    const mockParam = (req.query.mockScheduleChange as string) || (req.query.mock as string);
     const race = await getRaceResult(season, round);
 
     if (!race) {
@@ -65,8 +70,10 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
     }
 
     const hasResults = 'Results' in race && Array.isArray(race.Results) && race.Results.length > 0;
+    const enriched = hasResults && !mockParam ? race : await enrichRaceWithScheduleOverrides(race, mockParam);
+
     setCacheHeaders(res, hasResults ? 86400 : (isRaceWeekend() ? 60 : 300));
-    res.json(race);
+    res.json(enriched);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
