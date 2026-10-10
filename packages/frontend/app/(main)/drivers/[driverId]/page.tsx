@@ -59,7 +59,7 @@ export async function generateMetadata({ params }: DriverPageProps): Promise<Met
 
 export default async function DriverProfilePage({ params }: DriverPageProps) {
   const { driverId } = await params;
-  const profile = await getDriverProfile(driverId);
+  const profile = await getDriverProfile(driverId).catch(() => null);
 
   if (!profile) {
     notFound();
