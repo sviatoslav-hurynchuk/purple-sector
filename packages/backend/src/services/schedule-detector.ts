@@ -184,6 +184,18 @@ function buildMockScheduleOverrides(race: Race, scenario: string): SessionSchedu
 }
 
 /**
+ * Parses an OpenF1 GMT offset string (e.g. "+02:00", "-04:00:00", "08:00:00") into total minutes.
+ */
+function parseGmtOffsetToMinutes(offsetStr?: string): number {
+  if (!offsetStr) return 0;
+  const isNeg = offsetStr.startsWith('-');
+  const clean = offsetStr.replace(/^[+-]/, '');
+  const parts = clean.split(':').map((p) => parseInt(p, 10) || 0);
+  const totalMinutes = (parts[0] || 0) * 60 + (parts[1] || 0);
+  return isNeg ? -totalMinutes : totalMinutes;
+}
+
+/**
  * Detects discrepancies between Jolpica scheduled times and OpenF1 official times,
  * and parses FIA Race Control messages for real-time start delays.
  */
@@ -191,9 +203,10 @@ export async function detectScheduleOverrides(
   race: Race,
   mockScenario?: string
 ): Promise<SessionScheduleOverride[]> {
-  // If mock scenario requested, serve immediately without external API lookups
-  if (mockScenario) {
-    return buildMockScheduleOverrides(race, mockScenario);
+  // If mock scenario requested, serve immediately without external API lookups (dev only or explicit opt-in)
+  const mocksEnabled = process.env.NODE_ENV !== 'production' || process.env.ENABLE_SCHEDULE_MOCKS === 'true';
+  if (mocksEnabled && typeof mockScenario === 'string' && mockScenario.trim().length > 0) {
+    return buildMockScheduleOverrides(race, mockScenario.trim());
   }
 
   const seasonNum = parseInt(race.season, 10);
@@ -223,8 +236,16 @@ export async function detectScheduleOverrides(
     const jLoc = race.Circuit.Location.locality.toLowerCase();
     const jCountry = race.Circuit.Location.country.toLowerCase();
 
+    // Restrict meeting matching to the race weekend around jDate
+    const rTime = jDate ? new Date(`${jDate}T12:00:00Z`).getTime() : NaN;
+    const withinWeekend = (s: OpenF1Session) =>
+      !isNaN(rTime) &&
+      !!s.date_start &&
+      Math.abs(new Date(s.date_start).getTime() - rTime) <= 4 * 24 * 60 * 60 * 1000;
+
     // Find all OpenF1 sessions for this meeting
     let meetingSessions = openF1Sessions.filter((s) => {
+      if (!withinWeekend(s)) return false;
       const sCircuit = (s.circuit_short_name ?? '').toLowerCase();
       const sLoc = (s.location ?? '').toLowerCase();
       const sCountry = (s.country_name ?? '').toLowerCase();
@@ -236,14 +257,9 @@ export async function detectScheduleOverrides(
       );
     });
 
-    if (meetingSessions.length === 0 && jDate) {
+    if (meetingSessions.length === 0 && !isNaN(rTime)) {
       // Proximity fallback: within 4 days of main race date
-      const rTime = new Date(`${jDate}T12:00:00Z`).getTime();
-      meetingSessions = openF1Sessions.filter((s) => {
-        if (!s.date_start) return false;
-        const sTime = new Date(s.date_start).getTime();
-        return Math.abs(sTime - rTime) <= 4 * 24 * 60 * 60 * 1000;
-      });
+      meetingSessions = openF1Sessions.filter((s) => withinWeekend(s));
     }
 
     if (meetingSessions.length === 0) {
@@ -302,7 +318,7 @@ export async function detectScheduleOverrides(
               msg.includes('DELAYED') ||
               msg.includes('POSTPONED') ||
               msg.includes('ESTIMATED START TIME') ||
-              msg.includes('WEATHER')
+              (msg.includes('WEATHER') && (msg.includes('DELAY') || msg.includes('POSTPONE') || msg.includes('SUSPEND')))
             );
           });
 
@@ -313,13 +329,25 @@ export async function detectScheduleOverrides(
             reason = delayNotice.message;
 
             // If start delay message gives a specific revised time (e.g. "ESTIMATED START TIME 17:15")
-            const timeMatch = delayNotice.message.match(/(\d{1,2}):(\d{2})/);
+            const timeMatch = delayNotice.message.match(/ESTIMATED START TIME[:\s-]+(\d{1,2}):(\d{2})/i);
             if (timeMatch) {
               const estH = parseInt(timeMatch[1], 10);
               const estM = parseInt(timeMatch[2], 10);
-              // Estimate new start time matching day
-              const parsedDate = new Date(oStart);
-              parsedDate.setUTCHours(estH, estM, 0, 0);
+
+              // Convert track-local estimated start time to UTC using session gmt_offset
+              const offsetMinutes = parseGmtOffsetToMinutes(matchedOpenF1.gmt_offset);
+              const localTrackDate = new Date(oStart.getTime() + offsetMinutes * 60 * 1000);
+              const newUtcMs =
+                Date.UTC(
+                  localTrackDate.getUTCFullYear(),
+                  localTrackDate.getUTCMonth(),
+                  localTrackDate.getUTCDate(),
+                  estH,
+                  estM,
+                  0
+                ) - offsetMinutes * 60 * 1000;
+
+              const parsedDate = new Date(newUtcMs);
               const rcDeltaMs = parsedDate.getTime() - jStart.getTime();
               const rcDeltaMin = Math.round(rcDeltaMs / (60 * 1000));
               if (Math.abs(rcDeltaMin) > 0) {
