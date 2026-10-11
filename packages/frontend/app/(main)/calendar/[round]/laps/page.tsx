@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getRaceDetail, getRaceLaps, getRacePitStops, getRaceSchedule, getOpenF1RaceData, isBackendReachable } from '@/lib/api';
+import { getRaceDetail, getRaceLaps, getRacePitStops, getRaceSchedule, getOpenF1RaceData } from '@/lib/api';
 import { LapChartPageContent } from '@/components/f1/laps/lap-chart-page-content';
 import { RaceCockpitHeader } from '@/components/f1/race-cockpit-header';
 import { parseYear, parseRound, getMaxYear } from '@/lib/utils';
@@ -10,17 +10,6 @@ import type { Race, RaceResult } from '@/types/f1';
 import LapsLoading from './loading';
 
 export const revalidate = 3600;
-
-/** Pre-render all 24 championship rounds for instant SSG page loads */
-export async function generateStaticParams() {
-  if (!(await isBackendReachable())) {
-    return [];
-  }
-
-  return Array.from({ length: 24 }, (_, i) => ({
-    round: String(i + 1),
-  }));
-}
 
 interface LapsPageProps {
   params: Promise<{ round: string }>;
