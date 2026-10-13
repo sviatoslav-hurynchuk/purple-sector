@@ -100,10 +100,15 @@ export async function DriversContent({
   const year = parseYear(params.season, getMaxYear());
 
   // Fetch drivers and standings for the season in parallel
-  const [drivers, standings] = await Promise.all([
-    getSeasonDrivers(year).catch(() => [] as Driver[]),
+  const [driversResult, standings] = await Promise.all([
+    getSeasonDrivers(year)
+      .then((data) => ({ data, isError: false }))
+      .catch(() => ({ data: [] as Driver[], isError: true })),
     getDriverStandings(year).catch(() => [] as DriverStanding[]),
   ]);
+
+  const drivers = driversResult.data;
+  const isDriversUnavailable = driversResult.isError;
 
   // Build standings lookup by driverId
   const standingsMap = new Map<string, DriverStanding>(
@@ -317,7 +322,9 @@ export async function DriversContent({
         </PreloadedContent>
       ) : (
         <div className="py-16 text-center text-muted-foreground">
-          No driver data available for {year}.
+          {isDriversUnavailable
+            ? `Driver data temporarily unavailable for ${year}. Please try again later.`
+            : `No driver data available for ${year}.`}
         </div>
       )}
     </div>
