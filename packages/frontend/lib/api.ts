@@ -75,12 +75,57 @@ interface ConstructorsResponse {
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+const MAX_RETRIES = 2;
+const BASE_RETRY_DELAY_MS = 500;
+
+/**
+ * Resilient fetch wrapper with exponential backoff retry for transient network
+ * errors and server-side gateway/rate-limit errors (500, 502, 503, 504, 429).
+ */
+async function resilientFetch(
+  url: string,
+  options: RequestInit,
+  retries = MAX_RETRIES
+): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+
+      // Return immediately if successful or if error is a non-retryable client error (e.g. 400, 404)
+      if (res.ok || !RETRYABLE_STATUS_CODES.has(res.status) || attempt === retries) {
+        return res;
+      }
+
+      console.warn(
+        `[resilientFetch] HTTP ${res.status} for ${url}. Retrying (${attempt + 1}/${retries})...`
+      );
+    } catch (err) {
+      lastError = err;
+      if (attempt === retries) {
+        throw err;
+      }
+      console.warn(
+        `[resilientFetch] Network error for ${url}. Retrying (${attempt + 1}/${retries})...`,
+        err instanceof Error ? err.message : err
+      );
+    }
+
+    const backoff = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
+    await new Promise((resolve) => setTimeout(resolve, backoff));
+  }
+
+  throw lastError;
+}
+
 /**
  * Fetches a resource that is expected to exist.
- * Throws on any non-2xx response.
+ * Throws on any non-2xx response after retries.
  */
 async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
-  const res = await fetch(`${BACKEND_URL}${path}`, {
+  const res = await resilientFetch(`${BACKEND_URL}${path}`, {
     next: { revalidate },
   });
 
@@ -93,11 +138,11 @@ async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
 
 /**
  * Fetches a resource that may not exist (e.g. 404).
- * Returns null on 404, server errors (500/502/503), or network failures.
+ * Returns null on 404, server errors (500/502/503), or network failures after retries.
  */
 async function apiFetchNullable<T>(path: string, revalidate = 60): Promise<T | null> {
   try {
-    const res = await fetch(`${BACKEND_URL}${path}`, {
+    const res = await resilientFetch(`${BACKEND_URL}${path}`, {
       next: { revalidate },
     });
 

@@ -11,7 +11,7 @@ import { getTeamTheme } from '@/lib/team-colors';
 import { parseYear, getMaxYear, cn } from '@/lib/utils';
 import { PreloadedContent } from '@/components/f1/preloaded-content';
 import { ConstructorsPageSkeleton } from '@/components/f1/skeletons/constructors-page-skeleton';
-import type { DriverStanding, ConstructorStanding } from '@/types/f1';
+import type { DriverStanding, ConstructorStanding, Constructor } from '@/types/f1';
 
 interface ConstructorsContentProps {
   searchParams: Promise<{ season?: string }>;
@@ -101,14 +101,18 @@ export async function ConstructorsContent({
   const year = parseYear(params.season, getMaxYear());
 
   // Fetch constructors, driver standings, and constructor standings for the season in parallel
-  const [constructors, driverStandingsResult, constructorStandings] = await Promise.all([
-    getSeasonConstructors(year),
+  const [constructorsResult, driverStandingsResult, constructorStandings] = await Promise.all([
+    getSeasonConstructors(year)
+      .then((data) => ({ data, isError: false }))
+      .catch(() => ({ data: [] as Constructor[], isError: true })),
     getDriverStandings(year)
       .then((data) => ({ data, isError: false }))
       .catch(() => ({ data: [] as DriverStanding[], isError: true })),
     getConstructorStandings(year).catch(() => [] as ConstructorStanding[]),
   ]);
 
+  const constructors = constructorsResult.data;
+  const isConstructorsUnavailable = constructorsResult.isError;
   const driverStandings = driverStandingsResult.data;
   const isDriverStandingsUnavailable = driverStandingsResult.isError;
 
@@ -446,7 +450,9 @@ export async function ConstructorsContent({
         </PreloadedContent>
       ) : (
         <div className="rounded-3xl border border-white/10 bg-zinc-950 p-12 text-center text-sm font-mono text-zinc-400">
-          No constructor data available for season {year}.
+          {isConstructorsUnavailable
+            ? `Constructor data temporarily unavailable for season ${year}. Please try again later.`
+            : `No constructor data available for season ${year}.`}
         </div>
       )}
     </div>
