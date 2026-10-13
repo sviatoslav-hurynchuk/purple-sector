@@ -101,7 +101,7 @@ export async function DriversContent({
 
   // Fetch drivers and standings for the season in parallel
   const [drivers, standings] = await Promise.all([
-    getSeasonDrivers(year),
+    getSeasonDrivers(year).catch(() => [] as Driver[]),
     getDriverStandings(year).catch(() => [] as DriverStanding[]),
   ]);
 

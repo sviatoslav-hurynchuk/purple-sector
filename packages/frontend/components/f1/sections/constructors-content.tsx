@@ -11,7 +11,7 @@ import { getTeamTheme } from '@/lib/team-colors';
 import { parseYear, getMaxYear, cn } from '@/lib/utils';
 import { PreloadedContent } from '@/components/f1/preloaded-content';
 import { ConstructorsPageSkeleton } from '@/components/f1/skeletons/constructors-page-skeleton';
-import type { DriverStanding, ConstructorStanding } from '@/types/f1';
+import type { DriverStanding, ConstructorStanding, Constructor } from '@/types/f1';
 
 interface ConstructorsContentProps {
   searchParams: Promise<{ season?: string }>;
@@ -102,7 +102,7 @@ export async function ConstructorsContent({
 
   // Fetch constructors, driver standings, and constructor standings for the season in parallel
   const [constructors, driverStandingsResult, constructorStandings] = await Promise.all([
-    getSeasonConstructors(year),
+    getSeasonConstructors(year).catch(() => [] as Constructor[]),
     getDriverStandings(year)
       .then((data) => ({ data, isError: false }))
       .catch(() => ({ data: [] as DriverStanding[], isError: true })),
