@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { PieChart, AlertCircle, Wrench, ShieldAlert } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import type { ReliabilityCauseBreakdown } from '@/types/f1';
 
 interface CauseBreakdownCardProps {
@@ -12,31 +12,31 @@ interface CauseBreakdownCardProps {
 
 const CATEGORY_COLORS: Record<string, { fill: string; text: string; bg: string; border: string }> = {
   mechanical: {
-    fill: '#F59E0B', // Amber
+    fill: '#F59E0B',
     text: 'text-amber-400',
     bg: 'bg-amber-500/10',
     border: 'border-amber-500/20',
   },
   incident: {
-    fill: '#EF4444', // Red
+    fill: '#EF4444',
     text: 'text-rose-400',
     bg: 'bg-rose-500/10',
     border: 'border-rose-500/20',
   },
   retired: {
-    fill: '#64748B', // Slate
+    fill: '#94A3B8',
     text: 'text-slate-300',
     bg: 'bg-slate-500/10',
     border: 'border-slate-500/20',
   },
   dsq: {
-    fill: '#A855F7', // Purple
+    fill: '#A855F7',
     text: 'text-purple-400',
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/20',
   },
   dns: {
-    fill: '#71717A', // Zinc
+    fill: '#71717A',
     text: 'text-zinc-400',
     bg: 'bg-zinc-800',
     border: 'border-zinc-700',
@@ -48,123 +48,69 @@ export function CauseBreakdownCard({ causeBreakdown, season }: CauseBreakdownCar
   const totalFailures = categories.reduce((sum, c) => sum + c.count, 0);
 
   if (!categories || categories.length === 0 || totalFailures === 0) {
-    return (
-      <div className="rounded-3xl border border-white/10 bg-zinc-950 p-8 text-center text-zinc-400 font-mono text-sm">
-        No failure or retirement causes recorded for season {season}.
-      </div>
-    );
+    return null;
   }
 
-  // Calculate SVG Donut slices
-  let cumulativePercent = 0;
-  const radius = 40;
-  const circumference = 2 * Math.PI * radius;
+  // Adjust grid columns so fewer items expand naturally instead of leaving empty void
+  const gridColsClass =
+    detailedCauses.length <= 2
+      ? 'grid-cols-1 sm:grid-cols-2'
+      : detailedCauses.length <= 4
+        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+        : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* ── Left 1/3: Category Summary & Donut ────────────────────────────── */}
-      <div className="rounded-3xl border border-white/10 bg-zinc-950 p-5 sm:p-6 flex flex-col justify-between shadow-2xl">
-        <div>
-          <div className="flex items-center gap-2">
-            <PieChart className="size-4 text-emerald-400" />
-            <h3 className="text-sm font-black font-mono tracking-wider text-white uppercase">
-              Attrition Taxonomy
-            </h3>
-          </div>
-          <p className="text-xs font-mono text-zinc-400 mt-0.5">
-            Breakdown across {totalFailures} recorded non-finishes in {season}
-          </p>
+    <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
+      {/* ── Compact Cockpit Sub-Header (py-2.5) ── */}
+      <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 border-b border-white/10 bg-zinc-900/30">
+        <div className="flex items-center gap-2">
+          <Wrench className="size-4 text-amber-400 shrink-0" />
+          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
+            Attrition Taxonomy &amp; Root Causes
+          </span>
         </div>
-
-        {/* SVG Donut */}
-        <div className="py-6 flex flex-col items-center justify-center">
-          <div className="relative size-36 sm:size-40 flex items-center justify-center">
-            <svg viewBox="0 0 100 100" className="size-full -rotate-90">
-              <circle
-                cx="50"
-                cy="50"
-                r={radius}
-                className="stroke-zinc-900 fill-none"
-                strokeWidth="14"
-              />
-              {categories.map((cat) => {
-                const strokeDasharray = `${(cat.percentage / 100) * circumference} ${circumference}`;
-                const strokeDashoffset = -((cumulativePercent / 100) * circumference);
-                cumulativePercent += cat.percentage;
-                const color = CATEGORY_COLORS[cat.category]?.fill || '#71717A';
-
-                return (
-                  <circle
-                    key={cat.category}
-                    cx="50"
-                    cy="50"
-                    r={radius}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth="14"
-                    strokeDasharray={strokeDasharray}
-                    strokeDashoffset={strokeDashoffset}
-                    className="transition-all duration-500 hover:opacity-80"
-                  />
-                );
-              })}
-            </svg>
-            <div className="absolute flex flex-col items-center justify-center text-center">
-              <span className="text-2xl sm:text-3xl font-black font-mono text-white">
-                {totalFailures}
-              </span>
-              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
-                Outcomes
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="space-y-2 pt-2 border-t border-white/5">
-          {categories.map((cat) => {
-            const colors = CATEGORY_COLORS[cat.category] || CATEGORY_COLORS.retired;
-
-            return (
-              <div
-                key={cat.category}
-                className="flex items-center justify-between text-xs font-mono"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="size-2 rounded-full shrink-0"
-                    style={{ backgroundColor: colors.fill }}
-                  />
-                  <span className="text-zinc-300 truncate">{cat.label}</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-bold text-white">{cat.count}</span>
-                  <span className="text-zinc-500 text-[11px] w-10 text-right">
-                    {cat.percentage}%
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <span className="text-[11px] font-mono text-zinc-500">
+          {totalFailures} Recorded Outliers
+        </span>
       </div>
 
-      {/* ── Right 2/3: Specific Causes List ──────────────────────────────── */}
-      <div className="lg:col-span-2 rounded-3xl border border-white/10 bg-zinc-950 p-5 sm:p-6 shadow-2xl flex flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Wrench className="size-4 text-sky-400" />
-            <h3 className="text-sm font-black font-mono tracking-wider text-white uppercase">
-              Specific Failure Causes & Triggers
-            </h3>
+      <div className="p-4 sm:p-5 space-y-4">
+        {/* Proportional Segmented Telemetry Bar */}
+        <div className="space-y-2">
+          <div className="w-full h-2.5 bg-zinc-900 rounded-full overflow-hidden flex border border-white/10">
+            {categories.map((cat) => (
+              <div
+                key={cat.category}
+                style={{
+                  width: `${cat.percentage}%`,
+                  backgroundColor: CATEGORY_COLORS[cat.category]?.fill || '#71717A',
+                }}
+                className="h-full transition-all duration-300 first:rounded-l-full last:rounded-r-full"
+                title={`${cat.label}: ${cat.count} (${cat.percentage}%)`}
+              />
+            ))}
           </div>
-          <p className="text-xs font-mono text-zinc-400 mt-0.5">
-            Official FIA and team status classifications registered throughout the season
-          </p>
+
+          {/* Micro Legend Chips */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono">
+            {categories.map((cat) => {
+              const colors = CATEGORY_COLORS[cat.category] || CATEGORY_COLORS.retired;
+              return (
+                <div key={cat.category} className="flex items-center gap-1.5">
+                  <span
+                    className="size-2 rounded-xs shrink-0"
+                    style={{ backgroundColor: colors.fill }}
+                  />
+                  <span className="text-zinc-300">{cat.label}</span>
+                  <span className="font-bold text-white">({cat.count})</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Causes Grid / Table */}
-        <div className="mt-4 divide-y divide-white/5 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin">
+        {/* Dynamic Balanced Causes Grid */}
+        <div className={cn('grid gap-2.5 pt-2 border-t border-white/5', gridColsClass)}>
           {detailedCauses.map((item, idx) => {
             const colors = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.retired;
             const pct = ((item.count / totalFailures) * 100).toFixed(1);
@@ -172,48 +118,40 @@ export function CauseBreakdownCard({ causeBreakdown, season }: CauseBreakdownCar
             return (
               <div
                 key={`${item.cause}-${idx}`}
-                className="py-2.5 flex items-center justify-between gap-3 text-xs font-mono hover:bg-white/[0.01] transition-colors"
+                className="p-3 rounded-xl bg-zinc-900/40 border border-white/5 flex items-center justify-between text-xs font-mono hover:bg-white/[0.02] transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-5 text-right font-mono text-zinc-500 text-[11px] shrink-0">
-                    {idx + 1}.
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-zinc-500 font-bold w-4 text-right shrink-0">
+                    #{idx + 1}
                   </span>
-                  <span className="font-bold text-white truncate text-sm">
-                    {item.cause}
-                  </span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-white truncate text-xs sm:text-sm">
+                      {item.cause}
+                    </span>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                      {item.category}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={cn(
-                      'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border shrink-0',
+                      'px-2 py-0.5 rounded text-xs font-mono font-bold border',
                       colors.bg,
                       colors.text,
                       colors.border
                     )}
                   >
-                    {item.category}
+                    {item.count}
                   </span>
-                </div>
-
-                <div className="flex items-center gap-4 shrink-0">
-                  <span className="text-xs font-mono font-bold text-white">
-                    {item.count} {item.count === 1 ? 'incident' : 'incidents'}
-                  </span>
-                  <span className="text-xs font-mono text-zinc-500 w-12 text-right">
+                  <span className="text-zinc-400 text-xs font-mono w-10 text-right">
                     {pct}%
                   </span>
                 </div>
               </div>
             );
           })}
-        </div>
-
-        {/* Informative Note for Modern Seasons */}
-        <div className="mt-4 pt-3 border-t border-white/5 text-[11px] font-mono text-zinc-500 flex items-center gap-2">
-          <AlertCircle className="size-3.5 text-zinc-400 shrink-0" />
-          <span>
-            {season >= 2023
-              ? 'Modern FIA classifications (2023+) consolidate non-finishes as "Retired". For granular components (Engine/Gearbox), explore seasons up to 2022.'
-              : 'Historical seasons feature comprehensive telemetry status codes for power units, hydraulics, brakes, and chassis.'}
-          </span>
         </div>
       </div>
     </div>
