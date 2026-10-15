@@ -627,3 +627,166 @@ export interface SeasonHeadToHeadResponse {
     completedRaces: number;
     teams: TeammatePairBattle[];
 }
+
+// ── Reliability & Attrition Analytics ────────────────────────────────────────
+
+/** Categorization of race outcomes for reliability and attrition tracking. */
+export type ReliabilityCategory =
+    | 'finished'
+    | 'incident'
+    | 'mechanical'
+    | 'retired'
+    | 'dsq'
+    | 'dns';
+
+/** Single race status entry for a driver in a specific round. */
+export interface RoundAttritionEntry {
+    round: number;
+    position: number | null;
+    positionText: string;
+    laps: number;
+    totalRoundLaps: number;
+    status: string;
+    category: ReliabilityCategory;
+    points: number;
+}
+
+/** Round metadata for the attrition matrix header. */
+export interface AttritionRoundMeta {
+    round: number;
+    raceName: string;
+    circuitId: string;
+    circuitName: string;
+    country: string;
+    date: string;
+    totalLaps: number;
+    starters: number;
+    finishers: number;
+    dnfCount: number;
+}
+
+/** Driver row in the season attrition heatmap matrix. */
+export interface DriverAttritionRow {
+    driverId: string;
+    driverCode: string;
+    driverName: string;
+    constructorId: string;
+    constructorName: string;
+    results: RoundAttritionEntry[];
+}
+
+/** Complete attrition matrix structure. */
+export interface SeasonAttritionMatrix {
+    rounds: AttritionRoundMeta[];
+    drivers: DriverAttritionRow[];
+}
+
+/** High-level executive KPIs for a season's reliability. */
+export interface SeasonReliabilityKpis {
+    totalStarts: number;
+    totalFinishes: number;
+    totalDnfs: number;
+    totalDsq: number;
+    totalDns: number;
+    overallReliabilityRate: number; // percentage (e.g. 91.4)
+    totalLapsScheduled: number;
+    totalLapsCompleted: number;
+    lapCompletionRate: number; // percentage (e.g. 96.2)
+    mostReliableConstructor: {
+        constructorId: string;
+        name: string;
+        reliabilityRate: number;
+        dnfCount: number;
+    } | null;
+    leastReliableConstructor: {
+        constructorId: string;
+        name: string;
+        reliabilityRate: number;
+        dnfCount: number;
+    } | null;
+    mostChaoticRound: {
+        round: number;
+        raceName: string;
+        country: string;
+        dnfCount: number;
+        dnfRate: number;
+    } | null;
+}
+
+/** Per-driver reliability breakdown within a constructor. */
+export interface ConstructorDriverReliability {
+    driverId: string;
+    code: string;
+    name: string;
+    starts: number;
+    finishes: number;
+    dnfs: number;
+    dsqs: number;
+    dnss: number;
+    reliabilityRate: number;
+    lapsCompleted: number;
+}
+
+/** Detailed reliability record for a constructor in a given season. */
+export interface ConstructorReliability {
+    constructorId: string;
+    name: string;
+    nationality: string;
+    totalStarts: number;
+    finishes: number;
+    dnfs: number;
+    dsqs: number;
+    dnss: number;
+    reliabilityRate: number; // percentage
+    lapsCompleted: number;
+    totalPossibleLaps: number;
+    lapCompletionRate: number; // percentage
+    driverBreakdown: ConstructorDriverReliability[];
+    causes: Record<string, number>;
+}
+
+/** Driver-level reliability record for a given season. */
+export interface DriverReliability {
+    driverId: string;
+    code: string;
+    givenName: string;
+    familyName: string;
+    constructorId: string;
+    constructorName: string;
+    starts: number;
+    finishes: number;
+    dnfs: number;
+    dsqs: number;
+    dnss: number;
+    reliabilityRate: number;
+    lapsCompleted: number;
+    totalPossibleLaps: number;
+    lapCompletionRate: number;
+}
+
+/** Breakdown of failure causes for charts and analysis. */
+export interface ReliabilityCauseBreakdown {
+    categories: Array<{
+        category: ReliabilityCategory;
+        label: string;
+        count: number;
+        percentage: number;
+    }>;
+    detailedCauses: Array<{
+        cause: string;
+        count: number;
+        category: ReliabilityCategory;
+    }>;
+}
+
+/** Complete payload returned by GET /api/reliability/:season. */
+export interface SeasonReliabilityResponse {
+    season: string;
+    totalRaces: number;
+    completedRaces: number;
+    kpis: SeasonReliabilityKpis;
+    constructors: ConstructorReliability[];
+    drivers: DriverReliability[];
+    matrix: SeasonAttritionMatrix;
+    causeBreakdown: ReliabilityCauseBreakdown;
+}

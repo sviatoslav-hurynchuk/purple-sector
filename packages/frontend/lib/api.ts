@@ -19,6 +19,8 @@ import type {
   RaceSessionData,
   SeasonHeadToHeadResponse,
   TeammatePairBattle,
+  SeasonReliabilityResponse,
+  ConstructorReliability,
 } from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -321,3 +323,36 @@ export async function getConstructorHeadToHead(
     revalidate
   );
 }
+
+// ── Reliability & Attrition Analytics ────────────────────────────────────────
+
+/**
+ * Fetches season-wide reliability and DNF analytics for all constructors and drivers.
+ */
+export async function getSeasonReliability(
+  season?: number | string
+): Promise<SeasonReliabilityResponse | null> {
+  const currentYear = getCurrentYear();
+  const year = season ? String(season) : String(currentYear);
+  const revalidate = Number(year) < currentYear ? 86400 : 900;
+  return apiFetchNullable<SeasonReliabilityResponse>(
+    `/api/reliability/${year}`,
+    revalidate
+  );
+}
+
+/**
+ * Fetches constructor-specific reliability and DNF analytics for a season.
+ */
+export async function getConstructorReliability(
+  season: number | string,
+  constructorId: string
+): Promise<ConstructorReliability | null> {
+  const currentYear = getCurrentYear();
+  const year = String(season);
+  const revalidate = Number(year) < currentYear ? 86400 : 900;
+  return apiFetchNullable<ConstructorReliability>(
+    `/api/reliability/${year}/constructor/${constructorId}`,
+    revalidate
+  );
+}
