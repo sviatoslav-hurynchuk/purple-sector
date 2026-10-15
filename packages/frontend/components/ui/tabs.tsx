@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
@@ -56,6 +56,7 @@ function TabsTrigger({ value, className, children, ...props }: TabsTriggerProps)
       type="button"
       role="tab"
       aria-selected={isActive}
+      data-state={isActive ? 'active' : 'inactive'}
       onClick={() => setActive(value)}
       className={cn(
         'px-5 py-2 rounded-lg text-sm font-bold transition-all select-none',

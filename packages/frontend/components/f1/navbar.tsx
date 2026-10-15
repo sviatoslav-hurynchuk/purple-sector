@@ -10,6 +10,7 @@ import {
   Trophy,
   Radio,
   Swords,
+  ShieldCheck,
 } from 'lucide-react';
 import { useSharedLiveSession } from '@/components/live/live-session-provider';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/live', label: 'Live Timing', icon: Radio, isLive: true },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/head-to-head', label: 'Head-to-Head', icon: Swords },
+  { href: '/reliability', label: 'Reliability', icon: ShieldCheck },
   { href: '/constructors', label: 'Teams & Drivers', icon: Users, aliases: ['/drivers'] },
   { href: '/standings', label: 'Standings', icon: Trophy },
 ];

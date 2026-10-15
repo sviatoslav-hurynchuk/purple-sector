@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ShieldCheck } from 'lucide-react';
 import { DriverImage } from '@/components/f1/driver-image';
 import { getSeasonConstructors, getDriverStandings, getConstructorStandings } from '@/lib/api';
 import { SeasonSelector } from '@/components/f1/season-selector';
@@ -236,7 +236,15 @@ export async function ConstructorsContent({
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <Link
+            href={`/reliability?season=${year}`}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 bg-zinc-900/60 hover:bg-zinc-800 hover:border-emerald-500/30 text-xs font-mono font-bold text-zinc-300 hover:text-white transition-all shadow-sm"
+          >
+            <ShieldCheck className="size-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">Season Reliability</span>
+            <span className="sm:hidden">Reliability</span>
+          </Link>
           <SeasonSelector currentSeason={year} allYears={allYears} />
         </div>
       </div>
