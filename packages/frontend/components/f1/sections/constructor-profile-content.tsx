@@ -12,6 +12,7 @@ import {
   Calendar,
   ChevronRight,
   Swords,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   getConstructorProfile,
@@ -96,13 +97,22 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* ── Top Navigation ──────────────────────────────────────────────── */}
-      <div>
+      <div className="flex items-center justify-between gap-4">
         <Link
           href="/constructors"
           className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
         >
           <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
           <span>ALL CONSTRUCTORS</span>
+        </Link>
+
+        <Link
+          href={`/reliability?team=${team.constructorId}&season=${activeSeason}`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-zinc-900/60 hover:bg-zinc-800 hover:border-emerald-500/30 text-xs font-mono font-bold text-zinc-300 hover:text-white transition-all shadow-sm group/rel"
+        >
+          <ShieldCheck className="size-3.5 text-emerald-400" />
+          <span>TEAM RELIABILITY</span>
+          <ChevronRight className="size-3 text-zinc-500 group-hover/rel:text-white group-hover/rel:translate-x-0.5 transition-all" />
         </Link>
       </div>
 
