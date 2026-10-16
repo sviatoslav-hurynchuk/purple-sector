@@ -21,6 +21,7 @@ import type {
   TeammatePairBattle,
   SeasonReliabilityResponse,
   ConstructorReliability,
+  ConstructorMultiSeasonReliabilityResponse,
 } from '@/types/f1';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -355,4 +356,21 @@ export async function getConstructorReliability(
     `/api/reliability/${year}/constructor/${constructorId}`,
     revalidate
   );
-}
+}
+
+/**
+ * Fetches multi-season reliability history and active-season breakdown for a constructor.
+ */
+export async function getConstructorMultiSeasonReliability(
+  constructorId: string,
+  season?: number | string
+): Promise<ConstructorMultiSeasonReliabilityResponse | null> {
+  const currentYear = getCurrentYear();
+  const year = season ? String(season) : String(currentYear);
+  const revalidate = Number(year) < currentYear ? 86400 : 900;
+  return apiFetchNullable<ConstructorMultiSeasonReliabilityResponse>(
+    `/api/reliability/constructor/${constructorId}?season=${year}`,
+    revalidate
+  );
+}
+

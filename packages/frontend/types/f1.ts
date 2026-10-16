@@ -790,3 +790,67 @@ export interface SeasonReliabilityResponse {
     matrix: SeasonAttritionMatrix;
     causeBreakdown: ReliabilityCauseBreakdown;
 }
+
+/** Historical single-season reliability entry for a specific constructor. */
+export interface ConstructorSeasonHistoryEntry {
+    season: number;
+    totalStarts: number;
+    finishes: number;
+    dnfs: number;
+    dsqs: number;
+    dnss: number;
+    mechanicalDnfs: number;
+    incidentDnfs: number;
+    reliabilityRate: number;      // percentage (e.g. 91.3)
+    lapCompletionRate: number;    // percentage (e.g. 96.2)
+    lapsCompleted: number;
+    totalPossibleLaps: number;
+    gridReliabilityRank: number;  // Rank on the grid (1 = most reliable)
+    totalConstructors: number;
+}
+
+/** Result for a single Grand Prix for this constructor's cars. */
+export interface ConstructorRoundCarResult {
+    driverId: string;
+    driverCode: string;
+    driverName: string;
+    positionText: string;
+    position: number | null;
+    status: string;
+    category: ReliabilityCategory;
+    lapsCompleted: number;
+    points: number;
+}
+
+/** Grand Prix attrition round details for a specific constructor. */
+export interface ConstructorRoundResult {
+    round: number;
+    raceName: string;
+    circuitId: string;
+    circuitName: string;
+    country: string;
+    date: string;
+    cars: ConstructorRoundCarResult[];
+}
+
+/** Multi-season career and current season breakdown for a single constructor. */
+export interface ConstructorMultiSeasonReliabilityResponse {
+    constructorId: string;
+    name: string;
+    nationality: string;
+    activeSeason: number;
+    allTimeKpis: {
+        seasonsAnalyzed: number;
+        totalStarts: number;
+        totalFinishes: number;
+        overallReliabilityRate: number;
+        totalMechanicalDnfs: number;
+        totalIncidentDnfs: number;
+    };
+    history: ConstructorSeasonHistoryEntry[];
+    activeSeasonDetails: {
+        constructor: ConstructorReliability;
+        causeBreakdown: ReliabilityCauseBreakdown;
+        rounds: ConstructorRoundResult[];
+    };
+}
