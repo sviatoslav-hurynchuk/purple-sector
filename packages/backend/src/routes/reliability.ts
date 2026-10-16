@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { getSeasonReliability } from '../services/reliability';
+import {
+  getSeasonReliability,
+  getConstructorMultiSeasonReliability,
+} from '../services/reliability';
 import { isRaceWeekend, getCurrentSeason } from '../services/jolpica';
 
 const router: Router = Router();
@@ -16,6 +19,43 @@ function isValidSeason(season: string): boolean {
   const year = Number(season);
   return year >= 1950 && year <= Number(getCurrentSeason()) + 1;
 }
+
+/**
+ * GET /api/reliability/constructor/:constructorId
+ * Returns multi-season reliability history (last 5 seasons) and active-season detailed breakdown.
+ * Query: ?season=YYYY (optional, defaults to current season)
+ */
+router.get('/constructor/:constructorId', async (req: Request, res: Response) => {
+  const { constructorId } = req.params;
+  const seasonQuery = req.query.season as string | undefined;
+
+  if (seasonQuery && !isValidSeason(seasonQuery)) {
+    res.status(400).json({
+      error: `Invalid season: ${seasonQuery}. Season must be a 4-digit year between 1950 and ${Number(getCurrentSeason()) + 1}.`,
+    });
+    return;
+  }
+
+  try {
+    const data = await getConstructorMultiSeasonReliability(constructorId, seasonQuery);
+    if (!data) {
+      res.status(404).json({
+        error: `Constructor ${constructorId} reliability data not found.`,
+      });
+      return;
+    }
+
+    const currentSeason = getCurrentSeason();
+    const activeSeason = seasonQuery ? String(seasonQuery) : currentSeason;
+    const maxAge =
+      activeSeason === currentSeason ? (isRaceWeekend() ? 60 : 900) : 86400;
+    setCacheHeaders(res, maxAge);
+    res.json(data);
+  } catch (err) {
+    console.error(`[Reliability] Failed to load multi-season reliability for ${constructorId}:`, err);
+    res.status(500).json({ error: 'Failed to load constructor reliability history.' });
+  }
+});
 
 /**
  * GET /api/reliability/:season/constructor/:constructorId

@@ -10,6 +10,10 @@ import type {
   RoundAttritionEntry,
   ReliabilityCauseBreakdown,
   ReliabilityCategory,
+  ConstructorMultiSeasonReliabilityResponse,
+  ConstructorSeasonHistoryEntry,
+  ConstructorRoundResult,
+  ConstructorRoundCarResult,
 } from '../types/f1';
 import {
   getRaceSchedule,
@@ -755,6 +759,224 @@ export async function getSeasonReliability(
         drivers,
         matrix,
         causeBreakdown,
+      };
+    },
+    TTL.NEGATIVE_CACHE
+  );
+}
+
+/**
+ * Returns multi-season reliability history and active-season detailed breakdown
+ * for a specific constructor across recent seasons (up to 5 seasons).
+ */
+export async function getConstructorMultiSeasonReliability(
+  constructorId: string,
+  season?: string | number
+): Promise<ConstructorMultiSeasonReliabilityResponse | null> {
+  const currentSeasonStr = getCurrentSeason();
+  const activeSeason = season ? Number(season) : Number(currentSeasonStr);
+  const cacheKey = `f1:reliability:history:${constructorId.toLowerCase()}:${activeSeason}`;
+
+  return cachedFetch<ConstructorMultiSeasonReliabilityResponse | null>(
+    cacheKey,
+    async (data) => {
+      if (!data) return TTL.NEGATIVE_CACHE;
+      if (String(activeSeason) !== currentSeasonStr) return TTL.LAPS; // Past season immutable
+      return isRaceWeekend() ? 60 : 300;
+    },
+    async () => {
+      // Analyze active season plus up to 4 preceding seasons (5 total)
+      const seasonsToFetch: number[] = [];
+      for (let y = activeSeason; y >= Math.max(1950, activeSeason - 4); y--) {
+        seasonsToFetch.push(y);
+      }
+
+      const seasonResults = await Promise.all(
+        seasonsToFetch.map((y) => getSeasonReliability(y).catch(() => null))
+      );
+
+      const activeIdx = seasonsToFetch.indexOf(activeSeason);
+      const activeData = seasonResults[activeIdx];
+      const activeConstructor = activeData?.constructors.find(
+        (c) => c.constructorId.toLowerCase() === constructorId.toLowerCase()
+      );
+
+      // If active data doesn't have the constructor, check other fetched seasons for metadata
+      let constructorName = activeConstructor?.name ?? '';
+      let constructorNationality = activeConstructor?.nationality ?? '';
+
+      if (!constructorName) {
+        for (const data of seasonResults) {
+          const match = data?.constructors.find(
+            (c) => c.constructorId.toLowerCase() === constructorId.toLowerCase()
+          );
+          if (match) {
+            constructorName = match.name;
+            constructorNationality = match.nationality;
+            break;
+          }
+        }
+      }
+
+      // If constructor not found in any season, return null
+      if (!constructorName) {
+        return null;
+      }
+
+      // Compile multi-season history
+      const history: ConstructorSeasonHistoryEntry[] = [];
+      for (let i = 0; i < seasonsToFetch.length; i++) {
+        const y = seasonsToFetch[i];
+        const data = seasonResults[i];
+        if (!data) continue;
+
+        const cIndex = data.constructors.findIndex(
+          (c) => c.constructorId.toLowerCase() === constructorId.toLowerCase()
+        );
+        if (cIndex === -1) continue;
+
+        const c = data.constructors[cIndex];
+        if (c.totalStarts === 0) continue;
+
+        let mechanicalDnfs = 0;
+        let incidentDnfs = 0;
+        for (const [cause, count] of Object.entries(c.causes)) {
+          const category = classifyRaceOutcome(cause);
+          if (category === 'mechanical') mechanicalDnfs += count;
+          else if (category === 'incident') incidentDnfs += count;
+        }
+
+        history.push({
+          season: y,
+          totalStarts: c.totalStarts,
+          finishes: c.finishes,
+          dnfs: c.dnfs,
+          dsqs: c.dsqs,
+          dnss: c.dnss,
+          mechanicalDnfs,
+          incidentDnfs,
+          reliabilityRate: c.reliabilityRate,
+          lapCompletionRate: c.lapCompletionRate,
+          lapsCompleted: c.lapsCompleted,
+          totalPossibleLaps: c.totalPossibleLaps,
+          gridReliabilityRank: cIndex + 1,
+          totalConstructors: data.constructors.length,
+        });
+      }
+
+      // Build active season details (or fallback to empty if active season has no data yet)
+      const fallbackConstructor: ConstructorReliability = activeConstructor || {
+        constructorId: constructorId.toLowerCase(),
+        name: constructorName,
+        nationality: constructorNationality,
+        totalStarts: 0,
+        finishes: 0,
+        dnfs: 0,
+        dsqs: 0,
+        dnss: 0,
+        reliabilityRate: 100,
+        lapsCompleted: 0,
+        totalPossibleLaps: 0,
+        lapCompletionRate: 100,
+        driverBreakdown: [],
+        causes: {},
+      };
+
+      // Detailed causes for active season
+      const detailedCauses = Object.entries(fallbackConstructor.causes)
+        .map(([cause, count]) => ({
+          cause,
+          count,
+          category: classifyRaceOutcome(cause),
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      const catCountMap = new Map<ReliabilityCategory, number>();
+      let totalCauses = 0;
+      for (const item of detailedCauses) {
+        catCountMap.set(item.category, (catCountMap.get(item.category) || 0) + item.count);
+        totalCauses += item.count;
+      }
+
+      const categories = Array.from(catCountMap.entries())
+        .map(([cat, count]) => ({
+          category: cat,
+          label: CATEGORY_LABELS[cat] || cat,
+          count,
+          percentage: totalCauses > 0 ? Number(((count / totalCauses) * 100).toFixed(1)) : 0,
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      const causeBreakdown: ReliabilityCauseBreakdown = {
+        categories,
+        detailedCauses,
+      };
+
+      // Rounds for active season
+      const rounds: ConstructorRoundResult[] = [];
+      if (activeData?.matrix) {
+        const teamDrivers = activeData.matrix.drivers.filter(
+          (d) => d.constructorId.toLowerCase() === constructorId.toLowerCase()
+        );
+
+        for (const roundMeta of activeData.matrix.rounds) {
+          const cars: ConstructorRoundCarResult[] = [];
+          for (const d of teamDrivers) {
+            const rEntry = d.results.find((r) => r.round === roundMeta.round);
+            if (rEntry) {
+              cars.push({
+                driverId: d.driverId,
+                driverCode: d.driverCode,
+                driverName: d.driverName,
+                positionText: rEntry.positionText,
+                position: rEntry.position,
+                status: rEntry.status,
+                category: rEntry.category,
+                lapsCompleted: rEntry.laps,
+                points: rEntry.points,
+              });
+            }
+          }
+
+          rounds.push({
+            round: roundMeta.round,
+            raceName: roundMeta.raceName,
+            circuitId: roundMeta.circuitId,
+            circuitName: roundMeta.circuitName,
+            country: roundMeta.country,
+            date: roundMeta.date,
+            cars,
+          });
+        }
+      }
+
+      // Aggregate all-time KPIs across analyzed seasons
+      const totalStarts = history.reduce((sum, h) => sum + h.totalStarts, 0);
+      const totalFinishes = history.reduce((sum, h) => sum + h.finishes, 0);
+      const totalMechanicalDnfs = history.reduce((sum, h) => sum + h.mechanicalDnfs, 0);
+      const totalIncidentDnfs = history.reduce((sum, h) => sum + h.incidentDnfs, 0);
+      const overallReliabilityRate =
+        totalStarts > 0 ? Number(((totalFinishes / totalStarts) * 100).toFixed(1)) : 0;
+
+      return {
+        constructorId: constructorId.toLowerCase(),
+        name: constructorName,
+        nationality: constructorNationality,
+        activeSeason,
+        allTimeKpis: {
+          seasonsAnalyzed: history.length,
+          totalStarts,
+          totalFinishes,
+          overallReliabilityRate,
+          totalMechanicalDnfs,
+          totalIncidentDnfs,
+        },
+        history,
+        activeSeasonDetails: {
+          constructor: fallbackConstructor,
+          causeBreakdown,
+          rounds,
+        },
       };
     },
     TTL.NEGATIVE_CACHE
