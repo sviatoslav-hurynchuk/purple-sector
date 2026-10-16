@@ -1,26 +1,50 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { ReliabilityKpiCards } from './reliability-kpi-cards';
 import { ConstructorReliabilityTable } from './constructor-reliability-table';
 import { AttritionMatrix } from './attrition-matrix';
 import { CauseBreakdownCard } from './cause-breakdown-card';
+import { TeamReliabilityView } from './team-reliability-view';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Grid, Award, Wrench, Layers } from 'lucide-react';
-import type { SeasonReliabilityResponse } from '@/types/f1';
+import { Grid, Award, Wrench, Layers, ChevronRight, ChevronLeft } from 'lucide-react';
+import type {
+  SeasonReliabilityResponse,
+  ConstructorMultiSeasonReliabilityResponse,
+} from '@/types/f1';
 
 interface ReliabilityContentProps {
   data: SeasonReliabilityResponse | null;
+  teamData?: ConstructorMultiSeasonReliabilityResponse | null;
+  selectedTeamId?: string;
   season: number;
   allYears: number[];
 }
 
 export function ReliabilityContent({
   data,
+  teamData,
+  selectedTeamId,
   season,
   allYears,
 }: ReliabilityContentProps) {
+  const router = useRouter();
+
+  // If a specific team was requested and resolved, render the single-constructor multi-season deep-dive
+  if (teamData) {
+    return (
+      <TeamReliabilityView
+        teamData={teamData}
+        seasonData={data}
+        season={season}
+        allYears={allYears}
+      />
+    );
+  }
+
   const hasData = Boolean(data && data.completedRaces > 0);
 
   return (
@@ -30,6 +54,22 @@ export function ReliabilityContent({
         <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full opacity-90" />
         <div className="h-0.5 sm:h-1 w-3/4 bg-gradient-to-r from-red-700 via-red-600 to-transparent rounded-full opacity-60" />
       </div>
+
+      {/* Notice if team was requested but not found */}
+      {selectedTeamId && !teamData && (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs font-mono text-amber-300 flex items-center justify-between gap-4">
+          <span>
+            Constructor &quot;{selectedTeamId}&quot; reliability data not available for season {season}.
+          </span>
+          <Link
+            href={`/reliability?season=${season}`}
+            className="inline-flex items-center gap-1 font-bold text-white hover:underline shrink-0"
+          >
+            <ChevronLeft className="size-3.5" />
+            <span>View Grid Overview</span>
+          </Link>
+        </div>
+      )}
 
       {/* ── Main Cockpit Header ────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -50,7 +90,32 @@ export function ReliabilityContent({
           </p>
         </div>
 
-        <div className="shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          {data?.constructors && data.constructors.length > 0 && (
+            <div className="relative">
+              <select
+                aria-label="Filter by Constructor"
+                defaultValue="__all__"
+                onChange={(e) => {
+                  const teamId = e.target.value;
+                  if (teamId !== '__all__') {
+                    router.push(`/reliability?team=${teamId}&season=${season}`);
+                  }
+                }}
+                className="appearance-none pl-3 pr-8 py-1.5 rounded-xl border border-white/10 bg-zinc-900/80 hover:bg-zinc-800 text-xs font-mono font-bold text-zinc-200 hover:text-white focus:outline-hidden focus:ring-1 focus:ring-emerald-500/50 cursor-pointer shadow-sm transition-all"
+              >
+                <option value="__all__">All Constructors</option>
+                {data.constructors.map((c) => (
+                  <option key={c.constructorId} value={c.constructorId}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400">
+                <ChevronRight className="size-3.5 rotate-90" />
+              </div>
+            </div>
+          )}
           <SeasonSelector currentSeason={season} allYears={allYears} />
         </div>
       </div>
