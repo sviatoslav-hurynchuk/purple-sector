@@ -97,22 +97,13 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* ── Top Navigation ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4">
+      <div>
         <Link
           href="/constructors"
           className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
         >
           <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
           <span>ALL CONSTRUCTORS</span>
-        </Link>
-
-        <Link
-          href={`/reliability?team=${team.constructorId}&season=${activeSeason}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-zinc-900/60 hover:bg-zinc-800 hover:border-emerald-500/30 text-xs font-mono font-bold text-zinc-300 hover:text-white transition-all shadow-sm group/rel"
-        >
-          <ShieldCheck className="size-3.5 text-emerald-400" />
-          <span>TEAM RELIABILITY</span>
-          <ChevronRight className="size-3 text-zinc-500 group-hover/rel:text-white group-hover/rel:translate-x-0.5 transition-all" />
         </Link>
       </div>
 
@@ -161,12 +152,12 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
                 {/* Team Logo Emblem & Typographic Nameplate */}
                 <div className="flex items-start gap-4 pt-1">
-                  <div className="size-16 sm:size-20 rounded-2xl border border-white/10 bg-zinc-900/80 p-2.5 backdrop-blur-md shadow-xl flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="size-16 sm:size-20 rounded-2xl border border-white/10 bg-zinc-900/80 backdrop-blur-md shadow-xl flex items-center justify-center shrink-0 overflow-hidden">
                     <TeamLogo
                       constructorId={team.constructorId}
                       season={currentYear}
                       size={64}
-                      className="!w-full !h-full rounded-none shadow-none object-contain"
+                      className="!w-full !h-full rounded-none shadow-none p-2 sm:p-2.5"
                     />
                   </div>
 
@@ -583,11 +574,22 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
             {/* Section 3: Technical Blueprint & Operations Leadership */}
             <div className="border-t border-white/10">
-              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center gap-2.5">
-                <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-blue-400" />
-                <h3 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
-                  Technical Blueprint &amp; Leadership
-                </h3>
+              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-blue-400" />
+                  <h3 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
+                    Technical Blueprint &amp; Leadership
+                  </h3>
+                </div>
+
+                <Link
+                  href={`/reliability?team=${team.constructorId}&season=${activeSeason}`}
+                  className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 bg-zinc-900/80 hover:bg-zinc-800 transition-all group/rel"
+                >
+                  <ShieldCheck className="size-3 text-emerald-400 group-hover/rel:rotate-12 transition-transform" />
+                  <span>TEAM RELIABILITY</span>
+                  <ChevronRight className="size-3 text-zinc-500 group-hover/rel:text-white group-hover/rel:translate-x-0.5 transition-all" />
+                </Link>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">

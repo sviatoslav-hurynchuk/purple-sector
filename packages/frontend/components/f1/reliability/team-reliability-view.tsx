@@ -124,12 +124,12 @@ export function TeamReliabilityView({
         <div className="p-5 sm:p-7 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4 sm:gap-5 min-w-0">
             {/* Team Logo Emblem */}
-            <div className="size-16 sm:size-20 rounded-2xl border border-white/10 bg-zinc-900/80 p-2.5 backdrop-blur-md shadow-xl flex items-center justify-center shrink-0 overflow-hidden">
+            <div className="size-16 sm:size-20 rounded-2xl border border-white/10 bg-zinc-900/80 backdrop-blur-md shadow-xl flex items-center justify-center shrink-0 overflow-hidden">
               <TeamLogo
                 constructorId={teamData.constructorId}
                 season={season}
                 size={64}
-                className="!w-full !h-full rounded-none shadow-none object-contain"
+                className="!w-full !h-full rounded-none shadow-none p-2 sm:p-2.5"
               />
             </div>
 
