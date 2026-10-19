@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { TeamLogo } from '@/components/f1/team-logo';
+import { DriverImage } from '@/components/f1/driver-image';
+import { getDriverPhotoUrl } from '@/lib/driver-photos';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { getTeamTheme } from '@/lib/team-colors';
 import { cn } from '@/lib/utils';
@@ -496,76 +498,110 @@ export function TeamReliabilityView({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">
-            {drivers.map((driver) => (
-              <div
-                key={driver.driverId}
-                className="p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between space-y-4"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-widest">
-                      {driver.code}
-                    </span>
-                    <h3 className="text-lg font-black font-sans uppercase tracking-tight text-white mt-0.5">
-                      {driver.name}
-                    </h3>
+            {drivers.map((driver, idx) => {
+              const orientation = idx % 2 === 0 ? 'left' : 'right';
+              const nameParts = (driver.name || '').trim().split(' ');
+              const givenName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : '';
+              const familyName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : driver.name;
+              const photo = getDriverPhotoUrl(
+                driver.driverId,
+                givenName,
+                familyName,
+                String(season),
+                teamData.constructorId,
+                orientation
+              );
+
+              return (
+                <div
+                  key={driver.driverId}
+                  className="border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-stretch overflow-hidden group"
+                >
+                  {/* Seamless Edge-to-Edge Driver Portrait Column (Monolithic 1px Border) */}
+                  <div className="w-20 sm:w-24 shrink-0 relative bg-zinc-950/80 border-r border-white/10 group-hover:border-white/20 overflow-hidden transition-colors min-h-[110px] sm:min-h-[120px]">
+                    <DriverImage
+                      src={photo}
+                      alt={driver.name}
+                      fill
+                      sizes="(max-width: 640px) 80px, 96px"
+                      className="object-contain object-top scale-[5.7] origin-[50%_0%]"
+                      unoptimized
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 via-transparent to-transparent pointer-events-none" />
                   </div>
 
-                  <div className="text-right font-mono">
-                    <span
-                      className={cn(
-                        'text-2xl font-black',
-                        driver.reliabilityRate >= 95
-                          ? 'text-emerald-400'
-                          : driver.reliabilityRate >= 85
-                            ? 'text-sky-400'
-                            : 'text-amber-400'
-                      )}
-                    >
-                      {driver.reliabilityRate}%
-                    </span>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
-                      Finish Rate
-                    </p>
+                  {/* Driver Reliability Metrics & Info */}
+                  <div className="p-4 sm:p-5 flex-1 min-w-0 flex flex-col justify-between space-y-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
+                          {driver.code}
+                        </span>
+                        <Link
+                          href={`/drivers/${driver.driverId}`}
+                          className="text-base sm:text-lg font-black font-sans uppercase tracking-tight text-white hover:text-emerald-400 transition-colors truncate block mt-0.5"
+                        >
+                          {driver.name}
+                        </Link>
+                      </div>
+
+                      <div className="text-right font-mono shrink-0">
+                        <span
+                          className={cn(
+                            'text-xl sm:text-2xl font-black',
+                            driver.reliabilityRate >= 95
+                              ? 'text-emerald-400'
+                              : driver.reliabilityRate >= 85
+                                ? 'text-sky-400'
+                                : 'text-amber-400'
+                          )}
+                        >
+                          {driver.reliabilityRate}%
+                        </span>
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                          Finish Rate
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Sub Telemetry Bar */}
+                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/5 text-xs font-mono">
+                      <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
+                        <span className="text-[10px] text-zinc-400 block uppercase">
+                          Finishes
+                        </span>
+                        <span className="font-bold text-white mt-0.5 block truncate">
+                          {driver.finishes} / {driver.starts}
+                        </span>
+                      </div>
+
+                      <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
+                        <span className="text-[10px] text-zinc-400 block uppercase">
+                          Retirements
+                        </span>
+                        <span
+                          className={cn(
+                            'font-bold mt-0.5 block truncate',
+                            driver.dnfs === 0 ? 'text-emerald-400' : 'text-rose-400'
+                          )}
+                        >
+                          {driver.dnfs} DNF
+                        </span>
+                      </div>
+
+                      <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
+                        <span className="text-[10px] text-zinc-400 block uppercase">
+                          Laps Done
+                        </span>
+                        <span className="font-bold text-zinc-300 mt-0.5 block truncate">
+                          {driver.lapsCompleted.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                {/* Sub Telemetry Bar */}
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/5 text-xs font-mono">
-                  <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
-                    <span className="text-[10px] text-zinc-400 block uppercase">
-                      Finishes
-                    </span>
-                    <span className="font-bold text-white mt-0.5 block">
-                      {driver.finishes} / {driver.starts}
-                    </span>
-                  </div>
-
-                  <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
-                    <span className="text-[10px] text-zinc-400 block uppercase">
-                      Retirements
-                    </span>
-                    <span
-                      className={cn(
-                        'font-bold mt-0.5 block',
-                        driver.dnfs === 0 ? 'text-emerald-400' : 'text-rose-400'
-                      )}
-                    >
-                      {driver.dnfs} DNF
-                    </span>
-                  </div>
-
-                  <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
-                    <span className="text-[10px] text-zinc-400 block uppercase">
-                      Laps Done
-                    </span>
-                    <span className="font-bold text-zinc-300 mt-0.5 block">
-                      {driver.lapsCompleted.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
