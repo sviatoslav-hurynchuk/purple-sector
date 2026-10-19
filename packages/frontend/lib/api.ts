@@ -369,7 +369,7 @@ export async function getConstructorMultiSeasonReliability(
   const year = season ? String(season) : String(currentYear);
   const revalidate = Number(year) < currentYear ? 86400 : 900;
   return apiFetchNullable<ConstructorMultiSeasonReliabilityResponse>(
-    `/api/reliability/constructor/${constructorId}?season=${year}`,
+    `/api/reliability/constructor/${encodeURIComponent(constructorId)}?season=${encodeURIComponent(year)}`,
     revalidate
   );
 }

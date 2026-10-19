@@ -25,7 +25,6 @@ export async function generateStaticParams() {
 
 interface ConstructorPageProps {
   params: Promise<{ constructorId: string }>;
-  searchParams: Promise<{ from?: string; season?: string }>;
 }
 
 export async function generateMetadata({ params }: ConstructorPageProps): Promise<Metadata> {
@@ -45,14 +44,7 @@ export async function generateMetadata({ params }: ConstructorPageProps): Promis
   };
 }
 
-export default async function ConstructorProfilePage({ params, searchParams }: ConstructorPageProps) {
+export default async function ConstructorProfilePage({ params }: ConstructorPageProps) {
   const { constructorId } = await params;
-  const { from, season } = await searchParams;
-  return (
-    <ConstructorProfileContent
-      constructorId={constructorId}
-      from={from}
-      returnSeason={season}
-    />
-  );
+  return <ConstructorProfileContent constructorId={constructorId} />;
 }

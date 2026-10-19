@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
@@ -25,18 +26,15 @@ import { CountryFlag } from '@/components/f1/country-flag';
 import { TeamLogo } from '@/components/f1/team-logo';
 import { DriverImage } from '@/components/f1/driver-image';
 import { ConstructorDriverRoster } from '@/components/f1/constructor-driver-roster';
+import { ConstructorBackLink } from './constructor-back-link';
 import type { ConstructorStanding, DriverStanding } from '@/types/f1';
 
 interface ConstructorProfileContentProps {
   constructorId: string;
-  from?: string;
-  returnSeason?: string;
 }
 
 export async function ConstructorProfileContent({
   constructorId,
-  from,
-  returnSeason,
 }: ConstructorProfileContentProps) {
   const currentYear = new Date().getFullYear();
 
@@ -104,23 +102,19 @@ export async function ConstructorProfileContent({
     <div className="space-y-6 sm:space-y-8">
       {/* ── Top Navigation ──────────────────────────────────────────────── */}
       <div>
-        {from === 'reliability' ? (
-          <Link
-            href={`/reliability?season=${returnSeason || activeSeason}`}
-            className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
-          >
-            <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
-            <span>RELIABILITY OVERVIEW</span>
-          </Link>
-        ) : (
-          <Link
-            href="/constructors"
-            className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
-          >
-            <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
-            <span>ALL CONSTRUCTORS</span>
-          </Link>
-        )}
+        <Suspense
+          fallback={
+            <Link
+              href="/constructors"
+              className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
+            >
+              <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
+              <span>ALL CONSTRUCTORS</span>
+            </Link>
+          }
+        >
+          <ConstructorBackLink fallbackSeason={activeSeason} />
+        </Suspense>
       </div>
 
       {/* ── Main Two-Column Layout ───────────────────────────────────────── */}
