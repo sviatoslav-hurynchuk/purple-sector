@@ -558,13 +558,16 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
     'lewis-hamilton': 'hamilton',
   };
   const id = idMap[rawId] ?? rawId;
-  const cacheKey = `f1:driver:profile:${id}`;
+  const cacheKey = `f1:driver:profile:v2:${id}`;
 
   return cachedFetch<DriverProfile | null>(
     cacheKey,
     (profile) => {
       if (!profile) return TTL.NEGATIVE_CACHE;
       if (profile.seasonHistory.length === 0) return 60;
+      if (profile.expectedSeasonsCount && profile.seasonHistory.length < profile.expectedSeasonsCount) {
+        return 60;
+      }
       return TTL.SCHEDULE_PAST;
     },
     async () => {
@@ -614,20 +617,20 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       const reversedSeasons = [...seasons].reverse();
       const standingsResults = await mapConcurrent(
         reversedSeasons,
-        3, // Limit concurrency to prevent saturating the Jolpica queue
+        2, // Moderate concurrency to prevent saturating Jolpica rate limits
         async (seasonYear) => {
           const isCurrent = seasonYear === currentSeason;
-          const ttl = isCurrent ? 3600 : TTL.SCHEDULE_PAST;
           return cachedFetch<DriverSeasonStanding | null>(
             `f1:driver:${id}:standing:${seasonYear}`,
-            ttl,
+            (standing) => {
+              if (!standing) return 60; // Do not permanently cache null
+              return isCurrent ? 3600 : TTL.SCHEDULE_PAST;
+            },
             async () => {
-              // Throw on fetch failure so transient network/server failures
-              // are not stored as negative cache sentinels.
               const res = await jolpicaFetch<JolpicaStandingsResponse>(
                 `/${seasonYear}/drivers/${id}/driverStandings.json`
               );
-              const list = res?.MRData.StandingsTable.StandingsLists[0];
+              const list = res?.MRData?.StandingsTable?.StandingsLists?.[0];
               const entry = list?.DriverStandings?.[0];
               if (!entry) return null;
               return {
@@ -641,7 +644,8 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
                   name: c.name,
                 })),
               };
-            }
+            },
+            60
           ).catch(() => null); // Catch outside cachedFetch so one season failure doesn't abort the rest
         }
       );
@@ -715,6 +719,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       careerStats,
       seasonHistory,
       officialStats,
+      expectedSeasonsCount: seasons.length,
     };
   });
 }

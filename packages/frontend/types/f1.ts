@@ -229,6 +229,7 @@ export interface DriverProfile {
     careerStats: DriverCareerStats;
     seasonHistory: DriverSeasonStanding[];
     officialStats?: OfficialDriverStats | null;
+    expectedSeasonsCount?: number;
 }
 
 // ── Constructor Profiles ─────────────────────────────────────────────────────

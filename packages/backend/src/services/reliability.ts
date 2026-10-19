@@ -775,25 +775,29 @@ export async function getConstructorMultiSeasonReliability(
 ): Promise<ConstructorMultiSeasonReliabilityResponse | null> {
   const currentSeasonStr = getCurrentSeason();
   const activeSeason = season ? Number(season) : Number(currentSeasonStr);
-  const cacheKey = `f1:reliability:history:${constructorId.toLowerCase()}:${activeSeason}`;
+  const cacheKey = `f1:reliability:history:v2:${constructorId.toLowerCase()}:${activeSeason}`;
+
+  // Analyze active season plus up to 4 preceding seasons (5 total)
+  const seasonsToFetch: number[] = [];
+  for (let y = activeSeason; y >= Math.max(1950, activeSeason - 4); y--) {
+    seasonsToFetch.push(y);
+  }
 
   return cachedFetch<ConstructorMultiSeasonReliabilityResponse | null>(
     cacheKey,
     async (data) => {
       if (!data) return TTL.NEGATIVE_CACHE;
+      // If incomplete history (some seasons failed due to rate limits), revalidate soon
+      if (data.history.length < seasonsToFetch.length) return 60;
       if (String(activeSeason) !== currentSeasonStr) return TTL.LAPS; // Past season immutable
       return isRaceWeekend() ? 60 : 300;
     },
     async () => {
-      // Analyze active season plus up to 4 preceding seasons (5 total)
-      const seasonsToFetch: number[] = [];
-      for (let y = activeSeason; y >= Math.max(1950, activeSeason - 4); y--) {
-        seasonsToFetch.push(y);
+      const seasonResults: (SeasonReliabilityResponse | null)[] = [];
+      for (const y of seasonsToFetch) {
+        const res = await getSeasonReliability(y).catch(() => null);
+        seasonResults.push(res);
       }
-
-      const seasonResults = await Promise.all(
-        seasonsToFetch.map((y) => getSeasonReliability(y).catch(() => null))
-      );
 
       const activeIdx = seasonsToFetch.indexOf(activeSeason);
       const activeData = seasonResults[activeIdx];
