@@ -22,6 +22,7 @@ interface ReliabilityContentProps {
   selectedTeamId?: string;
   season: number;
   allYears: number[];
+  from?: string;
 }
 
 export function ReliabilityContent({
@@ -30,6 +31,7 @@ export function ReliabilityContent({
   selectedTeamId,
   season,
   allYears,
+  from,
 }: ReliabilityContentProps) {
   const router = useRouter();
 
@@ -41,6 +43,7 @@ export function ReliabilityContent({
         seasonData={data}
         season={season}
         allYears={allYears}
+        from={from}
       />
     );
   }

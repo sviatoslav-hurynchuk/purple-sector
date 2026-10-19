@@ -30,6 +30,7 @@ interface TeamReliabilityViewProps {
   seasonData: SeasonReliabilityResponse | null;
   season: number;
   allYears: number[];
+  from?: string;
 }
 
 export function TeamReliabilityView({
@@ -37,6 +38,7 @@ export function TeamReliabilityView({
   seasonData,
   season,
   allYears,
+  from,
 }: TeamReliabilityViewProps) {
   const router = useRouter();
   const theme = getTeamTheme(teamData.constructorId);
@@ -66,15 +68,25 @@ export function TeamReliabilityView({
         />
       </div>
 
-      {/* ── Top Navigation Row: Back to Grid + In-Page Switcher ─────────── */}
+      {/* ── Top Navigation Row: Back to Origin + In-Page Switcher ─────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <Link
-          href={`/reliability?season=${season}`}
-          className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
-        >
-          <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
-          <span>GRID RELIABILITY OVERVIEW</span>
-        </Link>
+        {from === 'profile' ? (
+          <Link
+            href={`/constructors/${teamData.constructorId}`}
+            className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
+          >
+            <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
+            <span>{teamData.name.toUpperCase()} PROFILE</span>
+          </Link>
+        ) : (
+          <Link
+            href={`/reliability?season=${season}`}
+            className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
+          >
+            <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
+            <span>GRID RELIABILITY OVERVIEW</span>
+          </Link>
+        )}
 
         {/* Team Selector & Season Controls */}
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -88,7 +100,9 @@ export function TeamReliabilityView({
                   if (newTeam === '__all__') {
                     router.push(`/reliability?season=${season}`);
                   } else {
-                    router.push(`/reliability?team=${newTeam}&season=${season}`);
+                    router.push(
+                      `/reliability?team=${newTeam}&season=${season}${from ? `&from=${from}` : ''}`
+                    );
                   }
                 }}
                 className="appearance-none pl-3 pr-8 py-1.5 rounded-xl border border-white/10 bg-zinc-900/80 hover:bg-zinc-800 text-xs font-mono font-bold text-zinc-200 hover:text-white focus:outline-hidden focus:ring-1 focus:ring-emerald-500/50 cursor-pointer shadow-sm transition-all"
@@ -106,7 +120,15 @@ export function TeamReliabilityView({
             </div>
           )}
 
-          <SeasonSelector currentSeason={season} allYears={allYears} />
+          <SeasonSelector
+            currentSeason={season}
+            allYears={allYears}
+            onSeasonChange={(year) => {
+              router.push(
+                `/reliability?team=${teamData.constructorId}&season=${year}${from ? `&from=${from}` : ''}`
+              );
+            }}
+          />
         </div>
       </div>
 

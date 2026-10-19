@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export const revalidate = 900;
 
 interface ReliabilityPageProps {
-  searchParams: Promise<{ season?: string; team?: string }>;
+  searchParams: Promise<{ season?: string; team?: string; from?: string }>;
 }
 
 export default async function ReliabilityPage({
@@ -48,6 +48,7 @@ export default async function ReliabilityPage({
       selectedTeamId={resolvedParams.team}
       season={validYear}
       allYears={allYears}
+      from={resolvedParams.from}
     />
   );
 }

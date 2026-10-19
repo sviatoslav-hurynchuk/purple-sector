@@ -84,7 +84,7 @@ export function ConstructorReliabilityTable({
                           className="size-4 object-contain shrink-0 opacity-80"
                         />
                         <Link
-                          href={`/constructors/${c.constructorId}`}
+                          href={`/constructors/${c.constructorId}?from=reliability&season=${season}`}
                           className="text-sm sm:text-base font-bold font-mono text-white hover:text-emerald-400 transition-colors truncate flex items-center gap-1"
                         >
                           <span className="truncate">{c.name}</span>

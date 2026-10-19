@@ -7,16 +7,25 @@ import { cn } from '@/lib/utils';
 interface SeasonSelectorProps {
   currentSeason: number;
   allYears: number[];
+  onSeasonChange?: (year: number) => void;
 }
 
-export function SeasonSelector({ currentSeason, allYears }: SeasonSelectorProps) {
+export function SeasonSelector({
+  currentSeason,
+  allYears,
+  onSeasonChange,
+}: SeasonSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
   const handleSeasonChange = (year: number) => {
     startTransition(() => {
-      router.push(`${pathname}?season=${year}`);
+      if (onSeasonChange) {
+        onSeasonChange(year);
+      } else {
+        router.push(`${pathname}?season=${year}`);
+      }
     });
   };
 
