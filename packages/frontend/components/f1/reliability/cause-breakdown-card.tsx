@@ -66,11 +66,11 @@ export function CauseBreakdownCard({ causeBreakdown, season }: CauseBreakdownCar
         <div className="flex items-center gap-2">
           <Wrench className="size-4 text-amber-400 shrink-0" />
           <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Attrition Taxonomy &amp; Root Causes
+            Retirement Causes
           </span>
         </div>
         <span className="text-[11px] font-mono text-zinc-500">
-          {totalFailures} Recorded Outliers
+          {totalFailures} Retirements
         </span>
       </div>
 

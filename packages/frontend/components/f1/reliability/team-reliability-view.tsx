@@ -199,20 +199,8 @@ export function TeamReliabilityView({
 
       {/* ── Section 1: Hero Telemetry Ribbon (Active Season) ───────────── */}
       <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
-        <div className="py-2.5 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Activity className="size-4 text-emerald-400 shrink-0" />
-            <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-              {season} Campaign Telemetry
-            </span>
-          </div>
-          <span className="text-[11px] font-mono text-zinc-500">
-            {activeConstructor.totalStarts} Total Starts
-          </span>
-        </div>
-
         {/* 5-Cell Monolithic 1px Grid Container */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 border-t border-l border-white/10 bg-zinc-950/60">
+        <div className="grid grid-cols-2 lg:grid-cols-5 -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/60">
           {/* Finish Rate */}
           <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 flex flex-col justify-between">
             <p className="text-[10px] sm:text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
@@ -323,17 +311,17 @@ export function TeamReliabilityView({
         </div>
       </div>
 
-      {/* ── Section 2: Multi-Season Reliability Matrix ("по сезонах на одному екрані") ── */}
+      {/* ── Section 2: Multi-Season History ───────────────────────────── */}
       <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
         <div className="py-2.5 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="size-4 text-amber-400 shrink-0" />
             <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-              Multi-Season Reliability Matrix
+              Multi-Season Track Record
             </span>
           </div>
           <span className="text-[11px] font-mono text-zinc-500">
-            {history.length} Seasons on Record
+            {history.length} Seasons
           </span>
         </div>
 
@@ -489,7 +477,7 @@ export function TeamReliabilityView({
             <div className="flex items-center gap-2">
               <Award className="size-4 text-purple-400 shrink-0" />
               <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-                {season} Driver Pairing Reliability Breakdown
+                Driver Reliability
               </span>
             </div>
             <span className="text-[11px] font-mono text-zinc-500">
@@ -613,7 +601,7 @@ export function TeamReliabilityView({
             <div className="flex items-center gap-2">
               <Layers className="size-4 text-sky-400 shrink-0" />
               <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-                {season} Round-by-Round Car Attrition Log
+                Grand Prix Attrition Log
               </span>
             </div>
             <span className="text-[11px] font-mono text-zinc-500">
@@ -695,11 +683,11 @@ export function TeamReliabilityView({
             <div className="flex items-center gap-2">
               <Wrench className="size-4 text-amber-400 shrink-0" />
               <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-                {season} Failure Triggers &amp; Taxonomy
+                Retirement Causes
               </span>
             </div>
             <span className="text-[11px] font-mono text-zinc-500">
-              {activeDetails.causeBreakdown.detailedCauses.length} Causes Recorded
+              {activeDetails.causeBreakdown.detailedCauses.length} Causes
             </span>
           </div>
 

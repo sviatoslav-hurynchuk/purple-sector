@@ -33,7 +33,7 @@ export function ConstructorReliabilityTable({
         <div className="flex items-center gap-2">
           <Award className="size-4 text-emerald-400 shrink-0" />
           <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Constructor Reliability Leaderboard
+            Constructor Reliability
           </span>
         </div>
         <span className="text-[11px] font-mono text-zinc-500">
