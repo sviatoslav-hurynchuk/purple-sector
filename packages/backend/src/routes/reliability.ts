@@ -48,7 +48,7 @@ router.get('/constructor/:constructorId', async (req: Request, res: Response) =>
     const currentSeason = getCurrentSeason();
     const activeSeason = seasonQuery ? String(seasonQuery) : currentSeason;
     const maxAge =
-      activeSeason === currentSeason ? (isRaceWeekend() ? 60 : 900) : 86400;
+      Number(activeSeason) >= Number(currentSeason) ? (isRaceWeekend() ? 60 : 900) : 86400;
     setCacheHeaders(res, maxAge);
     res.json(data);
   } catch (err) {

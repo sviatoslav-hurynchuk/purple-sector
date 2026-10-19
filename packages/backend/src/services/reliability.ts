@@ -783,19 +783,24 @@ export async function getConstructorMultiSeasonReliability(
     seasonsToFetch.push(y);
   }
 
+  let failedSeasonFetches = 0;
+
   return cachedFetch<ConstructorMultiSeasonReliabilityResponse | null>(
     cacheKey,
     async (data) => {
       if (!data) return TTL.NEGATIVE_CACHE;
-      // If incomplete history (some seasons failed due to rate limits), revalidate soon
-      if (data.history.length < seasonsToFetch.length) return 60;
-      if (String(activeSeason) !== currentSeasonStr) return TTL.LAPS; // Past season immutable
+      // If incomplete history due to fetch failures, revalidate soon
+      if (failedSeasonFetches > 0) return 60;
+      if (activeSeason < Number(currentSeasonStr)) return TTL.LAPS; // Past season immutable
       return isRaceWeekend() ? 60 : 300;
     },
     async () => {
       const seasonResults: (SeasonReliabilityResponse | null)[] = [];
       for (const y of seasonsToFetch) {
-        const res = await getSeasonReliability(y).catch(() => null);
+        const res = await getSeasonReliability(y).catch(() => {
+          failedSeasonFetches++;
+          return null;
+        });
         seasonResults.push(res);
       }
 
@@ -822,8 +827,14 @@ export async function getConstructorMultiSeasonReliability(
         }
       }
 
-      // If constructor not found in any season, return null
+      // If constructor not found in any season:
+      // If any season fetch failed, throw an error to prevent negative caching a valid constructor
       if (!constructorName) {
+        if (failedSeasonFetches > 0) {
+          throw new Error(
+            `Failed to load reliability history for constructor ${constructorId} due to upstream fetch failure.`
+          );
+        }
         return null;
       }
 
