@@ -506,13 +506,13 @@ export function TeamReliabilityView({
                   className="border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-stretch overflow-hidden group"
                 >
                   {/* Seamless Edge-to-Edge Driver Portrait Column (Monolithic 1px Border) */}
-                  <div className="w-20 sm:w-24 shrink-0 relative bg-zinc-950/80 border-r border-white/10 group-hover:border-white/20 overflow-hidden transition-colors min-h-[110px] sm:min-h-[120px]">
+                  <div className="w-28 sm:w-36 shrink-0 relative bg-zinc-950/80 border-r border-white/10 group-hover:border-white/20 overflow-hidden transition-colors min-h-[110px] sm:min-h-[120px]">
                     <DriverImage
                       src={photo}
                       alt={driver.name}
                       fill
-                      sizes="(max-width: 640px) 80px, 96px"
-                      className="object-contain object-top scale-[5.7] origin-[50%_0%]"
+                      sizes="(max-width: 640px) 112px, 144px"
+                      className="object-contain object-top scale-[5.0] origin-[50%_0%]"
                       unoptimized
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 via-transparent to-transparent pointer-events-none" />
