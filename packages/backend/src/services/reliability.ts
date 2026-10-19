@@ -194,7 +194,7 @@ export async function getSeasonReliability(
   season: string | number
 ): Promise<SeasonReliabilityResponse> {
   const s = String(season);
-  const cacheKey = `f1:reliability:season:${s}:v1`;
+  const cacheKey = `f1:reliability:season:${s}:v2`;
 
   return cachedFetch<SeasonReliabilityResponse>(
     cacheKey,
@@ -453,6 +453,7 @@ export async function getSeasonReliability(
             status: res.status,
             category: cat,
             points,
+            constructorId: cId,
           });
 
           // ── Update Constructor Aggregator ────────────────────────────────────
@@ -775,7 +776,7 @@ export async function getConstructorMultiSeasonReliability(
 ): Promise<ConstructorMultiSeasonReliabilityResponse | null> {
   const currentSeasonStr = getCurrentSeason();
   const activeSeason = season ? Number(season) : Number(currentSeasonStr);
-  const cacheKey = `f1:reliability:history:v2:${constructorId.toLowerCase()}:${activeSeason}`;
+  const cacheKey = `f1:reliability:history:v3:${constructorId.toLowerCase()}:${activeSeason}`;
 
   // Analyze active season plus up to 4 preceding seasons (5 total)
   const seasonsToFetch: number[] = [];
@@ -783,24 +784,17 @@ export async function getConstructorMultiSeasonReliability(
     seasonsToFetch.push(y);
   }
 
-  let failedSeasonFetches = 0;
-
   return cachedFetch<ConstructorMultiSeasonReliabilityResponse | null>(
     cacheKey,
     async (data) => {
       if (!data) return TTL.NEGATIVE_CACHE;
-      // If incomplete history due to fetch failures, revalidate soon
-      if (failedSeasonFetches > 0) return 60;
       if (activeSeason < Number(currentSeasonStr)) return TTL.LAPS; // Past season immutable
       return isRaceWeekend() ? 60 : 300;
     },
     async () => {
-      const seasonResults: (SeasonReliabilityResponse | null)[] = [];
+      const seasonResults: SeasonReliabilityResponse[] = [];
       for (const y of seasonsToFetch) {
-        const res = await getSeasonReliability(y).catch(() => {
-          failedSeasonFetches++;
-          return null;
-        });
+        const res = await getSeasonReliability(y);
         seasonResults.push(res);
       }
 
@@ -827,14 +821,8 @@ export async function getConstructorMultiSeasonReliability(
         }
       }
 
-      // If constructor not found in any season:
-      // If any season fetch failed, throw an error to prevent negative caching a valid constructor
+      // If constructor not found in any season, return null
       if (!constructorName) {
-        if (failedSeasonFetches > 0) {
-          throw new Error(
-            `Failed to load reliability history for constructor ${constructorId} due to upstream fetch failure.`
-          );
-        }
         return null;
       }
 
@@ -930,15 +918,15 @@ export async function getConstructorMultiSeasonReliability(
       // Rounds for active season
       const rounds: ConstructorRoundResult[] = [];
       if (activeData?.matrix) {
-        const teamDrivers = activeData.matrix.drivers.filter(
-          (d) => d.constructorId.toLowerCase() === constructorId.toLowerCase()
-        );
-
         for (const roundMeta of activeData.matrix.rounds) {
           const cars: ConstructorRoundCarResult[] = [];
-          for (const d of teamDrivers) {
+          for (const d of activeData.matrix.drivers) {
             const rEntry = d.results.find((r) => r.round === roundMeta.round);
-            if (rEntry) {
+            if (
+              rEntry &&
+              rEntry.constructorId?.toLowerCase() === constructorId.toLowerCase() &&
+              rEntry.status !== 'Did not participate'
+            ) {
               cars.push({
                 driverId: d.driverId,
                 driverCode: d.driverCode,

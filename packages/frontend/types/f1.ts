@@ -650,6 +650,7 @@ export interface RoundAttritionEntry {
     status: string;
     category: ReliabilityCategory;
     points: number;
+    constructorId?: string;
 }
 
 /** Round metadata for the attrition matrix header. */
