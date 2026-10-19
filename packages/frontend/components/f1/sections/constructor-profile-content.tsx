@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
@@ -12,6 +13,7 @@ import {
   Calendar,
   ChevronRight,
   Swords,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   getConstructorProfile,
@@ -24,13 +26,16 @@ import { CountryFlag } from '@/components/f1/country-flag';
 import { TeamLogo } from '@/components/f1/team-logo';
 import { DriverImage } from '@/components/f1/driver-image';
 import { ConstructorDriverRoster } from '@/components/f1/constructor-driver-roster';
+import { ConstructorBackLink } from './constructor-back-link';
 import type { ConstructorStanding, DriverStanding } from '@/types/f1';
 
 interface ConstructorProfileContentProps {
   constructorId: string;
 }
 
-export async function ConstructorProfileContent({ constructorId }: ConstructorProfileContentProps) {
+export async function ConstructorProfileContent({
+  constructorId,
+}: ConstructorProfileContentProps) {
   const currentYear = new Date().getFullYear();
 
   // Lean parallel fetch: constructor profile and season standings
@@ -97,13 +102,19 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
     <div className="space-y-6 sm:space-y-8">
       {/* ── Top Navigation ──────────────────────────────────────────────── */}
       <div>
-        <Link
-          href="/constructors"
-          className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
+        <Suspense
+          fallback={
+            <Link
+              href="/constructors"
+              className="group inline-flex items-center gap-2 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
+            >
+              <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
+              <span>ALL CONSTRUCTORS</span>
+            </Link>
+          }
         >
-          <ChevronLeft className="size-4 text-zinc-500 group-hover:-translate-x-0.5 group-hover:text-white transition-all" />
-          <span>ALL CONSTRUCTORS</span>
-        </Link>
+          <ConstructorBackLink fallbackSeason={activeSeason} />
+        </Suspense>
       </div>
 
       {/* ── Main Two-Column Layout ───────────────────────────────────────── */}
@@ -151,12 +162,12 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
                 {/* Team Logo Emblem & Typographic Nameplate */}
                 <div className="flex items-start gap-4 pt-1">
-                  <div className="size-16 sm:size-20 rounded-2xl border border-white/10 bg-zinc-900/80 p-2.5 backdrop-blur-md shadow-xl flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="size-16 sm:size-20 rounded-2xl border border-white/10 bg-zinc-900/80 backdrop-blur-md shadow-xl flex items-center justify-center shrink-0 overflow-hidden">
                     <TeamLogo
                       constructorId={team.constructorId}
                       season={currentYear}
                       size={64}
-                      className="!w-full !h-full rounded-none shadow-none object-contain"
+                      className="!w-full !h-full rounded-none shadow-none p-2 sm:p-2.5"
                     />
                   </div>
 
@@ -573,11 +584,22 @@ export async function ConstructorProfileContent({ constructorId }: ConstructorPr
 
             {/* Section 3: Technical Blueprint & Operations Leadership */}
             <div className="border-t border-white/10">
-              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center gap-2.5">
-                <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-blue-400" />
-                <h3 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
-                  Technical Blueprint &amp; Leadership
-                </h3>
+              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-blue-400" />
+                  <h3 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
+                    Technical Blueprint &amp; Leadership
+                  </h3>
+                </div>
+
+                <Link
+                  href={`/reliability?team=${team.constructorId}&season=${activeSeason}&from=profile`}
+                  className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 bg-zinc-900/80 hover:bg-zinc-800 transition-all group/rel"
+                >
+                  <ShieldCheck className="size-3 text-emerald-400 group-hover/rel:rotate-12 transition-transform" />
+                  <span>TEAM RELIABILITY</span>
+                  <ChevronRight className="size-3 text-zinc-500 group-hover/rel:text-white group-hover/rel:translate-x-0.5 transition-all" />
+                </Link>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">

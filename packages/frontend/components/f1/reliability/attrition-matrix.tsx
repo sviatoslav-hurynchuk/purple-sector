@@ -71,7 +71,7 @@ export function AttritionMatrix({ matrix, season }: AttritionMatrixProps) {
         <div className="flex items-center gap-2">
           <Grid className="size-4 text-emerald-400 shrink-0" />
           <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Season Attrition Timeline
+            Attrition Matrix
           </span>
           <span className="text-[11px] font-mono text-zinc-500 hidden md:inline">
             • {matrix.rounds.length} Grands Prix

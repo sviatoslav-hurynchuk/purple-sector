@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
-import { getSeasonReliability } from '@/lib/api';
+import {
+  getSeasonReliability,
+  getConstructorMultiSeasonReliability,
+} from '@/lib/api';
 import { getMaxYear, parseYear } from '@/lib/utils';
 import { ReliabilityContent } from '@/components/f1/reliability/reliability-content';
 
@@ -12,7 +15,7 @@ export const metadata: Metadata = {
 export const revalidate = 900;
 
 interface ReliabilityPageProps {
-  searchParams: Promise<{ season?: string }>;
+  searchParams: Promise<{ season?: string; team?: string; from?: string }>;
 }
 
 export default async function ReliabilityPage({
@@ -31,13 +34,21 @@ export default async function ReliabilityPage({
       ? maxYear
       : parseYear(resolvedParams.season, maxYear);
 
-  const data = await getSeasonReliability(validYear);
+  const [data, teamData] = await Promise.all([
+    getSeasonReliability(validYear),
+    resolvedParams.team
+      ? getConstructorMultiSeasonReliability(resolvedParams.team, validYear)
+      : Promise.resolve(null),
+  ]);
 
   return (
     <ReliabilityContent
       data={data}
+      teamData={teamData}
+      selectedTeamId={resolvedParams.team}
       season={validYear}
       allYears={allYears}
+      from={resolvedParams.from}
     />
   );
 }
