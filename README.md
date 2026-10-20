@@ -209,7 +209,7 @@ pnpm dev:frontend   # Next.js app at http://localhost:3000
 | Method | Path | Description | Cache TTL |
 |---|---|---|---|
 | `GET` | `/api/reliability/:season` | Full season reliability rankings, executive KPIs, constructor/driver standings, attrition heatmap matrix, and failure cause breakdown | 60s (weekend) / 15m (midweek) / 24h (past) |
-| `GET` | `/api/reliability/constructor/:constructorId?season=YYYY` | Multi-season reliability history (up to 5 seasons), all-time KPIs, and active season breakdown for a constructor | 60s (weekend) / 5m (midweek) / 24h (past) |
+| `GET` | `/api/reliability/constructor/:constructorId?season=YYYY` | Multi-season reliability history (up to 5 seasons), all-time KPIs, and active season breakdown for a constructor | 60s (weekend) / 15m (midweek) / 24h (past) |
 | `GET` | `/api/reliability/:season/constructor/:constructorId` | Reliability analytics for a specific constructor in a given season | 60s (weekend) / 15m (midweek) / 24h (past) |
 
 ### Live Timing & Telemetry (OpenF1 Engine)
@@ -274,7 +274,7 @@ Next.js server components configure `next: { revalidate }` for bounded staleness
 
 - **Bounded Staleness**: Next.js caches fetch responses per route (e.g. 60s for active season, 24h for historical seasons). Cached responses in Next.js remain valid until the route's revalidation window expires, meaning Next.js may serve cached data until that window elapses even if Redis is refreshed or invalidated earlier.
 - **Cache Invalidation Coordination**: When immediate freshness after backend cache mutation is required, on-demand revalidation via Next.js `revalidatePath` or `revalidateTag` should be triggered alongside Redis invalidation.
-- **Suspense-Isolated Query Param Reading**: Route-level server pages stay independent of query parameters to preserve static generation and ISR benefits, while interactive query parameters (such as `?from=reliability` or `?season=2025`) are consumed via client components isolated inside React `<Suspense>` boundaries.
+- **Reliability Query Param Reading**: The reliability route reads `season` and `team` on the server to select its data, then passes the resolved values to `ReliabilityContent`.
 
 ### Cache Key Schema
 
