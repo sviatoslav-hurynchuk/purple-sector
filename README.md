@@ -1,6 +1,6 @@
 # Purple Sector
 
-Interactive Formula 1 data platform with real-time standings, race calendars, circuit details, session results, teammate head-to-head battles, and live telemetry. Built as a high-performance monorepo with an Express backend acting as an intelligent caching proxy to the Jolpica F1 and OpenF1 APIs, and a Next.js frontend rendering server-side pages using a monolithic cockpit design system.
+Interactive Formula 1 data platform with real-time standings, race calendars, circuit details, session results, teammate head-to-head battles, season reliability & attrition analytics, and live telemetry. Built as a high-performance monorepo with an Express backend acting as an intelligent caching proxy to the Jolpica F1 and OpenF1 APIs, and a Next.js frontend rendering server-side pages using a monolithic cockpit design system.
 
 > Purple Sector is an unofficial project and is not affiliated with Formula 1 companies.
 
@@ -38,6 +38,7 @@ f1-data-demo/
 │   │   │   │   ├── live.ts             # SSE stream, live timing tower, car telemetry & 2D positions
 │   │   │   │   ├── openf1.ts           # OpenF1 sessions, stints, weather, race control
 │   │   │   │   ├── races.ts            # Race schedule, results, pit stops, lap data, next race
+│   │   │   │   ├── reliability.ts      # Season reliability, attrition heatmap matrix & constructor history
 │   │   │   │   └── standings.ts        # Driver and constructor championship standings
 │   │   │   ├── services/
 │   │   │   │   ├── cache.ts            # Cache service (Upstash Redis + in-memory fallback)
@@ -48,6 +49,7 @@ f1-data-demo/
 │   │   │   │   ├── live-telemetry.ts   # High-frequency car telemetry & position aggregators
 │   │   │   │   ├── openf1.ts           # OpenF1 REST client with rate limiting & caching
 │   │   │   │   ├── openf1-mapper.ts    # OpenF1 to domain entity normalizers
+│   │   │   │   ├── reliability.ts      # Reliability analytics engine, DNF categorization & multi-season aggregation
 │   │   │   │   └── session-watcher.ts  # Automatic live session detection & state recovery
 │   │   │   └── types/
 │   │   │       └── f1.ts               # Shared backend domain & API types
@@ -78,6 +80,8 @@ f1-data-demo/
 │       │       │   └── page.tsx        # Teammate battle comparison matrix (qualifying, race, pts)
 │       │       ├── live/
 │       │       │   └── page.tsx        # Real-time Live Control Room (SSE, 2D map, telemetry)
+│       │       ├── reliability/
+│       │       │   └── page.tsx        # Season reliability rankings & team multi-season durability view
 │       │       └── standings/
 │       │           └── page.tsx        # Full championship standings with round slider
 │       ├── components/
@@ -85,7 +89,10 @@ f1-data-demo/
 │       │   │   ├── head-to-head/       # Head-to-head battle cards & comparison charts
 │       │   │   ├── laps/               # Lap chart visualizations, gap tower & pace tables
 │       │   │   ├── pit-stops/          # Pit stop duration charts & tables
+│       │   │   ├── reliability/        # Constructor durability table, attrition matrix, cause breakdown & team view
 │       │   │   ├── sections/           # Modular page-level content sections
+│       │   │   │   ├── constructor-back-link.tsx # Client-side backlink router with Suspense isolation
+│       │   │   │   └── ...
 │       │   │   ├── skeletons/          # Zero-CLS loading skeletons matching grid architecture
 │       │   │   ├── circuit-details-card.tsx
 │       │   │   ├── countdown-widget.tsx
@@ -185,7 +192,7 @@ pnpm dev:frontend   # Next.js app at http://localhost:3000
 | Method | Path | Description | Cache TTL |
 |---|---|---|---|
 | `GET` | `/api/drivers?season=YYYY` | Roster of active drivers for a given season | 5m (race weekend) / 1h (midweek) / 24h (past) |
-| `GET` | `/api/drivers/:driverId` | Full driver profile, career statistics, and season finish history | 24h |
+| `GET` | `/api/drivers/:driverId` | Full driver profile, career statistics, and multi-season finish history | 24h (self-healing 60s on incomplete data) |
 | `GET` | `/api/constructors?season=YYYY` | Constructors entered for a given season | 5m (race weekend) / 1h (midweek) / 24h (past) |
 | `GET` | `/api/constructors/:constructorId` | Team profile, historical lineup, career stats, championships | 5m |
 
@@ -196,6 +203,14 @@ pnpm dev:frontend   # Next.js app at http://localhost:3000
 | `GET` | `/api/head-to-head/:season` | All teammate battles and metrics across constructors for a season | 60s (weekend) / 15m (midweek) / 24h (past) |
 | `GET` | `/api/head-to-head/:season/constructor/:id` | Teammate battle for a specific constructor | 60s (weekend) / 15m (midweek) / 24h (past) |
 | `GET` | `/api/head-to-head/:season/battle/:d1/:d2` | Direct head-to-head telemetry & finishing battle between 2 drivers | 60s (weekend) / 15m (midweek) / 24h (past) |
+
+### Reliability & Attrition Analytics
+
+| Method | Path | Description | Cache TTL |
+|---|---|---|---|
+| `GET` | `/api/reliability/:season` | Full season reliability rankings, executive KPIs, constructor/driver standings, attrition heatmap matrix, and failure cause breakdown | 60s (weekend) / 15m (midweek) / 24h (past) |
+| `GET` | `/api/reliability/constructor/:constructorId?season=YYYY` | Multi-season reliability history (up to 5 seasons), all-time KPIs, and active season breakdown for a constructor | 60s (weekend) / 15m (midweek) / 24h (past) |
+| `GET` | `/api/reliability/:season/constructor/:constructorId` | Reliability analytics for a specific constructor in a given season | 60s (weekend) / 15m (midweek) / 24h (past) |
 
 ### Live Timing & Telemetry (OpenF1 Engine)
 
@@ -234,7 +249,7 @@ All admin endpoints require `x-admin-token` or `Authorization: Bearer <token>` m
 
 ---
 
-## Caching Architecture
+## Caching Architecture & Resiliency
 
 The platform uses a two-tier caching architecture engineered to respect upstream rate limits (e.g. OpenF1's 3 req/sec limit and Jolpica's rate bounds) while keeping latency minimal.
 
@@ -248,6 +263,9 @@ The platform uses a two-tier caching architecture engineered to respect upstream
   - Active season (midweek): 1 hour to 6 hours depending on resource stability.
   - Race weekends: 20 seconds to 60 seconds for near-instant classification updates.
   - Live session telemetry: 1 to 2 seconds with SSE streaming.
+- **Fail-Fast Error Propagation**: Critical multi-season operations reject immediately upon season fetch failures rather than returning partial histories that downstream HTTP and Next.js caches might retain.
+- **Self-Healing Career Validation**: Multi-season aggregators (such as driver career profiles across 15+ seasons) validate dataset completeness. If rate limits or network hiccups cause individual seasons to fail during compilation, a short 60s TTL is returned instead of caching incomplete data permanently, ensuring automatic recovery on subsequent requests.
+- **Round-Specific Constructor Attribution**: In multi-season constructor analytics, drivers who switch teams mid-season (e.g. Oliver Bearman, Liam Lawson, Franco Colapinto) have their round results and DNFs strictly mapped to the constructor entered for that specific Grand Prix, preventing historical result bleeding.
 - **Cache Pre-warming**: Asynchronous pre-fetch of next race, current season calendar, and standings immediately upon backend initialization.
 
 ### Layer 2: Next.js Fetch Cache (Frontend)
@@ -256,6 +274,7 @@ Next.js server components configure `next: { revalidate }` for bounded staleness
 
 - **Bounded Staleness**: Next.js caches fetch responses per route (e.g. 60s for active season, 24h for historical seasons). Cached responses in Next.js remain valid until the route's revalidation window expires, meaning Next.js may serve cached data until that window elapses even if Redis is refreshed or invalidated earlier.
 - **Cache Invalidation Coordination**: When immediate freshness after backend cache mutation is required, on-demand revalidation via Next.js `revalidatePath` or `revalidateTag` should be triggered alongside Redis invalidation.
+- **Reliability Query Param Reading**: The reliability route reads `season` and `team` on the server to select its data, then passes the resolved values to `ReliabilityContent`.
 
 ### Cache Key Schema
 
@@ -271,11 +290,14 @@ f1:standings:constructors:{season}
 f1:standings:constructors:{season}:{round}
 f1:drivers:{season}
 f1:driver:{driverId}
+f1:driver:profile:v2:{driverId}
 f1:constructors:{season}
 f1:constructor:{constructorId}
 f1:h2h:{season}
 f1:h2h:{season}:{constructorId}
 f1:h2h:{season}:{driver1}:{driver2}
+f1:reliability:season:{season}:v2
+f1:reliability:history:v3:{constructorId}:{season}
 f1:openf1:sessions:{year}
 f1:openf1:race:{season}:{round}
 ```
@@ -292,10 +314,12 @@ f1:openf1:race:{season}:{round}
 | `/calendar/[round]/pit-stops` | Pit Stops | Server Component (SSR) | Pit stop chronology, duration rankings, stop counts, and tyre strategy overview |
 | `/calendar/[round]/laps` | Lap Telemetry | Server Component (SSR) | Lap-by-lap timing analysis, driver lap comparisons, and race pace progression |
 | `/drivers` | Drivers Grid | Server Component (SSR) | Active driver roster for the season with team associations, points, and nationality flags |
-| `/drivers/[driverId]` | Driver Profile | Server Component (SSR) | Deep-dive driver biography, career statistics (wins, podiums, poles), and season finishes |
+| `/drivers/[driverId]` | Driver Profile | Server Component (SSR) | Deep-dive driver biography, complete multi-season career statistics (wins, podiums, poles), and season finish tables |
 | `/constructors` | Constructors Grid | Server Component (SSR) | Championship constructor grid with team liveries and season statistics |
-| `/constructors/[constructorId]` | Constructor Profile | Server Component (SSR) | Historical team achievements, full driver roster history, and active driver pairings |
+| `/constructors/[constructorId]` | Constructor Profile | Server Component (SSR) | Historical team achievements, technical leadership, full driver roster history, and active driver pairings |
 | `/head-to-head` | Head-To-Head | Server Component (SSR) | Apex design benchmark: comprehensive teammate battle comparison across qualifying, race, and points |
+| `/reliability` | Reliability Analytics | Server Component (SSR) | Full-grid reliability rankings, constructor finish & lap completion rates, interactive season attrition heatmap matrix, and failure cause distribution |
+| `/reliability?team={team}&season={year}` | Team Reliability | Server Component (SSR) | Dedicated constructor multi-season durability cockpit: 5-season historical trajectory, driver cutouts with inwards gaze, failure cause distribution, and round-by-round car results |
 | `/live` | Live Control Room | Client Component (SSE/SWR) | Real-time session monitoring: 2D track map with car coordinates, live timing tower, and telemetry |
 | `/standings` | Standings | Server Component (SSR) | Full driver & constructor championship standings with season selector and completed-round slider |
 
@@ -308,10 +332,16 @@ All pages feature tailored `loading.tsx` skeletons and robust `error.tsx` bounda
 The user interface follows the monolithic cockpit design system established on the **Teammate Head-to-Head** (`/head-to-head`) page:
 
 - **Monolithic 1px Grid Architecture**: Ban loose "AI floating bubble cards". Cards utilize unified outer shells (`rounded-3xl border border-white/10 bg-zinc-950`) with contiguous 1px shared borders (`border-t border-l border-white/10` parent, `border-b border-r border-white/10 bg-zinc-900/20` children).
-- **Typography & High Contrast**: Monospace numbers (`font-mono`) for all telemetry, lap times, gaps, and points; uppercase tracking for badges and headers (`text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider`).
-- **Compact Cockpit Density**: Eliminated large vertical gaps and horizontal table overflow, ensuring all data grids fit comfortably on standard laptop viewports.
+- **Typography & High Contrast**: Monospace numbers (`font-mono`) for all telemetry, lap times, gaps, and points; uppercase tracking for badges and headers (`text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider`). Never drop readable labels below `text-zinc-400`.
+- **Compact Cockpit Density**: Eliminated large vertical gaps and horizontal table overflow, ensuring all data grids fit comfortably on standard laptop viewports (`py-2.5` to `py-3.5`, `space-y-4` to `space-y-6`).
 - **Motorsports Polish**: High-res country flags for Grand Prix and drivers, inwards-facing driver cutouts, distinct DNF/DSQ badges, dynamic team livery ambient glows (`opacity-20 blur-3xl`), and signature F1 Red active indicators.
-- **Mobile Adaptability**: Liquid glass bottom dock navigation with $\ge 44\text{px}$ touch targets and smooth horizontal scrolling ribbons.
+- **Failure Taxonomy & Reliability Visual Language**:
+  - Mechanical Failures: Rose/Red badge (`bg-rose-500/10 border-rose-500/20 text-rose-400`).
+  - Incident & Crash: Amber badge (`bg-amber-500/10 border-amber-500/20 text-amber-400`).
+  - Disqualifications: Purple badge (`bg-purple-500/10 border-purple-500/20 text-purple-400`).
+  - Did Not Start: Muted Slate badge (`bg-zinc-800 border-zinc-700 text-zinc-400`).
+  - Finish Rate Color Coding: $\ge 95\%$ Emerald, $\ge 85\%$ Sky Blue, $< 85\%$ Amber.
+- **Mobile Adaptability**: Liquid glass bottom dock navigation with $\ge 44\text{px}$ touch targets and smooth horizontal scrolling ribbons without destructive content hiding.
 
 ---
 

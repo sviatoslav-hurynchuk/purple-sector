@@ -90,6 +90,14 @@ export function ConstructorReliabilityTable({
                           <span className="truncate">{c.name}</span>
                           <ChevronRight className="size-3 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
                         </Link>
+                        <Link
+                          href={`/reliability?team=${c.constructorId}&season=${season}`}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-white/10 bg-zinc-900/80 hover:bg-zinc-800 hover:border-emerald-500/30 text-[10px] sm:text-[11px] font-mono font-bold text-zinc-300 hover:text-white transition-all shadow-xs shrink-0"
+                          title={`View ${c.name} Multi-Season Reliability`}
+                        >
+                          <span>History</span>
+                          <ChevronRight className="size-3 text-zinc-500" />
+                        </Link>
                       </div>
                       <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-400 mt-0.5">
                         <CountryFlag
@@ -135,13 +143,6 @@ export function ConstructorReliabilityTable({
                         {c.dsqs} DSQ
                       </span>
                     )}
-                    <Link
-                      href={`/reliability?team=${c.constructorId}&season=${season}`}
-                      className="px-2 py-0.5 rounded bg-zinc-900 border border-white/10 text-zinc-300 text-xs font-mono font-bold hover:text-white hover:border-emerald-500/30 transition-colors"
-                      title={`View ${c.name} Multi-Season Reliability`}
-                    >
-                      History →
-                    </Link>
                   </div>
                 </div>
 
@@ -235,14 +236,6 @@ export function ConstructorReliabilityTable({
                         {c.dnss} DNS
                       </span>
                     )}
-                    <Link
-                      href={`/reliability?team=${c.constructorId}&season=${season}`}
-                      className="ml-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/10 bg-zinc-900/80 hover:bg-zinc-800 hover:border-emerald-500/30 text-[11px] font-mono font-bold text-zinc-300 hover:text-white transition-all shadow-xs"
-                      title={`View ${c.name} Multi-Season Reliability`}
-                    >
-                      <span>History</span>
-                      <ChevronRight className="size-3 text-zinc-500" />
-                    </Link>
                   </div>
                 </div>
               </div>
