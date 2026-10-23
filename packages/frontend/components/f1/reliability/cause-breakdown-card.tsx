@@ -42,7 +42,7 @@ const CATEGORY_COLORS: Record<string, { fill: string; text: string; bg: string; 
   },
 };
 
-export function CauseBreakdownCard({ causeBreakdown, season: _season }: CauseBreakdownCardProps) {
+export function CauseBreakdownCard({ causeBreakdown }: CauseBreakdownCardProps) {
   const { categories, detailedCauses } = causeBreakdown;
   const totalFailures = categories.reduce((sum, c) => sum + c.count, 0);
 
