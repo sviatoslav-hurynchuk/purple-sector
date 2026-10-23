@@ -6,14 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
-  Award,
-  Wrench,
-  AlertTriangle,
   TrendingUp,
-  Activity,
-  Layers,
-  Flag,
 } from 'lucide-react';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { TeamLogo } from '@/components/f1/team-logo';
@@ -311,32 +304,30 @@ export function TeamReliabilityView({
         </div>
       </div>
 
-      {/* ── Section 2: Multi-Season History ───────────────────────────── */}
+      {/* ── Section 2: Multi-Season History (Headerless Table) ─────────── */}
       <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
-        <div className="py-2.5 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="size-4 text-amber-400 shrink-0" />
-            <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-              Multi-Season Track Record
-            </span>
-          </div>
-          <span className="text-[11px] font-mono text-zinc-500">
-            {history.length} Seasons
-          </span>
-        </div>
-
         {/* Monolithic 1px Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-white/10 bg-zinc-900/40 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400">
-                <th className="py-3 px-4 sm:px-5">Season</th>
+                <th className="py-3 px-4 sm:px-5">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="size-3.5 text-amber-400 shrink-0" />
+                    <span>Season</span>
+                  </div>
+                </th>
                 <th className="py-3 px-3 text-center">Grid Rank</th>
                 <th className="py-3 px-3">Starts / Finishes</th>
                 <th className="py-3 px-3 text-center">Mechanical</th>
                 <th className="py-3 px-3 text-center">Incident</th>
                 <th className="py-3 px-3 text-right">Finish Rate</th>
-                <th className="py-3 px-4 sm:px-5 text-right">Laps Completed</th>
+                <th className="py-3 px-4 sm:px-5 text-right">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>Laps Completed</span>
+                    <span className="text-[9px] text-zinc-500 font-normal">({history.length} Yrs)</span>
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 font-mono text-xs">
@@ -470,22 +461,10 @@ export function TeamReliabilityView({
         </div>
       </div>
 
-      {/* ── Section 3: Teammate Reliability Split (Active Season) ─────── */}
+      {/* ── Section 3: Teammate Reliability Split (Headerless Split) ──── */}
       {drivers.length > 0 && (
         <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
-          <div className="py-2.5 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Award className="size-4 text-purple-400 shrink-0" />
-              <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-                Driver Reliability
-              </span>
-            </div>
-            <span className="text-[11px] font-mono text-zinc-500">
-              {drivers.length} Drivers
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">
+          <div className="grid grid-cols-1 md:grid-cols-2 -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/60">
             {drivers.map((driver, idx) => {
               const orientation = idx % 2 === 0 ? 'left' : 'right';
               const nameParts = (driver.name || '').trim().split(' ');
@@ -594,21 +573,9 @@ export function TeamReliabilityView({
         </div>
       )}
 
-      {/* ── Section 4: Round-by-Round Attrition Timeline ───────────────── */}
+      {/* ── Section 4: Round-by-Round Attrition Timeline (Headerless Log) ── */}
       {activeDetails.rounds.length > 0 && (
         <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
-          <div className="py-2.5 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Layers className="size-4 text-sky-400 shrink-0" />
-              <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-                Grand Prix Attrition Log
-              </span>
-            </div>
-            <span className="text-[11px] font-mono text-zinc-500">
-              {activeDetails.rounds.length} Grands Prix
-            </span>
-          </div>
-
           <div className="divide-y divide-white/5">
             {activeDetails.rounds.map((round) => (
               <div
@@ -676,22 +643,10 @@ export function TeamReliabilityView({
         </div>
       )}
 
-      {/* ── Section 5: Specific Failure Triggers (if any occurred) ────── */}
+      {/* ── Section 5: Specific Failure Triggers (Headerless Grid) ────── */}
       {activeDetails.causeBreakdown.detailedCauses.length > 0 && (
         <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
-          <div className="py-2.5 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Wrench className="size-4 text-amber-400 shrink-0" />
-              <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-                Retirement Causes
-              </span>
-            </div>
-            <span className="text-[11px] font-mono text-zinc-500">
-              {activeDetails.causeBreakdown.detailedCauses.length} Causes
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60 font-mono text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/60 font-mono text-xs">
             {activeDetails.causeBreakdown.detailedCauses.map((cause) => (
               <div
                 key={cause.cause}

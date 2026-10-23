@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Wrench } from 'lucide-react';
 import type { ReliabilityCauseBreakdown } from '@/types/f1';
 
 interface CauseBreakdownCardProps {
@@ -43,7 +42,7 @@ const CATEGORY_COLORS: Record<string, { fill: string; text: string; bg: string; 
   },
 };
 
-export function CauseBreakdownCard({ causeBreakdown, season }: CauseBreakdownCardProps) {
+export function CauseBreakdownCard({ causeBreakdown }: CauseBreakdownCardProps) {
   const { categories, detailedCauses } = causeBreakdown;
   const totalFailures = categories.reduce((sum, c) => sum + c.count, 0);
 
@@ -61,19 +60,6 @@ export function CauseBreakdownCard({ causeBreakdown, season }: CauseBreakdownCar
 
   return (
     <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
-      {/* ── Compact Cockpit Sub-Header (py-2.5) ── */}
-      <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 border-b border-white/10 bg-zinc-900/30">
-        <div className="flex items-center gap-2">
-          <Wrench className="size-4 text-amber-400 shrink-0" />
-          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Retirement Causes
-          </span>
-        </div>
-        <span className="text-[11px] font-mono text-zinc-500">
-          {totalFailures} Retirements
-        </span>
-      </div>
-
       <div className="p-4 sm:p-5 space-y-4">
         {/* Proportional Segmented Telemetry Bar */}
         <div className="space-y-2">

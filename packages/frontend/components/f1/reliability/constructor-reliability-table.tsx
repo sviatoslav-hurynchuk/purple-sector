@@ -6,7 +6,7 @@ import { getTeamTheme } from '@/lib/team-colors';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { TeamLogo } from '@/components/f1/team-logo';
 import { cn } from '@/lib/utils';
-import { ChevronRight, Award } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import type { ConstructorReliability } from '@/types/f1';
 
 interface ConstructorReliabilityTableProps {
@@ -28,20 +28,7 @@ export function ConstructorReliabilityTable({
 
   return (
     <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl w-full">
-      {/* ── Compact Cockpit Sub-Header (Standard py-2.5) ── */}
-      <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 border-b border-white/10 bg-zinc-900/30">
-        <div className="flex items-center gap-2">
-          <Award className="size-4 text-emerald-400 shrink-0" />
-          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Constructor Reliability
-          </span>
-        </div>
-        <span className="text-[11px] font-mono text-zinc-500">
-          {constructors.length} Constructors
-        </span>
-      </div>
-
-      {/* Rows Container */}
+      {/* Rows Container (Headerless Monolithic Cockpit) */}
       <div className="divide-y divide-white/5">
         {constructors.map((c, index) => {
           const theme = getTeamTheme(c.constructorId);

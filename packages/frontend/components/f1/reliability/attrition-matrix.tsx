@@ -5,7 +5,7 @@ import { CountryFlag } from '@/components/f1/country-flag';
 import { getTeamTheme } from '@/lib/team-colors';
 import { cn } from '@/lib/utils';
 import { Grid } from 'lucide-react';
-import type { SeasonAttritionMatrix, RoundAttritionEntry } from '@/types/f1';
+import type { SeasonAttritionMatrix } from '@/types/f1';
 
 interface AttritionMatrixProps {
   matrix: SeasonAttritionMatrix;

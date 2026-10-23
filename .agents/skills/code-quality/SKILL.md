@@ -1,3 +1,8 @@
+---
+name: code-quality
+description: Behavioral guidelines to reduce common LLM coding mistakes, enforcing think before coding, simplicity first, surgical changes, and goal-driven execution.
+---
+
 # SKILL.md
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
