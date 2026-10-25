@@ -27,6 +27,7 @@ import { TeamLogo } from '@/components/f1/team-logo';
 import { DriverImage } from '@/components/f1/driver-image';
 import { ConstructorDriverRoster } from '@/components/f1/constructor-driver-roster';
 import { ConstructorBackLink } from './constructor-back-link';
+import { cn } from '@/lib/utils';
 import type { ConstructorStanding, DriverStanding } from '@/types/f1';
 
 interface ConstructorProfileContentProps {
@@ -80,6 +81,7 @@ export async function ConstructorProfileContent({
 
   // Resolved Primary Drivers
   const primaryDrivers = currentDrivers.slice(0, 2);
+  const hasTeammatePairing = primaryDrivers.length >= 2;
   const driver1 = primaryDrivers[0];
   const driver2 = primaryDrivers[1];
 
@@ -601,26 +603,33 @@ export async function ConstructorProfileContent({
             </div>
 
             {/* Analytical Command Ribbon: Fast Access to Head-to-Head & Team Reliability Analytics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/80 font-mono text-xs">
-              <Link
-                href={`/head-to-head?season=${activeSeason}&team=${team.constructorId}`}
-                className="p-3 sm:p-3.5 border-b border-r border-white/10 bg-zinc-900/30 hover:bg-zinc-800/60 text-zinc-300 hover:text-white transition-all flex items-center justify-between group/h2h"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 group-hover/h2h:bg-purple-500/20 transition-colors shrink-0">
-                    <Swords className="size-3.5 group-hover/h2h:rotate-12 transition-transform" />
+            <div
+              className={cn(
+                'grid -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/80 font-mono text-xs',
+                hasTeammatePairing ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
+              )}
+            >
+              {hasTeammatePairing && (
+                <Link
+                  href={`/head-to-head?season=${activeSeason}&team=${team.constructorId}`}
+                  className="p-3 sm:p-3.5 border-b border-r border-white/10 bg-zinc-900/30 hover:bg-zinc-800/60 text-zinc-300 hover:text-white transition-all flex items-center justify-between group/h2h"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 group-hover/h2h:bg-purple-500/20 transition-colors shrink-0">
+                      <Swords className="size-3.5 group-hover/h2h:rotate-12 transition-transform" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold uppercase tracking-wider block text-white text-xs truncate">
+                        Head-to-Head Duel
+                      </span>
+                      <span className="text-[10px] text-zinc-400 block truncate">
+                        Teammate Telemetry &amp; Pace Split
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <span className="font-bold uppercase tracking-wider block text-white text-xs truncate">
-                      Head-to-Head Duel
-                    </span>
-                    <span className="text-[10px] text-zinc-400 block truncate">
-                      Teammate Telemetry &amp; Pace Split
-                    </span>
-                  </div>
-                </div>
-                <ChevronRight className="size-4 text-zinc-500 group-hover/h2h:text-white group-hover/h2h:translate-x-0.5 transition-all shrink-0 ml-2" />
-              </Link>
+                  <ChevronRight className="size-4 text-zinc-500 group-hover/h2h:text-white group-hover/h2h:translate-x-0.5 transition-all shrink-0 ml-2" />
+                </Link>
+              )}
 
               <Link
                 href={`/reliability?team=${team.constructorId}&season=${activeSeason}&from=profile`}
