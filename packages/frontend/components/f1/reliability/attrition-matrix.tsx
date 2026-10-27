@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import { CountryFlag } from '@/components/f1/country-flag';
 import { getTeamTheme } from '@/lib/team-colors';
 import { cn } from '@/lib/utils';
-import { Grid } from 'lucide-react';
 import type { SeasonAttritionMatrix } from '@/types/f1';
 
 interface AttritionMatrixProps {
@@ -65,74 +64,67 @@ export function AttritionMatrix({ matrix, season }: AttritionMatrixProps) {
   }
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
-      {/* ── Compact Cockpit Sub-Header (Standard 2.5 py height matching constructors/standings) ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-4 sm:px-5 py-2.5 border-b border-white/10 bg-zinc-900/30">
-        <div className="flex items-center gap-2">
-          <Grid className="size-4 text-emerald-400 shrink-0" />
-          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Attrition Matrix
-          </span>
-          <span className="text-[11px] font-mono text-zinc-500 hidden md:inline">
-            • {matrix.rounds.length} Grands Prix
-          </span>
+    <div className="space-y-4">
+      {/* ── Headerless Analytical Command Strip (Dominance Matrix Benchmark) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Segmented Filter */}
+        <div className="inline-flex items-center border border-white/10 bg-zinc-900 divide-x divide-white/10 rounded-md overflow-hidden text-xs font-mono">
+          <button
+            type="button"
+            onClick={() => setFilter('all')}
+            className={cn(
+              'px-3 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+              filter === 'all'
+                ? 'bg-zinc-800 text-white shadow-xs'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            )}
+          >
+            All ({matrix.drivers.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('dnf-only')}
+            className={cn(
+              'px-3 py-1.5 transition-colors cursor-pointer uppercase tracking-wider font-bold',
+              filter === 'dnf-only'
+                ? 'bg-zinc-800 text-white shadow-xs'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            )}
+          >
+            DNFs Only
+          </button>
         </div>
 
-        {/* Toolbar & Micro Legend */}
-        <div className="flex items-center gap-3 self-start sm:self-auto shrink-0">
-          {/* Segmented Filter */}
-          <div className="inline-flex p-0.5 rounded-lg bg-zinc-950 border border-white/10 text-[11px] font-mono">
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className={cn(
-                'px-2.5 py-0.5 rounded-md font-bold transition-all',
-                filter === 'all'
-                  ? 'bg-zinc-800 text-white shadow-xs ring-1 ring-white/10'
-                  : 'text-zinc-400 hover:text-white'
-              )}
-            >
-              All ({matrix.drivers.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('dnf-only')}
-              className={cn(
-                'px-2.5 py-0.5 rounded-md font-bold transition-all',
-                filter === 'dnf-only'
-                  ? 'bg-zinc-800 text-white shadow-xs ring-1 ring-white/10'
-                  : 'text-zinc-400 hover:text-white'
-              )}
-            >
-              DNFs Only
-            </button>
-          </div>
-
-          {/* Micro Legend */}
-          <div className="hidden lg:flex items-center gap-2 text-[11px] font-mono border-l border-white/10 pl-3">
-            <span className="flex items-center gap-1 text-zinc-300">
+        {/* Micro Legend & Grand Prix Counter */}
+        <div className="flex items-center gap-4 text-xs font-mono">
+          <div className="flex items-center gap-3 text-[11px]">
+            <span className="flex items-center gap-1.5 text-zinc-300">
               <span className="size-2 rounded-xs bg-emerald-500/30 border border-emerald-500/50" />
               P1-10
             </span>
-            <span className="flex items-center gap-1 text-zinc-400">
+            <span className="flex items-center gap-1.5 text-zinc-400">
               <span className="size-2 rounded-xs bg-zinc-800 border border-zinc-700" />
               P11+
             </span>
-            <span className="flex items-center gap-1 text-rose-400 font-bold">
+            <span className="flex items-center gap-1.5 text-rose-400 font-bold">
               <span className="size-2 rounded-xs bg-rose-500/30 border border-rose-500/50" />
               DNF
             </span>
-            <span className="flex items-center gap-1 text-purple-400 font-bold">
+            <span className="flex items-center gap-1.5 text-purple-400 font-bold">
               <span className="size-2 rounded-xs bg-purple-500/30 border border-purple-500/50" />
               DSQ
             </span>
           </div>
+          <span className="text-[11px] font-mono text-zinc-500 hidden sm:inline border-l border-white/10 pl-3">
+            {matrix.rounds.length} Grands Prix
+          </span>
         </div>
       </div>
 
-      {/* ── High-Density Matrix Table Container with Sticky Driver Column ── */}
-      <div className="relative overflow-x-auto scrollbar-thin">
-        <table className="w-full border-collapse text-left">
+      {/* ── High-Density Monolithic Matrix Table Shell ── */}
+      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
+        <div className="relative overflow-x-auto scrollbar-thin">
+          <table className="w-full border-collapse text-left">
           {/* Header Row: Rounds */}
           <thead>
             <tr className="border-b border-white/10 bg-zinc-950">
@@ -274,5 +266,6 @@ export function AttritionMatrix({ matrix, season }: AttritionMatrixProps) {
         </table>
       </div>
     </div>
-  );
+  </div>
+);
 }
