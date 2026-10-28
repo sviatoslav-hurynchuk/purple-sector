@@ -1,144 +1,282 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { ReliabilityCauseBreakdown } from '@/types/f1';
 
 interface CauseBreakdownCardProps {
   causeBreakdown: ReliabilityCauseBreakdown;
-  season: number;
+  season?: number;
 }
 
-const CATEGORY_COLORS: Record<string, { fill: string; text: string; bg: string; border: string }> = {
+const CATEGORY_CONFIG: Record<
+  string,
+  {
+    fill: string;
+    text: string;
+    bg: string;
+    border: string;
+    shortLabel: string;
+    gradient: string;
+  }
+> = {
   mechanical: {
-    fill: '#F59E0B',
+    fill: '#D97706', // amber-600
     text: 'text-amber-400',
     bg: 'bg-amber-500/10',
     border: 'border-amber-500/20',
+    shortLabel: 'MECHANICAL',
+    gradient: 'from-amber-500/30 via-transparent to-black/60',
   },
   incident: {
-    fill: '#EF4444',
+    fill: '#E11D48', // rose-600
     text: 'text-rose-400',
     bg: 'bg-rose-500/10',
     border: 'border-rose-500/20',
+    shortLabel: 'INCIDENT',
+    gradient: 'from-rose-500/30 via-transparent to-black/60',
   },
   retired: {
-    fill: '#94A3B8',
+    fill: '#64748B', // slate-500
     text: 'text-slate-300',
     bg: 'bg-slate-500/10',
     border: 'border-slate-500/20',
+    shortLabel: 'RETIRED',
+    gradient: 'from-slate-500/30 via-transparent to-black/60',
   },
   dsq: {
-    fill: '#A855F7',
+    fill: '#9333EA', // purple-600
     text: 'text-purple-400',
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/20',
+    shortLabel: 'DSQ',
+    gradient: 'from-purple-500/30 via-transparent to-black/60',
   },
   dns: {
-    fill: '#71717A',
+    fill: '#52525B', // zinc-600
     text: 'text-zinc-400',
     bg: 'bg-zinc-800',
     border: 'border-zinc-700',
+    shortLabel: 'DNS',
+    gradient: 'from-zinc-500/30 via-transparent to-black/60',
   },
 };
 
 export function CauseBreakdownCard({ causeBreakdown }: CauseBreakdownCardProps) {
   const { categories, detailedCauses } = causeBreakdown;
-  const totalFailures = categories.reduce((sum, c) => sum + c.count, 0);
 
-  if (!categories || categories.length === 0 || totalFailures === 0) {
+  // Filter out zero-count categories and sort descending by count
+  const sortedCategories = useMemo(() => {
+    return [...categories]
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [categories]);
+
+  const totalFailures = useMemo(() => {
+    return sortedCategories.reduce((sum, c) => sum + c.count, 0);
+  }, [sortedCategories]);
+
+  if (!sortedCategories || sortedCategories.length === 0 || totalFailures === 0) {
     return null;
   }
 
-  // Adjust grid columns so fewer items expand naturally instead of leaving empty void
-  const gridColsClass =
-    detailedCauses.length <= 2
-      ? 'grid-cols-1 sm:grid-cols-2'
-      : detailedCauses.length <= 4
-        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-        : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+  const primaryCat = sortedCategories[0];
+  const dominantText =
+    sortedCategories.length === 1
+      ? `${totalFailures} TOTAL • 100% ${CATEGORY_CONFIG[primaryCat.category]?.shortLabel || primaryCat.label}`
+      : `${totalFailures} TOTAL • ${primaryCat.percentage.toFixed(0)}% ${CATEGORY_CONFIG[primaryCat.category]?.shortLabel || primaryCat.label} DOMINANT`;
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
-      <div className="p-4 sm:p-5 space-y-4">
-        {/* Proportional Segmented Telemetry Bar */}
-        <div className="space-y-2">
-          <div className="w-full h-2.5 bg-zinc-900 rounded-full overflow-hidden flex border border-white/10">
-            {categories.map((cat) => (
-              <div
-                key={cat.category}
-                style={{
-                  width: `${cat.percentage}%`,
-                  backgroundColor: CATEGORY_COLORS[cat.category]?.fill || '#71717A',
-                }}
-                className="h-full transition-all duration-300 first:rounded-l-full last:rounded-r-full"
-                title={`${cat.label}: ${cat.count} (${cat.percentage}%)`}
-              />
-            ))}
-          </div>
-
-          {/* Micro Legend Chips */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono">
-            {categories.map((cat) => {
-              const colors = CATEGORY_COLORS[cat.category] || CATEGORY_COLORS.retired;
-              return (
-                <div key={cat.category} className="flex items-center gap-1.5">
-                  <span
-                    className="size-2 rounded-xs shrink-0"
-                    style={{ backgroundColor: colors.fill }}
-                  />
-                  <span className="text-zinc-300">{cat.label}</span>
-                  <span className="font-bold text-white">({cat.count})</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Dynamic Balanced Causes Grid */}
-        <div className={cn('grid gap-2.5 pt-2 border-t border-white/5', gridColsClass)}>
-          {detailedCauses.map((item, idx) => {
-            const colors = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.retired;
-            const pct = ((item.count / totalFailures) * 100).toFixed(1);
-
+    <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col select-none">
+      {/* ── 1. Proportional Arena Split Zone (Apex Head-to-Head Benchmark) ── */}
+      <div className="relative min-h-[125px] sm:min-h-[145px] lg:min-h-[160px] overflow-hidden select-none flex items-center justify-between">
+        {/* Proportional Split Background Slices */}
+        <div className="absolute inset-0 flex pointer-events-none select-none">
+          {sortedCategories.map((cat) => {
+            const config = CATEGORY_CONFIG[cat.category] || CATEGORY_CONFIG.retired;
             return (
               <div
-                key={`${item.cause}-${idx}`}
-                className="p-3 rounded-xl bg-zinc-900/40 border border-white/5 flex items-center justify-between text-xs font-mono hover:bg-white/[0.02] transition-colors"
+                key={cat.category}
+                className="h-full transition-all duration-700 relative border-r last:border-r-0 border-black/40"
+                style={{
+                  width: `${cat.percentage}%`,
+                  backgroundColor: config.fill,
+                }}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-zinc-500 font-bold w-4 text-right shrink-0">
-                    #{idx + 1}
-                  </span>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-bold text-white truncate text-xs sm:text-sm">
-                      {item.cause}
-                    </span>
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
-                      {item.category}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <span
-                    className={cn(
-                      'px-2 py-0.5 rounded text-xs font-mono font-bold border',
-                      colors.bg,
-                      colors.text,
-                      colors.border
-                    )}
-                  >
-                    {item.count}
-                  </span>
-                  <span className="text-zinc-400 text-xs font-mono w-10 text-right">
-                    {pct}%
-                  </span>
-                </div>
+                <div
+                  className={cn(
+                    'absolute inset-0 bg-gradient-to-b from-white/15 via-transparent to-black/50 pointer-events-none',
+                    config.gradient
+                  )}
+                />
               </div>
             );
           })}
         </div>
+
+        {/* Clean Architectural Center Typography (Watermark + Telemetry Badge) */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10 px-2 sm:px-4">
+          <span className="text-xl sm:text-4xl lg:text-5xl font-black uppercase tracking-[0.16em] sm:tracking-[0.22em] text-white/20 mix-blend-overlay whitespace-nowrap">
+            FAILURE CAUSES
+          </span>
+          <span className="font-mono text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 text-center">
+            {dominantText}
+          </span>
+        </div>
+
+        {/* Foreground Telemetry Values */}
+        {sortedCategories.length === 2 ? (
+          /* Duel Layout (Exact 1:1 match for 2 categories like Head-to-Head) */
+          <div className="relative z-20 w-full flex items-center justify-between px-4 sm:px-8 pointer-events-none">
+            {/* Left Category */}
+            <div className="flex flex-col items-start drop-shadow-md">
+              <span className="font-mono text-3xl sm:text-4xl lg:text-5xl font-black leading-none text-white">
+                {sortedCategories[0].count}
+              </span>
+              <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 text-white/90 drop-shadow-xs">
+                {CATEGORY_CONFIG[sortedCategories[0].category]?.shortLabel || sortedCategories[0].label} (
+                {sortedCategories[0].percentage.toFixed(1)}%)
+              </span>
+            </div>
+
+            {/* Right Category */}
+            <div className="flex flex-col items-end drop-shadow-md text-right">
+              <span className="font-mono text-3xl sm:text-4xl lg:text-5xl font-black leading-none text-white">
+                {sortedCategories[1].count}
+              </span>
+              <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 text-white/90 drop-shadow-xs">
+                {CATEGORY_CONFIG[sortedCategories[1].category]?.shortLabel || sortedCategories[1].label} (
+                {sortedCategories[1].percentage.toFixed(1)}%)
+              </span>
+            </div>
+          </div>
+        ) : (
+          /* Multi-Segment Layout (Handles 1, 3, 4, 5 categories seamlessly) */
+          <div className="relative z-20 w-full h-full flex items-center pointer-events-none">
+            {sortedCategories.map((cat, idx) => {
+              const config = CATEGORY_CONFIG[cat.category] || CATEGORY_CONFIG.retired;
+              const isFirst = idx === 0;
+              const isLast = idx === sortedCategories.length - 1;
+              const isNarrow = cat.percentage < 15;
+              const isUltraNarrow = cat.percentage < 8;
+
+              return (
+                <div
+                  key={cat.category}
+                  style={{ width: `${cat.percentage}%` }}
+                  className={cn(
+                    'flex flex-col h-full justify-center drop-shadow-md',
+                    isFirst
+                      ? 'items-start pl-4 sm:pl-8'
+                      : isLast
+                        ? 'items-end pr-4 sm:pr-8 text-right'
+                        : 'items-center px-1 text-center'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'font-mono font-black leading-none text-white',
+                      isUltraNarrow
+                        ? 'text-lg sm:text-xl'
+                        : isNarrow
+                          ? 'text-xl sm:text-2xl'
+                          : 'text-3xl sm:text-4xl lg:text-5xl'
+                    )}
+                  >
+                    {cat.count}
+                  </span>
+                  {!isUltraNarrow && (
+                    <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider mt-1 text-white/90 drop-shadow-xs truncate max-w-full">
+                      {isNarrow ? `${cat.percentage.toFixed(0)}%` : `${config.shortLabel} (${cat.percentage.toFixed(1)}%)`}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── 2. Monolithic 1px Shared Breakdown Ribbon (Zero Floating Clutter) ── */}
+      <div
+        className={cn(
+          'grid -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950 font-mono text-xs',
+          sortedCategories.length === 1
+            ? 'grid-cols-1'
+            : sortedCategories.length === 2
+              ? 'grid-cols-1 sm:grid-cols-2'
+              : sortedCategories.length === 3
+                ? 'grid-cols-1 sm:grid-cols-3'
+                : 'grid-cols-2 sm:grid-cols-4'
+        )}
+      >
+        {sortedCategories.map((cat, idx) => {
+          const config = CATEGORY_CONFIG[cat.category] || CATEGORY_CONFIG.retired;
+          const subCauses = detailedCauses.filter((d) => d.category === cat.category);
+
+          return (
+            <div
+              key={cat.category}
+              className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between gap-3 relative overflow-hidden group"
+            >
+              {/* Top Accent Strip */}
+              <div
+                className="absolute top-0 left-0 right-0 h-0.5 opacity-80"
+                style={{ backgroundColor: config.fill }}
+              />
+
+              {/* Header: Rank + Label */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[11px] font-mono font-black text-zinc-500">
+                    #{idx + 1}
+                  </span>
+                  <span className="font-mono font-bold text-zinc-200 uppercase tracking-wider text-xs truncate">
+                    {cat.label}
+                  </span>
+                </div>
+                <span
+                  className={cn(
+                    'px-2 py-0.5 rounded text-[10px] font-mono font-black border uppercase tracking-wider shrink-0',
+                    config.bg,
+                    config.text,
+                    config.border
+                  )}
+                >
+                  {config.shortLabel}
+                </span>
+              </div>
+
+              {/* Big Metrics */}
+              <div className="flex items-baseline justify-between gap-2 pt-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-2xl sm:text-3xl font-black text-white tabular-nums">
+                    {cat.count}
+                  </span>
+                  <span className="text-zinc-500 text-[11px]">retirements</span>
+                </div>
+                <span className="font-mono text-sm sm:text-base font-black text-zinc-300 tabular-nums">
+                  {cat.percentage.toFixed(1)}%
+                </span>
+              </div>
+
+              {/* Detailed Sub-causes Pills (if present) */}
+              {subCauses.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/5">
+                  {subCauses.map((sc, sIdx) => (
+                    <span
+                      key={`${sc.cause}-${sIdx}`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900 border border-white/5 text-[11px] font-mono text-zinc-400"
+                    >
+                      <span className="truncate max-w-[140px]">{sc.cause}:</span>
+                      <span className="font-bold text-zinc-200">{sc.count}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
