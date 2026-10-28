@@ -212,7 +212,26 @@ export function CauseBreakdownCard({ causeBreakdown }: CauseBreakdownCardProps) 
       >
         {sortedCategories.map((cat, idx) => {
           const config = CATEGORY_CONFIG[cat.category] || CATEGORY_CONFIG.retired;
-          const subCauses = detailedCauses.filter((d) => d.category === cat.category);
+
+          // Filter out redundant subcauses that only repeat the generic status or category name with same count
+          const distinctSubCauses = detailedCauses
+            .filter((d) => d.category === cat.category)
+            .filter((sc) => {
+              const norm = sc.cause.toLowerCase().trim();
+              const catLabelNorm = cat.label.toLowerCase().trim();
+              const catNorm = cat.category.toLowerCase().trim();
+              if (
+                sc.count === cat.count &&
+                (norm === 'retired' ||
+                  norm === 'did not start' ||
+                  norm === 'dns' ||
+                  norm === catNorm ||
+                  norm === catLabelNorm)
+              ) {
+                return false;
+              }
+              return true;
+            });
 
           return (
             <div
@@ -225,45 +244,45 @@ export function CauseBreakdownCard({ causeBreakdown }: CauseBreakdownCardProps) 
                 style={{ backgroundColor: config.fill }}
               />
 
-              {/* Header: Rank + Label */}
+              {/* Header: Rank + Category Label on Left, Percentage Badge on Right */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[11px] font-mono font-black text-zinc-500">
                     #{idx + 1}
                   </span>
-                  <span className="font-mono font-bold text-zinc-200 uppercase tracking-wider text-xs truncate">
+                  <span className="font-mono font-black text-zinc-200 uppercase tracking-wider text-xs truncate">
                     {cat.label}
                   </span>
                 </div>
                 <span
                   className={cn(
-                    'px-2 py-0.5 rounded text-[10px] font-mono font-black border uppercase tracking-wider shrink-0',
+                    'px-2 py-0.5 rounded text-[11px] font-mono font-black border uppercase tracking-wider shrink-0',
                     config.bg,
                     config.text,
                     config.border
                   )}
                 >
-                  {config.shortLabel}
-                </span>
-              </div>
-
-              {/* Big Metrics */}
-              <div className="flex items-baseline justify-between gap-2 pt-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-mono text-2xl sm:text-3xl font-black text-white tabular-nums">
-                    {cat.count}
-                  </span>
-                  <span className="text-zinc-500 text-[11px]">retirements</span>
-                </div>
-                <span className="font-mono text-sm sm:text-base font-black text-zinc-300 tabular-nums">
                   {cat.percentage.toFixed(1)}%
                 </span>
               </div>
 
-              {/* Detailed Sub-causes Pills (if present) */}
-              {subCauses.length > 0 && (
+              {/* Big Metrics: Count + Context Ratio (No Tautological Wording) */}
+              <div className="flex items-baseline gap-2 pt-1">
+                <span className="font-mono text-3xl sm:text-4xl font-black text-white tabular-nums">
+                  {cat.count}
+                </span>
+                <span className="text-zinc-400 font-mono text-xs uppercase tracking-wider font-semibold">
+                  / {totalFailures} {totalFailures === 1 ? 'incident' : 'incidents'}
+                </span>
+              </div>
+
+              {/* Detailed Sub-causes Pills (rendered only when meaningful distinct triggers exist) */}
+              {distinctSubCauses.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/5">
-                  {subCauses.map((sc, sIdx) => (
+                  <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mr-1">
+                    Triggers:
+                  </span>
+                  {distinctSubCauses.map((sc, sIdx) => (
                     <span
                       key={`${sc.cause}-${sIdx}`}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900 border border-white/5 text-[11px] font-mono text-zinc-400"
