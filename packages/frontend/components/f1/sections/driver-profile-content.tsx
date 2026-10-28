@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   Trophy,
   ExternalLink,
+  TrendingUp,
 } from 'lucide-react';
 
 interface DriverProfileContentProps {
@@ -202,21 +203,14 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
               {/* In-Season Active Campaign Telemetry (Zero overlap with career benchmarks) */}
               <div className="space-y-3 pt-2">
                 {/* Campaign Header Bar */}
-                <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-1.5 h-3.5 rounded-full shrink-0"
-                      style={{ backgroundColor: teamTheme.primary }}
-                    />
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-200">
-                      {activeSeason} Campaign
-                    </span>
-                  </div>
-                  {posLabel !== '—' && (
-                    <span className="text-xs font-mono font-bold text-white px-2 py-0.5 rounded bg-white/10">
-                      P{posLabel}
-                    </span>
-                  )}
+                <div className="flex items-center gap-2 pb-1.5 border-b border-white/10">
+                  <span
+                    className="w-1.5 h-3.5 rounded-full shrink-0"
+                    style={{ backgroundColor: teamTheme.primary }}
+                  />
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                    {activeSeason} Campaign Telemetry
+                  </span>
                 </div>
 
                 {/* Monolithic 1px Grid Container for In-Season KPIs */}
@@ -313,24 +307,10 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
         {/* ── RIGHT COLUMN: Unified Monolithic Career Record & Trajectory ─── */}
         <div className="lg:col-span-7 flex flex-col">
           <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
-            {/* Section 1: All-Time Career Benchmarks */}
+            {/* Section 1: All-Time Career Benchmarks (Headerless Monolithic Cockpit Roof) */}
             <div>
-              {/* Header */}
-              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-amber-400" />
-                  <h2 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
-                    All-Time Career Benchmarks
-                  </h2>
-                </div>
-
-                <div className="font-mono text-[11px] font-bold text-zinc-300 px-2.5 py-0.5 rounded-lg border border-white/10 bg-zinc-900/80">
-                  <span>{grandsPrixEntered} CAREER STARTS</span>
-                </div>
-              </div>
-
               {/* 6-Grid Matrix for Career Benchmarks */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60">
+              <div className="grid grid-cols-2 sm:grid-cols-3 -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/60">
                 {/* World Championships */}
                 <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
                   <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
@@ -448,32 +428,28 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
               </div>
             </div>
 
-            {/* Section 2: Championship Trajectory (Integrated seamlessly directly below) */}
+            {/* Section 2: Championship Trajectory (Headerless Table Roof) */}
             <div className="border-t border-white/10">
-              {/* Header */}
-              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-amber-400" />
-                  <h2 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
-                    CHAMPIONSHIP TRAJECTORY
-                  </h2>
-                </div>
-
-                <span className="text-[11px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-lg border border-white/10 bg-zinc-900/80 text-zinc-300">
-                  {seasonHistory.length} {seasonHistory.length === 1 ? 'CAMPAIGN' : 'CAMPAIGNS'}
-                </span>
-              </div>
-
               {/* Trajectory Table */}
-              <div className="overflow-x-auto max-h-[340px] overflow-y-auto">
+              <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
                 <table className="w-full text-left border-collapse text-xs font-mono">
                   <thead>
                     <tr className="border-b border-white/10 bg-zinc-900/80 text-zinc-300 text-xs uppercase tracking-wider font-bold sticky top-0 z-10">
-                      <th className="py-3 px-4 w-28 sm:w-32">Season</th>
+                      <th className="py-3 px-4 w-28 sm:w-32">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="size-3.5 text-amber-400 shrink-0" />
+                          <span>Season</span>
+                        </div>
+                      </th>
                       <th className="py-3 px-4">Constructor Team</th>
                       <th className="py-3 px-4 text-center min-w-[170px]">Standing</th>
                       <th className="py-3 px-4 text-right w-24 sm:w-28">Points</th>
-                      <th className="py-3 px-4 text-right w-20 sm:w-24">Wins</th>
+                      <th className="py-3 px-4 text-right w-20 sm:w-24">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span>Wins</span>
+                          <span className="text-[10px] text-zinc-500 font-normal">({seasonHistory.length} Yrs)</span>
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">

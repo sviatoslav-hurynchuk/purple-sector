@@ -27,6 +27,7 @@ import { TeamLogo } from '@/components/f1/team-logo';
 import { DriverImage } from '@/components/f1/driver-image';
 import { ConstructorDriverRoster } from '@/components/f1/constructor-driver-roster';
 import { ConstructorBackLink } from './constructor-back-link';
+import { cn } from '@/lib/utils';
 import type { ConstructorStanding, DriverStanding } from '@/types/f1';
 
 interface ConstructorProfileContentProps {
@@ -80,6 +81,7 @@ export async function ConstructorProfileContent({
 
   // Resolved Primary Drivers
   const primaryDrivers = currentDrivers.slice(0, 2);
+  const hasTeammatePairing = primaryDrivers.length >= 2;
   const driver1 = primaryDrivers[0];
   const driver2 = primaryDrivers[1];
 
@@ -193,21 +195,14 @@ export async function ConstructorProfileContent({
               {/* In-Season Active Campaign Telemetry */}
               <div className="space-y-3 pt-3">
                 {/* Campaign Header Bar */}
-                <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-1.5 h-3.5 rounded-full shrink-0"
-                      style={{ backgroundColor: theme.primary }}
-                    />
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-200">
-                      {activeSeason} Championship Campaign
-                    </span>
-                  </div>
-                  {posLabel !== '—' && (
-                    <span className="text-xs font-mono font-bold text-white px-2 py-0.5 rounded bg-white/10 border border-white/10">
-                      P{posLabel}
-                    </span>
-                  )}
+                <div className="flex items-center gap-2 pb-1.5 border-b border-white/10">
+                  <span
+                    className="w-1.5 h-3.5 rounded-full shrink-0"
+                    style={{ backgroundColor: theme.primary }}
+                  />
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+                    {activeSeason} Championship Campaign
+                  </span>
                 </div>
 
                 {/* Monolithic 1px Grid Container for In-Season KPIs */}
@@ -328,24 +323,10 @@ export async function ConstructorProfileContent({
         {/* ── RIGHT COLUMN: All-Time Record, Drivers & Technical Blueprint */}
         <div className="lg:col-span-7 flex flex-col space-y-6">
           <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col">
-            {/* Section 1: All-Time Career Benchmarks */}
+            {/* Section 1: All-Time Career Benchmarks (Headerless Monolithic Cockpit Roof) */}
             <div>
-              {/* Header */}
-              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-amber-400" />
-                  <h2 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
-                    All-Time Constructor Benchmarks
-                  </h2>
-                </div>
-
-                <div className="font-mono text-[11px] font-bold text-zinc-300 px-2.5 py-0.5 rounded-lg border border-white/10 bg-zinc-900/80">
-                  <span>{stats.totalRaces} GRAND PRIX STARTS</span>
-                </div>
-              </div>
-
               {/* 6-Grid Matrix for Career Benchmarks */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/10 bg-zinc-950/60">
+              <div className="grid grid-cols-2 sm:grid-cols-3 -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/60">
                 {/* World Championships */}
                 <div className="p-4 sm:p-5 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex flex-col justify-between">
                   <p className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
@@ -473,41 +454,18 @@ export async function ConstructorProfileContent({
 
                 <div className="p-3 border-b border-r border-white/10 flex flex-col justify-between">
                   <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">
-                    Pilots Roster
+                    Total Starts
                   </span>
-                  <span className="text-base font-black font-mono text-zinc-300 mt-0.5">
-                    {historicalDrivers.length}
+                  <span className="text-base font-black font-mono text-white mt-0.5">
+                    {stats.totalRaces}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Section 2: Official Driver Pairing (Compact Integrated Duo) */}
+            {/* Section 2: Official Driver Pairing (Headerless Duo Split) */}
             {primaryDrivers.length > 0 && (
-              <div className="border-t border-white/10">
-                <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-1.5 h-3.5 rounded-full shrink-0"
-                      style={{ backgroundColor: theme.primary }}
-                    />
-                    <h3 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
-                      {activeSeason} Driver Lineup
-                    </h3>
-                  </div>
-
-                  <Link
-                    href={`/head-to-head?season=${activeSeason}&team=${team.constructorId}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 bg-zinc-900/80 hover:bg-zinc-800 transition-all group/h2h"
-                  >
-                    <Swords className="size-3 text-purple-400 group-hover/h2h:rotate-12 transition-transform" />
-                    <span>HEAD-TO-HEAD</span>
-                    <ChevronRight className="size-3 text-zinc-500 group-hover/h2h:text-white group-hover/h2h:translate-x-0.5 transition-all" />
-                  </Link>
-                </div>
-
-                {/* 2-Cell Monolithic Driver Matrix with Small Photo Thumbnails (Headshot Focus) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">
+              <div className="grid grid-cols-1 sm:grid-cols-2 -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/60">
                   {primaryDrivers.map((driver, idx) => {
                     const orientation = idx === 0 ? 'left' : 'right';
                     const photo = getDriverPhotoUrl(
@@ -579,107 +537,136 @@ export async function ConstructorProfileContent({
                     );
                   })}
                 </div>
-              </div>
             )}
 
-            {/* Section 3: Technical Blueprint & Operations Leadership */}
-            <div className="border-t border-white/10">
-              <div className="py-2.5 sm:py-3 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-blue-400" />
-                  <h3 className="text-xs sm:text-sm font-black font-sans uppercase tracking-wider text-white">
-                    Technical Blueprint &amp; Leadership
-                  </h3>
+            {/* Section 3: Technical Blueprint & Operations Leadership (Headerless Specs Grid) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/60">
+              {/* Team Principal */}
+              <div className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 shrink-0 border border-white/5">
+                  <User className="size-4" />
                 </div>
-
-                <Link
-                  href={`/reliability?team=${team.constructorId}&season=${activeSeason}&from=profile`}
-                  className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 bg-zinc-900/80 hover:bg-zinc-800 transition-all group/rel"
-                >
-                  <ShieldCheck className="size-3 text-emerald-400 group-hover/rel:rotate-12 transition-transform" />
-                  <span>TEAM RELIABILITY</span>
-                  <ChevronRight className="size-3 text-zinc-500 group-hover/rel:text-white group-hover/rel:translate-x-0.5 transition-all" />
-                </Link>
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                    Team Principal
+                  </p>
+                  <p className="text-sm font-bold text-white truncate">
+                    {meta.teamPrincipal || 'Team Leadership'}
+                  </p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 border-t border-l border-white/10 bg-zinc-950/60">
-                {/* Team Principal */}
-                <div className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 shrink-0 border border-white/5">
-                    <User className="size-4" />
-                  </div>
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                      Team Principal
-                    </p>
-                    <p className="text-sm font-bold text-white truncate">
-                      {meta.teamPrincipal || 'Team Leadership'}
-                    </p>
-                  </div>
+              {/* Technical Chief */}
+              <div className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 shrink-0 border border-white/5">
+                  <Wrench className="size-4" />
                 </div>
-
-                {/* Technical Chief */}
-                <div className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 shrink-0 border border-white/5">
-                    <Wrench className="size-4" />
-                  </div>
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                      Technical Chief
-                    </p>
-                    <p className="text-sm font-bold text-white truncate">
-                      {meta.technicalChief || 'Technical Operations'}
-                    </p>
-                  </div>
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                    Technical Chief
+                  </p>
+                  <p className="text-sm font-bold text-white truncate">
+                    {meta.technicalChief || 'Technical Operations'}
+                  </p>
                 </div>
+              </div>
 
-                {/* Power Unit */}
-                <div className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-zinc-800 text-amber-400 shrink-0 border border-white/5">
-                    <Zap className="size-4" />
-                  </div>
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                      Power Unit Supplier
-                    </p>
-                    <p className="text-sm font-bold text-white truncate">
-                      {meta.powerUnit || 'Formula 1 Hybrid'}
-                    </p>
-                  </div>
+              {/* Power Unit */}
+              <div className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-zinc-800 text-amber-400 shrink-0 border border-white/5">
+                  <Zap className="size-4" />
                 </div>
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                    Power Unit Supplier
+                  </p>
+                  <p className="text-sm font-bold text-white truncate">
+                    {meta.powerUnit || 'Formula 1 Hybrid'}
+                  </p>
+                </div>
+              </div>
 
-                {/* Chassis Designation */}
-                <div className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 shrink-0 border border-white/5">
-                    <Flag className="size-4" />
-                  </div>
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                      Chassis Designation
-                    </p>
-                    <p className="text-sm font-bold text-white truncate">
-                      {meta.chassis || 'F1 Monocoque'}
-                    </p>
-                  </div>
+              {/* Chassis Designation */}
+              <div className="p-4 border-b border-r border-white/10 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 shrink-0 border border-white/5">
+                  <Flag className="size-4" />
+                </div>
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                    Chassis Designation
+                  </p>
+                  <p className="text-sm font-bold text-white truncate">
+                    {meta.chassis || 'F1 Monocoque'}
+                  </p>
                 </div>
               </div>
             </div>
 
+            {/* Analytical Command Ribbon: Fast Access to Head-to-Head & Team Reliability Analytics */}
+            <div
+              className={cn(
+                'grid -mt-px -ml-px border-t border-l border-white/10 bg-zinc-950/80 font-mono text-xs',
+                hasTeammatePairing ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
+              )}
+            >
+              {hasTeammatePairing && (
+                <Link
+                  href={`/head-to-head?season=${activeSeason}&team=${team.constructorId}`}
+                  className="p-3 sm:p-3.5 border-b border-r border-white/10 bg-zinc-900/30 hover:bg-zinc-800/60 text-zinc-300 hover:text-white transition-all flex items-center justify-between group/h2h"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 group-hover/h2h:bg-purple-500/20 transition-colors shrink-0">
+                      <Swords className="size-3.5 group-hover/h2h:rotate-12 transition-transform" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold uppercase tracking-wider block text-white text-xs truncate">
+                        Head-to-Head Duel
+                      </span>
+                      <span className="text-[10px] text-zinc-400 block truncate">
+                        Teammate Telemetry &amp; Pace Split
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="size-4 text-zinc-500 group-hover/h2h:text-white group-hover/h2h:translate-x-0.5 transition-all shrink-0 ml-2" />
+                </Link>
+              )}
+
+              <Link
+                href={`/reliability?team=${team.constructorId}&season=${activeSeason}&from=profile`}
+                className="p-3 sm:p-3.5 border-b border-r border-white/10 bg-zinc-900/30 hover:bg-zinc-800/60 text-zinc-300 hover:text-white transition-all flex items-center justify-between group/rel"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 group-hover/rel:bg-emerald-500/20 transition-colors shrink-0">
+                    <ShieldCheck className="size-3.5 group-hover/rel:rotate-12 transition-transform" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-bold uppercase tracking-wider block text-white text-xs truncate">
+                      Team Reliability
+                    </span>
+                    <span className="text-[10px] text-zinc-400 block truncate">
+                      Multi-Season DNFs &amp; Attrition Log
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="size-4 text-zinc-500 group-hover/rel:text-white group-hover/rel:translate-x-0.5 transition-all shrink-0 ml-2" />
+              </Link>
+            </div>
+
             {/* Section 4: Championship Roll of Honor (if titles exist) */}
             {championshipYears.length > 0 && (
-              <div className="border-t border-white/10 p-3.5 sm:p-4 bg-zinc-950/80 space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-3.5 rounded-full shrink-0 bg-amber-400" />
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
-                    Constructors&apos; Championship Roll of Honor ({championshipYears.length})
-                  </h3>
+              <div className="p-3.5 sm:p-4 bg-zinc-950/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs">
+                <div className="flex items-center gap-2 text-zinc-300 shrink-0">
+                  <Trophy className="size-3.5 text-amber-400 shrink-0" />
+                  <span className="font-bold uppercase tracking-wider text-[11px] text-zinc-300">
+                    Championship Roll of Honor ({championshipYears.length})
+                  </span>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {championshipYears.map((yr) => (
                     <span
                       key={yr}
-                      className="px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 font-mono text-xs font-black tracking-wide"
+                      className="px-2.5 py-1 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-300 font-bold text-xs"
                     >
                       {yr}
                     </span>
