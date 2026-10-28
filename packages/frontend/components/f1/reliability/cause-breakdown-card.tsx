@@ -81,10 +81,14 @@ export function CauseBreakdownCard({ causeBreakdown }: CauseBreakdownCardProps) 
   }
 
   const primaryCat = sortedCategories[0];
+  const isTied =
+    sortedCategories.length > 1 && sortedCategories[0].count === sortedCategories[1].count;
   const dominantText =
     sortedCategories.length === 1
       ? `${totalFailures} TOTAL • 100% ${CATEGORY_CONFIG[primaryCat.category]?.shortLabel || primaryCat.label}`
-      : `${totalFailures} TOTAL • ${primaryCat.percentage.toFixed(0)}% ${CATEGORY_CONFIG[primaryCat.category]?.shortLabel || primaryCat.label} DOMINANT`;
+      : isTied
+        ? `${totalFailures} TOTAL • TIED ATTRITION CAUSES`
+        : `${totalFailures} TOTAL • ${primaryCat.percentage.toFixed(0)}% ${CATEGORY_CONFIG[primaryCat.category]?.shortLabel || primaryCat.label} DOMINANT`;
 
   return (
     <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl flex flex-col select-none">
@@ -282,15 +286,19 @@ export function CauseBreakdownCard({ causeBreakdown }: CauseBreakdownCardProps) 
                   <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mr-1">
                     Triggers:
                   </span>
-                  {distinctSubCauses.map((sc, sIdx) => (
-                    <span
-                      key={`${sc.cause}-${sIdx}`}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900 border border-white/5 text-[11px] font-mono text-zinc-400"
-                    >
-                      <span className="truncate max-w-[140px]">{sc.cause}:</span>
-                      <span className="font-bold text-zinc-200">{sc.count}</span>
-                    </span>
-                  ))}
+                  {distinctSubCauses.map((sc, sIdx) => {
+                    const pct = totalFailures > 0 ? ((sc.count / totalFailures) * 100).toFixed(1) : '0.0';
+                    return (
+                      <span
+                        key={`${sc.cause}-${sIdx}`}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900 border border-white/5 text-[11px] font-mono text-zinc-400"
+                      >
+                        <span className="truncate max-w-[140px]">{sc.cause}:</span>
+                        <span className="font-bold text-zinc-200">{sc.count}</span>
+                        <span className="text-zinc-500 text-[10px]">({pct}%)</span>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </div>
