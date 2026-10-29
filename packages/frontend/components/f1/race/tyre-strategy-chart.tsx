@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import type { TireStint, TireCompound } from '@/types/f1';
-import { Layers, Disc } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TyreStrategyChartProps {
@@ -71,33 +71,22 @@ export function TyreStrategyChart({
   }
 
   return (
-    <div
-      className={cn(
-        'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
-        className
-      )}
-    >
-      {/* Cockpit Sub-Header & Legend */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30">
-        <div className="flex items-center gap-2">
-          <Disc className="size-4 text-red-500" />
-          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Tyre Strategy Matrix
-          </span>
-          <span className="text-zinc-600">•</span>
-          <span className="text-[11px] font-mono text-zinc-400">
-            Lap Scale: {raceLaps}
-          </span>
+    <div className={cn('space-y-3', className)}>
+      {/* ── Headerless Analytical Command Strip (Dominance Matrix Benchmark) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        <div className="text-zinc-400">
+          <span className="text-zinc-300 font-bold">{driverEntries.length} Drivers</span> Stint Matrix • Lap Scale:{' '}
+          <span className="text-zinc-300 font-bold tabular-nums">{raceLaps}</span>
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-3">
           {(['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'] as TireCompound[]).map((c) => {
             const conf = COMPOUND_CONFIG[c];
             return (
               <div key={c} className="flex items-center gap-1.5">
                 <span
-                  className="size-2.5 rounded-full border border-black/40"
+                  className="size-2 rounded-full border border-black/40"
                   style={{ backgroundColor: conf.circle }}
                 />
                 <span className="text-[11px] text-zinc-300 font-bold">{conf.label}</span>
@@ -107,9 +96,10 @@ export function TyreStrategyChart({
         </div>
       </div>
 
-      {/* Strategy Bars Matrix */}
-      <div className="p-4 sm:p-6 relative overflow-x-auto">
-        <div className="min-w-[600px] space-y-2 py-1">
+      {/* ── High-Density Monolithic Strategy Bars Matrix ── */}
+      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col">
+        <div className="p-4 sm:p-6 overflow-x-auto">
+          <div className="min-w-[600px] space-y-2 py-1">
           {/* Top Lap Scale */}
           <div className="flex items-center text-[10px] font-mono text-zinc-400 border-b border-white/10 pb-1.5 pl-16 pr-2 relative">
             <span className="w-16 shrink-0 -ml-16 font-bold text-zinc-300">Driver</span>
@@ -200,34 +190,39 @@ export function TyreStrategyChart({
         </div>
       </div>
 
-      {/* Stint Tooltip Details */}
-      {hoveredStint ? (
-        <div className="p-2.5 rounded-xl bg-zinc-950/90 border border-white/10 flex items-center justify-between text-xs font-mono animate-in fade-in duration-100">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-white">Car #{hoveredStint.driverNumber}</span>
-            <span className="text-zinc-500">·</span>
-            <span className="text-zinc-400">Stint {hoveredStint.stintNumber}</span>
-            <span className="text-zinc-500">·</span>
-            <span
-              className={cn(
-                'font-bold',
-                COMPOUND_CONFIG[hoveredStint.compound]?.text
-              )}
-            >
-              {COMPOUND_CONFIG[hoveredStint.compound]?.label} Compound
-            </span>
+      {/* Stint Tooltip Details Footer */}
+      <div className="border-t border-white/10 bg-zinc-900/30 px-4 sm:px-6 py-2.5">
+        {hoveredStint ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono animate-in fade-in duration-100">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-white">Car #{hoveredStint.driverNumber}</span>
+              <span className="text-zinc-500">·</span>
+              <span className="text-zinc-400">Stint {hoveredStint.stintNumber}</span>
+              <span className="text-zinc-500">·</span>
+              <span
+                className={cn(
+                  'font-bold',
+                  COMPOUND_CONFIG[hoveredStint.compound]?.text
+                )}
+              >
+                {COMPOUND_CONFIG[hoveredStint.compound]?.label} Compound
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-zinc-300">
+              <span>
+                Laps {hoveredStint.startLap} - {hoveredStint.endLap} ({hoveredStint.laps} laps)
+              </span>
+              <span className="text-zinc-500">·</span>
+              <span className="text-zinc-400">Age at Start: {hoveredStint.age} laps</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3 text-zinc-300">
-            <span>Laps {hoveredStint.startLap} - {hoveredStint.endLap} ({hoveredStint.laps} laps)</span>
-            <span className="text-zinc-500">·</span>
-            <span className="text-zinc-400">Age at Start: {hoveredStint.age} laps</span>
+        ) : (
+          <div className="text-[11px] font-mono text-zinc-500 text-center">
+            Hover over any stint bar to inspect lap bounds and tyre age.
           </div>
-        </div>
-      ) : (
-        <div className="text-[11px] font-mono text-zinc-500 text-center py-1">
-          Hover over any stint bar to inspect lap bounds and tyre age.
-        </div>
-      )}
+        )}
+      </div>
     </div>
-  );
+  </div>
+);
 }

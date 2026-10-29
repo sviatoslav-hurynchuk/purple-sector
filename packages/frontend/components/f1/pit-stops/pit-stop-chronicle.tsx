@@ -4,7 +4,7 @@ import React from 'react';
 import type { PitStopEntry, RaceResultEntry } from '@/types/f1';
 import { cn } from '@/lib/utils';
 import { getTeamTheme } from '@/lib/team-colors';
-import { AlertTriangle, Check, Clock } from 'lucide-react';
+import { AlertTriangle, Check } from 'lucide-react';
 import Link from 'next/link';
 
 interface PitStopChronicleProps {
@@ -67,48 +67,55 @@ export function PitStopChronicle({
   const maxSelections = 4;
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative">
-      {/* Cockpit Sub-Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30">
+    <div className="space-y-3">
+      {/* ── Headerless Analytical Command Strip (Dominance Matrix Benchmark) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
         <div className="flex items-center gap-2">
-          <Clock className="size-4 text-primary" />
-          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Grand Prix Pit Stop Chronicle
-          </span>
+          {selectedIds.size > 0 ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/30 text-primary font-bold">
+              <span>{selectedIds.size} / {maxSelections} Selected for Duel</span>
+            </span>
+          ) : (
+            <span className="text-zinc-400">
+              Select up to {maxSelections} stops for duel simulation
+            </span>
+          )}
         </div>
-        <span className="text-[11px] font-mono text-zinc-400">
-          {pitStops.length} Registered Stops • Lap by Lap Execution Log
-        </span>
+
+        <div className="text-zinc-400">
+          <span className="font-bold text-zinc-300 tabular-nums">{pitStops.length}</span> Registered Stops • Lap-by-Lap Execution Log
+        </div>
       </div>
 
-      {/* Table Matrix */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-white/10 bg-zinc-950/80">
-              <th className="py-2.5 px-3 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-12">
-                Select
-              </th>
-              <th className="py-2.5 px-3 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-16">
-                Lap
-              </th>
-              <th className="py-2.5 px-3 text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                Driver
-              </th>
-              <th className="py-2.5 px-3 text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                Constructor
-              </th>
-              <th className="py-2.5 px-3 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-16">
-                Stop
-              </th>
-              <th className="py-2.5 px-3 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                Duration
-              </th>
-              <th className="py-2.5 px-3 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                Time of Day
-              </th>
-            </tr>
-          </thead>
+      {/* ── High-Density Monolithic Table Shell ── */}
+      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-white/10 bg-zinc-950">
+                <th className="py-2.5 px-3 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-12">
+                  Select
+                </th>
+                <th className="py-2.5 px-3 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-16">
+                  Lap
+                </th>
+                <th className="py-2.5 px-3 text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                  Driver
+                </th>
+                <th className="py-2.5 px-3 text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                  Constructor
+                </th>
+                <th className="py-2.5 px-3 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-16">
+                  Stop
+                </th>
+                <th className="py-2.5 px-3 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                  Duration
+                </th>
+                <th className="py-2.5 px-3 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                  Time of Day
+                </th>
+              </tr>
+            </thead>
           <tbody>
             {pitStops.map((stop) => {
               const key = pitStopKey(stop);
@@ -213,5 +220,6 @@ export function PitStopChronicle({
         </table>
       </div>
     </div>
-  );
+  </div>
+);
 }
