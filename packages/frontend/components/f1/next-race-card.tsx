@@ -12,10 +12,11 @@ import { SessionRecapModal } from '@/components/live/session-recap-modal';
 
 interface NextRaceCardProps {
   race: Race;
+  isEmbedded?: boolean;
   className?: string;
 }
 
-export function NextRaceCard({ race, className }: NextRaceCardProps) {
+export function NextRaceCard({ race, isEmbedded = false, className }: NextRaceCardProps) {
   const currentNowMs = useCurrentNowMs();
   const [userTimeZone, setUserTimeZone] = useState<string>('UTC');
   const [isClient, setIsClient] = useState(false);
@@ -90,7 +91,9 @@ export function NextRaceCard({ race, className }: NextRaceCardProps) {
   return (
     <div
       className={cn(
-        'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
+        isEmbedded
+          ? 'relative'
+          : 'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
         className
       )}
     >

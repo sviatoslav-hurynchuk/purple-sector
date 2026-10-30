@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { getCircuitDetails } from '@/lib/circuit-details';
-import { CountryFlag } from '@/components/f1/country-flag';
 import { cn } from '@/lib/utils';
 import type { RaceResultEntry } from '@/types/f1';
 
@@ -11,6 +10,7 @@ interface CircuitDetailsCardProps {
   circuitId: string;
   season?: number | string;
   raceResults?: RaceResultEntry[];
+  isEmbedded?: boolean;
   className?: string;
 }
 
@@ -18,6 +18,7 @@ export function CircuitDetailsCard({
   circuitId,
   season,
   raceResults,
+  isEmbedded = false,
   className,
 }: CircuitDetailsCardProps) {
   const [imageError, setImageError] = useState(false);
@@ -50,26 +51,12 @@ export function CircuitDetailsCard({
   return (
     <div
       className={cn(
-        'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
+        isEmbedded
+          ? 'relative'
+          : 'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
         className
       )}
     >
-      {/* Cockpit Sub-Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-7 py-2 border-b border-white/10 bg-zinc-900/30">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            {details.circuitName ?? 'Circuit Specifications'}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <CountryFlag countryName={details.country} className="w-5 h-3.5 shadow-sm rounded-xs" />
-          <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-            {details.country}
-          </span>
-        </div>
-      </div>
-
-      {/* Main Content: Map + Instrument Cluster */}
       <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
         {showMap && (
           <div className="lg:col-span-7 flex flex-col items-center justify-center p-4 sm:p-6 relative bg-zinc-950/60 overflow-hidden min-h-[220px] sm:min-h-[280px]">

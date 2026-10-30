@@ -44,12 +44,9 @@ export function RaceDetailSkeleton() {
 
             {/* ── Circuit Specifications Card Skeleton ─────────────────────── */}
             <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl">
-                <div className="h-10 px-6 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between">
-                    <div className="h-3.5 w-40 bg-zinc-800 rounded" />
-                    <div className="h-3.5 w-20 bg-zinc-800 rounded" />
-                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[260px]">
-                    <div className="lg:col-span-7 p-6 flex items-center justify-center">
+                    <div className="lg:col-span-7 p-6 flex items-center justify-center relative">
+                        <div className="absolute top-4 right-4 h-6 w-20 bg-zinc-800/80 rounded-lg" />
                         <div className="h-44 w-72 bg-zinc-850/60 rounded-xl" />
                     </div>
                     <div className="lg:col-span-5 border-t lg:border-t-0 lg:border-l border-white/10 divide-y divide-white/10 bg-zinc-950/40">

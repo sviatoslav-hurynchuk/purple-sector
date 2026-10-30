@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import type { WeatherSnapshot } from '@/types/f1';
-import { CloudRain, Thermometer } from 'lucide-react';
+import { CloudRain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WeatherTimelineProps {
@@ -75,27 +75,15 @@ export function WeatherTimeline({ weather, className }: WeatherTimelineProps) {
   const latest = weather[weather.length - 1];
 
   return (
-    <div
-      className={cn(
-        'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative space-y-4',
-        className
-      )}
-    >
-      {/* Cockpit Sub-Header & Legend */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-2.5 border-b border-white/10 bg-zinc-900/30">
-        <div className="flex items-center gap-2">
-          <Thermometer className="size-4 text-red-400" />
-          <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
-            Weather Timeline
-          </span>
-          <span className="text-zinc-600">•</span>
-          <span className="text-[11px] font-mono text-zinc-400">
-            {weather.length} Telemetry Snapshots
-          </span>
+    <div className={cn('space-y-3', className)}>
+      {/* ── Headerless Analytical Command Strip (Dominance Matrix Benchmark) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        <div className="text-zinc-400">
+          <span className="text-zinc-300 font-bold tabular-nums">{weather.length}</span> Telemetry Snapshots
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1.5 text-red-400 font-bold">
             <span className="w-2.5 h-0.5 bg-red-400 rounded-full" />
             <span>Track Temp ({latest?.trackTemperature?.toFixed(1)}°C)</span>
@@ -114,7 +102,7 @@ export function WeatherTimeline({ weather, className }: WeatherTimelineProps) {
       </div>
 
       {/* SVG Chart Canvas */}
-      <div className="p-4 sm:p-6 pt-0">
+      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative p-4 sm:p-6">
         <div className="relative w-full h-[140px] bg-zinc-950 rounded-2xl border border-white/10 p-1 overflow-hidden shadow-inner">
         {/* Rain Bands */}
         <svg

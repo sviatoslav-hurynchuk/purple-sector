@@ -15,9 +15,9 @@ export function NextRaceSectionClient({ initialRace }: NextRaceSectionClientProp
     if (!race) return null;
 
     return (
-        <div className="space-y-4 sm:space-y-5">
-            <NextRaceCard race={race} />
-            <CircuitDetailsCard circuitId={race.Circuit.circuitId} season={race.season} />
+        <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative">
+            <NextRaceCard race={race} isEmbedded />
+            <CircuitDetailsCard circuitId={race.Circuit.circuitId} season={race.season} isEmbedded />
         </div>
     );
 }
