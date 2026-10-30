@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { LapData, DriverLapSummary, PitStopEntry, RaceEvent } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
 import { isDnfStatus, isLappedStatus } from '@/lib/f1-status';
@@ -59,6 +59,8 @@ interface DriverLine {
   pitPoints: Point[];
 }
 
+const ZOOM_PRESETS = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
+
 export function PositionChart({
   currentLap,
   totalLaps,
@@ -110,13 +112,33 @@ export function PositionChart({
     y: number;
   } | null>(null);
 
-  // Zoom scale state for touch pinch-to-zoom and precision inspection (1.0x to 3.0x)
+  // Zoom scale state for touch pinch-to-zoom and precision inspection (0.4x to 3.0x)
   const [zoomScale, setZoomScale] = useState(1);
   const zoomScaleRef = useRef(1);
 
   useEffect(() => {
     zoomScaleRef.current = zoomScale;
   }, [zoomScale]);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomScale((current) => {
+      const lower = ZOOM_PRESETS.filter((p) => p < current - 0.01);
+      const next = lower.length > 0 ? lower[lower.length - 1] : ZOOM_PRESETS[0];
+      return Number(next.toFixed(2));
+    });
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    setZoomScale((current) => {
+      const higher = ZOOM_PRESETS.filter((p) => p > current + 0.01);
+      const next = higher.length > 0 ? higher[0] : ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
+      return Number(next.toFixed(2));
+    });
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setZoomScale(1);
+  }, []);
 
   // Touch pinch-to-zoom & double-tap zoom for mobile devices
   useEffect(() => {
@@ -144,7 +166,7 @@ export function PositionChart({
         const now = Date.now();
         if (now - lastTap < 300) {
           if (e.cancelable) e.preventDefault();
-          setZoomScale((prev) => (prev > 1.2 ? 1 : 1.8));
+          setZoomScale((prev) => (prev > 1.2 || prev < 0.9 ? 1 : 1.8));
         }
         lastTap = now;
       }
@@ -156,7 +178,7 @@ export function PositionChart({
         const currentDist = getDistance(e.touches);
         if (initialDist > 0) {
           const factor = currentDist / initialDist;
-          const nextScale = Math.min(3, Math.max(1, initialScale * factor));
+          const nextScale = Math.min(3, Math.max(0.4, initialScale * factor));
           setZoomScale(Number(nextScale.toFixed(2)));
         }
       }
@@ -421,8 +443,8 @@ export function PositionChart({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setZoomScale((s) => Math.max(1, Number((s - 0.25).toFixed(2))))}
-              disabled={zoomScale <= 1}
+              onClick={handleZoomOut}
+              disabled={zoomScale <= ZOOM_PRESETS[0]}
               className="h-6 w-6 p-0 text-zinc-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
               title="Zoom Out"
             >
@@ -435,21 +457,21 @@ export function PositionChart({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setZoomScale((s) => Math.min(3, Number((s + 0.25).toFixed(2))))}
-              disabled={zoomScale >= 3}
+              onClick={handleZoomIn}
+              disabled={zoomScale >= ZOOM_PRESETS[ZOOM_PRESETS.length - 1]}
               className="h-6 w-6 p-0 text-zinc-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
               title="Zoom In (Pinch on Mobile)"
             >
               <ZoomIn className="size-3" />
             </Button>
-            {zoomScale > 1 && (
+            {zoomScale !== 1 && (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setZoomScale(1)}
+                onClick={handleResetZoom}
                 className="h-6 px-1.5 text-[10px] font-mono font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1"
-                title="Reset Zoom"
+                title="Reset Zoom (100%)"
               >
                 <RotateCcw className="size-3" />
                 <span>1x</span>
@@ -485,7 +507,7 @@ export function PositionChart({
       <div
         className={cn(
           'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative p-3 sm:p-4',
-          isFullscreen ? 'flex-1 min-h-0' : ''
+          isFullscreen ? 'flex-1 min-h-0 flex flex-col' : ''
         )}
       >
 
@@ -495,7 +517,7 @@ export function PositionChart({
         className={cn(
           'w-full overflow-auto custom-scrollbar relative select-none',
           isFullscreen
-            ? 'flex-1 min-h-0'
+            ? 'flex-1 min-h-0 flex flex-col'
             : 'max-h-[min(540px,calc(100vh-260px))]'
         )}
         style={{
@@ -505,16 +527,22 @@ export function PositionChart({
         <div
           ref={innerWrapperRef}
           style={{
-            width: zoomScale > 1 ? `${Math.round(zoomScale * 100)}%` : '100%',
-            minWidth: zoomScale > 1 ? `${Math.round(640 * zoomScale)}px` : '640px',
+            width: zoomScale !== 1 ? `${Math.round(zoomScale * 100)}%` : '100%',
+            minWidth: `${Math.round(640 * Math.min(1, zoomScale))}px`,
             height:
               zoomScale > 1
                 ? `${Math.round((isFullscreen ? 620 : 540) * zoomScale)}px`
+                : isFullscreen
+                ? zoomScale < 1
+                  ? `${Math.round(620 * zoomScale)}px`
+                  : '100%'
+                : zoomScale < 1
+                ? `${Math.round(540 * zoomScale)}px`
                 : undefined,
           }}
           className={cn(
             'relative transition-[width,height] duration-150 mx-auto',
-            isFullscreen && zoomScale <= 1 ? 'h-full flex items-center' : 'block'
+            isFullscreen && zoomScale <= 1 ? 'my-auto flex items-center justify-center' : 'block'
           )}
         >
           <svg
@@ -530,10 +558,12 @@ export function PositionChart({
             )}
             style={{
               maxHeight:
-                isFullscreen && zoomScale <= 1
+                isFullscreen && zoomScale === 1
                   ? '100%'
                   : zoomScale > 1
                   ? undefined
+                  : zoomScale < 1
+                  ? `${Math.round((isFullscreen ? 620 : 520) * zoomScale)}px`
                   : 'min(520px, calc(100vh - 280px))',
             }}
           >
@@ -989,10 +1019,10 @@ export function PositionChart({
       </div>
 
       {/* Floating Reset Zoom Badge for Touch Devices */}
-      {zoomScale > 1 && (
+      {zoomScale !== 1 && (
         <button
           type="button"
-          onClick={() => setZoomScale(1)}
+          onClick={handleResetZoom}
           className="absolute bottom-3 right-3 z-30 flex items-center gap-1.5 bg-zinc-900/95 hover:bg-zinc-800 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-full shadow-2xl text-xs font-mono backdrop-blur-md transition-transform active:scale-95 animate-in fade-in zoom-in-95 duration-150"
         >
           <RotateCcw className="size-3.5" />
