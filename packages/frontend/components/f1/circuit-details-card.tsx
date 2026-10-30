@@ -60,6 +60,14 @@ export function CircuitDetailsCard({
             {/* Ambient Livery Glow */}
             <div className="absolute inset-0 bg-[#e10600]/5 blur-3xl pointer-events-none rounded-full" />
 
+            {/* Creative Floating Country HUD Pill */}
+            <div className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-20 flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-900/85 border border-white/10 backdrop-blur-md shadow-xl select-none">
+              <CountryFlag countryName={details.country} className="w-4 h-3 sm:w-4.5 sm:h-3 rounded-xs shadow-xs object-cover" />
+              <span className="text-xs font-mono font-bold text-zinc-200 uppercase tracking-wider">
+                {details.country}
+              </span>
+            </div>
+
             <Image
               src={details.officialMapUrl}
               alt={`${details.circuitName ?? details.country} official circuit map`}
@@ -82,19 +90,21 @@ export function CircuitDetailsCard({
               : 'lg:col-span-12'
           )}
         >
-          {/* Hero Cell: Country & Circuit Length */}
+          {/* Hero Cell: Circuit Length */}
           <div className="p-3.5 sm:p-4 border-b border-white/10 bg-zinc-900/20">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CountryFlag countryName={details.country} className="w-5 h-3.5 shadow-sm rounded-xs" />
-                <span className="text-xs font-mono font-bold text-zinc-200 uppercase tracking-wider">
-                  {details.country}
-                </span>
-              </div>
-              <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#e10600]" />
                 Circuit Length
               </p>
+              {!showMap && (
+                <div className="flex items-center gap-2">
+                  <CountryFlag countryName={details.country} className="w-4 h-3 shadow-sm rounded-xs" />
+                  <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                    {details.country}
+                  </span>
+                </div>
+              )}
             </div>
             <p className="text-2xl sm:text-3xl lg:text-4xl font-black font-mono tracking-tight text-white mt-1">
               {details.circuitLength}
