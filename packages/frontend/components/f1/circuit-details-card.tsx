@@ -48,15 +48,11 @@ export function CircuitDetailsCard({
     Boolean(rawDriver && rawDriver !== '—' && rawDriver !== '-' && rawDriver !== '--');
 
   return (
-    <div
-      className={cn(
-        'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
-        className
-      )}
-    >
-      {/* Cockpit Sub-Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-7 py-2 border-b border-white/10 bg-zinc-900/30">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+    <div className={cn('space-y-3', className)}>
+      {/* ── Headerless Analytical Command Strip (Circuit Specifications & Country) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+        <div className="flex items-center gap-2">
+          <span className="size-2 rounded-full bg-[#e10600] animate-pulse shrink-0" />
           <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
             {details.circuitName ?? 'Circuit Specifications'}
           </span>
@@ -69,8 +65,9 @@ export function CircuitDetailsCard({
         </div>
       </div>
 
-      {/* Main Content: Map + Instrument Cluster */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
+      {/* ── Monolithic 1px Circuit Map & Telemetry Shell ── */}
+      <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative">
+        <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
         {showMap && (
           <div className="lg:col-span-7 flex flex-col items-center justify-center p-4 sm:p-6 relative bg-zinc-950/60 overflow-hidden min-h-[220px] sm:min-h-[280px]">
             {/* Ambient Livery Glow */}
@@ -168,5 +165,6 @@ export function CircuitDetailsCard({
         </div>
       </div>
     </div>
+  </div>
   );
 }
