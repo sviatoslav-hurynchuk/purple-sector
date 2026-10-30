@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { getCircuitDetails } from '@/lib/circuit-details';
-import { CountryFlag } from '@/components/f1/country-flag';
 import { cn } from '@/lib/utils';
 import type { RaceResultEntry } from '@/types/f1';
 
@@ -11,6 +10,7 @@ interface CircuitDetailsCardProps {
   circuitId: string;
   season?: number | string;
   raceResults?: RaceResultEntry[];
+  isEmbedded?: boolean;
   className?: string;
 }
 
@@ -18,6 +18,7 @@ export function CircuitDetailsCard({
   circuitId,
   season,
   raceResults,
+  isEmbedded = false,
   className,
 }: CircuitDetailsCardProps) {
   const [imageError, setImageError] = useState(false);
@@ -50,7 +51,9 @@ export function CircuitDetailsCard({
   return (
     <div
       className={cn(
-        'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
+        isEmbedded
+          ? 'relative'
+          : 'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative',
         className
       )}
     >
@@ -59,14 +62,6 @@ export function CircuitDetailsCard({
           <div className="lg:col-span-7 flex flex-col items-center justify-center p-4 sm:p-6 relative bg-zinc-950/60 overflow-hidden min-h-[220px] sm:min-h-[280px]">
             {/* Ambient Livery Glow */}
             <div className="absolute inset-0 bg-[#e10600]/5 blur-3xl pointer-events-none rounded-full" />
-
-            {/* Creative Floating Country HUD Pill */}
-            <div className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-20 flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-900/85 border border-white/10 backdrop-blur-md shadow-xl select-none">
-              <CountryFlag countryName={details.country} className="w-4 h-3 sm:w-4.5 sm:h-3 rounded-xs shadow-xs object-cover" />
-              <span className="text-xs font-mono font-bold text-zinc-200 uppercase tracking-wider">
-                {details.country}
-              </span>
-            </div>
 
             <Image
               src={details.officialMapUrl}
@@ -92,20 +87,10 @@ export function CircuitDetailsCard({
         >
           {/* Hero Cell: Circuit Length */}
           <div className="p-3.5 sm:p-4 border-b border-white/10 bg-zinc-900/20">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#e10600]" />
-                Circuit Length
-              </p>
-              {!showMap && (
-                <div className="flex items-center gap-2">
-                  <CountryFlag countryName={details.country} className="w-4 h-3 shadow-sm rounded-xs" />
-                  <span className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                    {details.country}
-                  </span>
-                </div>
-              )}
-            </div>
+            <p className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#e10600]" />
+              Circuit Length
+            </p>
             <p className="text-2xl sm:text-3xl lg:text-4xl font-black font-mono tracking-tight text-white mt-1">
               {details.circuitLength}
             </p>
