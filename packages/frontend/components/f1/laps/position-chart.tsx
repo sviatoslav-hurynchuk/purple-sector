@@ -374,19 +374,13 @@ export function PositionChart({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-white/10 bg-zinc-950/90 p-3 sm:p-4 shadow-xl flex flex-col justify-between relative overflow-hidden',
-        isFullscreen ? 'h-full' : 'space-y-2'
+        isFullscreen ? 'h-full flex flex-col justify-between space-y-2' : 'space-y-3'
       )}
     >
-      {/* Chart Title & Hint */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-2.5 shrink-0">
-        <div>
-          <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
-            <span>Lap Chart</span>
-          </h3>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-300 font-mono">
+      {/* ── Headerless Analytical Command & Zoom Strip ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        {/* Left: Badges & Legend (Pit, Lapped, DNF, SC, VSC, Red Flag, Fastest Lap) */}
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs text-zinc-300 font-mono">
           <span className="flex items-center gap-1 font-medium">
             <span className="size-2.5 rounded-full bg-amber-400 border border-zinc-950 inline-block shadow-xs" /> Pit Stop
           </span>
@@ -417,7 +411,10 @@ export function PositionChart({
               <Trophy className="size-3.5 text-purple-400" /> Fastest Lap
             </span>
           )}
+        </div>
 
+        {/* Right: Zoom controls & Fullscreen */}
+        <div className="flex items-center gap-2">
           {/* Zoom controls */}
           <div className="flex items-center gap-0.5 bg-zinc-900 border border-white/10 rounded-lg p-0.5 shadow-xs">
             <Button
@@ -465,7 +462,7 @@ export function PositionChart({
               variant="outline"
               size="sm"
               onClick={onToggleFullscreen}
-              title={isFullscreen ? "Exit Fullscreen (Esc)" : "Fullscreen"}
+              title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Fullscreen'}
               className="h-7 px-2.5 border-white/10 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs gap-1.5 ml-1 font-mono font-bold uppercase rounded-lg"
             >
               {isFullscreen ? (
@@ -483,6 +480,14 @@ export function PositionChart({
           )}
         </div>
       </div>
+
+      {/* ── Monolithic Chart Canvas Shell ── */}
+      <div
+        className={cn(
+          'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative p-3 sm:p-4',
+          isFullscreen ? 'flex-1 min-h-0' : ''
+        )}
+      >
 
       {/* SVG Scroll Container - horizontal and vertical scroll with touch pinch-to-zoom */}
       <div
@@ -994,6 +999,7 @@ export function PositionChart({
           <span>Reset {Math.round(zoomScale * 100)}%</span>
         </button>
       )}
+      </div>
     </div>
   );
 }
