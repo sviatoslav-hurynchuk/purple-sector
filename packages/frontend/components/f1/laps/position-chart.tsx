@@ -534,10 +534,10 @@ export function PositionChart({
                 ? `${Math.round((isFullscreen ? 620 : 540) * zoomScale)}px`
                 : isFullscreen
                 ? zoomScale < 1
-                  ? `${Math.round(620 * zoomScale)}px`
+                  ? `min(${Math.round(620 * zoomScale)}px, calc((100vh - 120px) * ${zoomScale}))`
                   : '100%'
                 : zoomScale < 1
-                ? `${Math.round(540 * zoomScale)}px`
+                ? `min(${Math.round(540 * zoomScale)}px, calc((100vh - 260px) * ${zoomScale}))`
                 : undefined,
           }}
           className={cn(
@@ -563,7 +563,9 @@ export function PositionChart({
                   : zoomScale > 1
                   ? undefined
                   : zoomScale < 1
-                  ? `${Math.round((isFullscreen ? 620 : 520) * zoomScale)}px`
+                  ? isFullscreen
+                    ? `min(${Math.round(620 * zoomScale)}px, calc((100vh - 140px) * ${zoomScale}))`
+                    : `min(${Math.round(520 * zoomScale)}px, calc((100vh - 280px) * ${zoomScale}))`
                   : 'min(520px, calc(100vh - 280px))',
             }}
           >

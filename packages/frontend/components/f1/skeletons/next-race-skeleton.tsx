@@ -38,6 +38,17 @@ export function NextRaceSkeleton() {
                             <div className="h-6 w-16 bg-zinc-800 rounded" />
                         </div>
                     </div>
+                    <div className="grid grid-cols-2 divide-x divide-white/10">
+                        <div className="p-4 space-y-2">
+                            <div className="h-3 w-20 bg-zinc-800 rounded" />
+                            <div className="h-6 w-16 bg-zinc-800 rounded" />
+                            <div className="h-3 w-24 bg-zinc-850 rounded" />
+                        </div>
+                        <div className="p-4 space-y-2">
+                            <div className="h-3 w-20 bg-zinc-800 rounded" />
+                            <div className="h-6 w-16 bg-zinc-800 rounded" />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -40,9 +40,9 @@ export function DriverStandingsCard({
                         </span>
                     </div>
                     {subtitle && (
-                        <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 pl-6 sm:pl-0 truncate">
+                        <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 pl-6 sm:pl-0">
                             <span className="text-zinc-600 hidden sm:inline">•</span>
-                            <span className="truncate">{subtitle}</span>
+                            <span className="break-words">{subtitle}</span>
                         </div>
                     )}
                 </div>
