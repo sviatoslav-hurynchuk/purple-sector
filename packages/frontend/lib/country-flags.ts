@@ -94,3 +94,13 @@ export function getCountryFlagUrl(countryName?: string): string | null {
   if (!code) return null;
   return `https://flagcdn.com/w40/${code}.png`;
 }
+
+/**
+ * Returns the high-resolution vector SVG CDN URL for a country flag.
+ * Used for atmospheric circuit map backdrops, hero graphics, and watermarks.
+ */
+export function getCountryFlagHighResUrl(countryName?: string): string | null {
+  const code = getCountryCode(countryName);
+  if (!code) return null;
+  return `https://flagcdn.com/${code}.svg`;
+}

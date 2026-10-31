@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { getCircuitDetails } from '@/lib/circuit-details';
+import { getCountryFlagHighResUrl } from '@/lib/country-flags';
 import { cn } from '@/lib/utils';
 import type { RaceResultEntry } from '@/types/f1';
 
@@ -48,6 +49,8 @@ export function CircuitDetailsCard({
     !isPendingLapTime &&
     Boolean(rawDriver && rawDriver !== '—' && rawDriver !== '-' && rawDriver !== '--');
 
+  const flagBackdropUrl = getCountryFlagHighResUrl(details.country);
+
   return (
     <div
       className={cn(
@@ -59,7 +62,26 @@ export function CircuitDetailsCard({
     >
       <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
         {showMap && (
-          <div className="lg:col-span-7 flex flex-col items-center justify-center p-4 sm:p-6 relative bg-zinc-950/60 overflow-hidden min-h-[220px] sm:min-h-[280px]">
+          <div className="lg:col-span-7 flex flex-col items-center justify-center p-4 sm:p-6 relative bg-zinc-950/60 overflow-hidden min-h-[220px] sm:min-h-[280px] group">
+            {/* Atmospheric Host Country Flag Backdrop */}
+            {flagBackdropUrl && (
+              <div
+                className="absolute inset-0 pointer-events-none overflow-hidden select-none"
+                aria-hidden="true"
+              >
+                <Image
+                  src={flagBackdropUrl}
+                  alt=""
+                  fill
+                  unoptimized
+                  className="object-cover object-center opacity-15 saturate-125 filter blur-[0.5px] transition-opacity duration-500 group-hover:opacity-45"
+                />
+                {/* Dual Vignette & Gradient Fade: softens flag and lifts dimming on hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/70 transition-opacity duration-500 group-hover:opacity-40" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,#09090b_85%)] transition-opacity duration-500 group-hover:opacity-50" />
+              </div>
+            )}
+
             {/* Ambient Livery Glow */}
             <div className="absolute inset-0 bg-[#e10600]/5 blur-3xl pointer-events-none rounded-full" />
 
@@ -68,7 +90,7 @@ export function CircuitDetailsCard({
               alt={`${details.circuitName ?? details.country} official circuit map`}
               width={700}
               height={450}
-              className="w-full h-auto max-h-[270px] object-contain drop-shadow-[0_0_24px_rgba(225,6,0,0.14)] relative z-10 transition-transform duration-500 hover:scale-[1.02]"
+              className="w-full h-auto max-h-[270px] object-contain drop-shadow-[0_0_24px_rgba(225,6,0,0.18)] relative z-10 transition-transform duration-500 group-hover:scale-[1.02]"
               priority
               unoptimized
               onError={() => setImageError(true)}
