@@ -321,16 +321,17 @@ export function RaceLeaderboard({
         className
       )}
     >
-      {/* Leaderboard Header */}
-      <div className="p-3.5 sm:p-4 border-b border-white/10 bg-zinc-900/40">
+      {/* ── Real-Time Lap Telemetry & Selection Strip ── */}
+      <div className="p-3 sm:p-3.5 border-b border-white/10 bg-zinc-900/40">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
-              <span>Leaderboard</span>
-              <Badge variant="outline" className="text-[10px] font-mono font-bold px-2 py-0.5 border-white/10 bg-zinc-900/80 text-zinc-300">
-                {currentLap === 0 ? 'Grid' : `Lap ${currentLap}/${totalLaps}`}
-              </Badge>
-            </h2>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <Badge
+              variant="outline"
+              className="text-xs font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 border-white/10 bg-zinc-900/80 text-white shadow-xs"
+            >
+              {currentLap === 0 ? 'Starting Grid' : `Lap ${currentLap} / ${totalLaps}`}
+            </Badge>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[11px] font-mono text-zinc-400">

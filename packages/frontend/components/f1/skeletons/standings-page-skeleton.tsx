@@ -21,29 +21,28 @@ export function StandingsPageSkeleton() {
             {/* ── Standings Matrix Skeleton ─────────────────────────────────── */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-5 items-stretch">
                 {[0, 1].map((col) => (
-                    <div
-                        key={col}
-                        className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col justify-between"
-                    >
-                        <div className="h-10 px-4 sm:px-5 border-b border-white/10 bg-zinc-900/30 flex items-center justify-between">
+                    <div key={col} className="space-y-3 flex flex-col">
+                        <div className="flex items-center justify-between text-xs font-mono">
                             <div className="h-4 w-48 bg-zinc-800 rounded" />
                         </div>
-                        <div className="divide-y divide-white/5">
-                            {Array.from({ length: 12 }).map((_, i) => (
-                                <div
-                                    key={i}
-                                    className="flex items-center justify-between py-2 sm:py-2.5 px-4 sm:px-5"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-4 w-6 bg-zinc-800 rounded" />
-                                        <div className="h-4 w-32 sm:w-44 bg-zinc-800 rounded" />
+                        <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex-1 flex flex-col justify-between">
+                            <div className="divide-y divide-white/5">
+                                {Array.from({ length: 12 }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="flex items-center justify-between py-2 sm:py-2.5 px-4 sm:px-5"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-4 w-6 bg-zinc-800 rounded" />
+                                            <div className="h-4 w-32 sm:w-44 bg-zinc-800 rounded" />
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-4 w-12 bg-zinc-800 rounded" />
+                                            <div className="h-4 w-8 bg-zinc-800/60 rounded" />
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-4 w-12 bg-zinc-800 rounded" />
-                                        <div className="h-4 w-8 bg-zinc-800/60 rounded" />
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </div>
                 ))}

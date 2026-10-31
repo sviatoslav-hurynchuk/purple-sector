@@ -63,15 +63,8 @@ export function PitStopPageContent({
       {/* Main Tabs Container */}
       <div className="space-y-4">
         <Tabs defaultValue={hasStints ? 'stints' : 'fastest'} className="w-full">
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-red-600" />
-              <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
-                Strategy &amp; Telemetry Modules
-              </h2>
-            </div>
-
-            <TabsList className="inline-flex p-1 rounded-xl bg-zinc-950 border border-white/10 h-auto gap-1 shadow-inner overflow-x-auto max-w-full">
+          <div className="flex items-center justify-end pb-2 border-b border-white/10">
+            <TabsList className="w-full sm:w-auto bg-zinc-950 border border-white/10 p-1 rounded-xl h-auto gap-1 shadow-inner overflow-x-auto max-w-full scrollbar-none">
               {hasStints && (
                 <TabsTrigger
                   value="stints"

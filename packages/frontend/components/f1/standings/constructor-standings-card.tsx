@@ -28,32 +28,28 @@ export function ConstructorStandingsCard({
     const defaultTitle = limit ? `CONSTRUCTORS' CHAMPIONSHIP TOP ${limit}` : `CONSTRUCTORS' CHAMPIONSHIP`;
 
     return (
-        <div
-            className={cn(
-                'rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex flex-col justify-between',
-                className
-            )}
-        >
-            {/* Cockpit Sub-Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-5 py-2.5 border-b border-white/10 bg-zinc-900/30">
-                <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className={cn('space-y-3 flex flex-col', className)}>
+            {/* ── Headerless Analytical Command Strip (Constructors Championship & Full Standings) ── */}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                         <Shield className="size-4 text-amber-400 shrink-0" />
-                        <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200">
+                        <span className="font-mono text-xs font-black uppercase tracking-widest text-zinc-200 truncate">
                             {title ?? defaultTitle}
                         </span>
                     </div>
                     {subtitle && (
-                        <span className="text-[11px] font-mono text-zinc-400 pl-6">
-                            {subtitle}
-                        </span>
+                        <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 pl-6 sm:pl-0">
+                            <span className="text-zinc-600 hidden sm:inline">•</span>
+                            <span className="break-words">{subtitle}</span>
+                        </div>
                     )}
                 </div>
 
                 {showFullStandingsLink && (
                     <Link
                         href="/standings"
-                        className="inline-flex items-center gap-1 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors group self-start sm:self-auto shrink-0"
+                        className="inline-flex items-center gap-1 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors group shrink-0"
                     >
                         <span>Full Standings</span>
                         <ChevronRight className="size-3.5 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
@@ -61,25 +57,27 @@ export function ConstructorStandingsCard({
                 )}
             </div>
 
-            {/* Table Matrix */}
-            <div className="flex-1 overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="border-b border-white/10 bg-zinc-950/80">
-                            <th className="py-2 px-2 sm:px-2.5 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-10 sm:w-11">
-                                Pos
-                            </th>
-                            <th className="py-2 px-2 sm:px-2.5 text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                                Constructor
-                            </th>
-                            <th className="py-2 px-2 sm:px-2.5 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
-                                Pts
-                            </th>
-                            <th className="py-2 px-2 sm:px-2.5 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-12 sm:w-14">
-                                Wins
-                            </th>
-                        </tr>
-                    </thead>
+            {/* ── High-Density Monolithic Standings Table Shell ── */}
+            <div className="rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl relative flex-1 flex flex-col justify-between">
+                {/* Table Matrix */}
+                <div className="flex-1 overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-white/10 bg-zinc-950">
+                                <th className="py-2.5 px-2 sm:px-2.5 text-center text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-10 sm:w-11">
+                                    Pos
+                                </th>
+                                <th className="py-2.5 px-2 sm:px-2.5 text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                                    Constructor
+                                </th>
+                                <th className="py-2.5 px-2 sm:px-2.5 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider">
+                                    Pts
+                                </th>
+                                <th className="py-2.5 px-2 sm:px-2.5 text-right text-xs font-mono font-bold text-zinc-300 uppercase tracking-wider w-12 sm:w-14">
+                                    Wins
+                                </th>
+                            </tr>
+                        </thead>
                     <tbody className="divide-y divide-white/5">
                         {displayedStandings.map((item: ConstructorStanding) => {
                             const posNum = parseInt(item.position, 10);
@@ -169,5 +167,6 @@ export function ConstructorStandingsCard({
                 </div>
             )}
         </div>
+    </div>
     );
 }
