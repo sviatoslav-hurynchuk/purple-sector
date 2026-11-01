@@ -14,7 +14,8 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { cn, formatDateInTimezone } from '@/lib/utils';
 import { RaceResultsTable } from '@/components/f1/race-results-table';
 import { QualifyingResultsTable } from '@/components/f1/qualifying-results-table';
-import { ChevronDown, Calendar, AlertTriangle } from 'lucide-react';
+import { ChevronDown, AlertTriangle } from 'lucide-react';
+import { AddToCalendarMenu } from '@/components/f1/calendar/add-to-calendar-menu';
 import {
   TelemetryRibbon,
   TelemetryRibbonCell,
@@ -256,22 +257,18 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
       {/* ── Timetable Controls Bar ───────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2.5">
-          <span className="size-2 rounded-full bg-red-600" />
           <h2 className="text-lg sm:text-xl font-black font-mono uppercase tracking-tight text-white">
             Weekend Timetable
           </h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Kept by user instruction: "Add F1 calendar (in progress)" */}
-          <button
-            type="button"
-            onClick={() => alert('Add to calendar feature coming soon!')}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/10 bg-primary text-zinc-300 hover:text-white hover:bg-white/5 font-mono text-xs font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer"
-          >
-            <Calendar className="size-3.5 text-zinc-300" />
-            <span>Add F1 calendar (in progress)</span>
-          </button>
+          {/* Add to Calendar Menu */}
+          <AddToCalendarMenu
+            race={race}
+            season={race.season}
+            label="Add to Calendar"
+          />
 
           {/* Timezone Switcher */}
           <div className="inline-flex items-center rounded-xl border border-white/10 bg-zinc-950/90 p-1 divide-x divide-white/10 shadow-xl backdrop-blur-md">
