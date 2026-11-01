@@ -22,6 +22,7 @@ import {
   getGoogleCalendarUrl,
   getOutlookCalendarUrl,
   getWebcalSubscribeUrl,
+  getAppBaseUrl,
 } from '@/lib/calendar-links';
 
 export interface AddToCalendarMenuProps {
@@ -49,6 +50,10 @@ const SESSION_DISPLAY_NAMES: Record<SessionCode, string> = {
   RACE: 'Race',
 };
 
+/**
+ * Cockpit dropdown menu providing multi-provider calendar export and live Webcal subscriptions.
+ * Supports granular session selection for Grand Prix weekends and full season calendar synchronization.
+ */
 export function AddToCalendarMenu({
   race,
   season,
@@ -145,6 +150,7 @@ export function AddToCalendarMenu({
     if (!race) return;
     const content = generateRaceWeekendICS(race, {
       sessionCodes: selectedSessionCodes,
+      baseUrl: getAppBaseUrl(),
     });
     const safeName = race.raceName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     downloadICS(content, `f1-${race.season}-${safeName}.ics`);
@@ -398,7 +404,7 @@ export function AddToCalendarMenu({
                 <div className="flex flex-col">
                   <span className="font-bold">Download All Rounds</span>
                   <span className="text-[10px] text-zinc-400 font-mono">
-                    Offline .ics file with all 24 races
+                    Offline .ics file with all rounds
                   </span>
                 </div>
               </div>

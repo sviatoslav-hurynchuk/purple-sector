@@ -22,6 +22,10 @@ const SESSION_CODE_ALIASES: Record<string, SessionCode> = {
   GP: 'RACE',
 };
 
+/**
+ * Serves live Webcal iCalendar (.ics) subscription feeds for a given championship season.
+ * Supports session filtering via the optional `?sessions=` query parameter.
+ */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ season: string }> }
@@ -61,7 +65,9 @@ export async function GET(
       return new NextResponse(`No race schedule found for season ${year}`, { status: 404 });
     }
 
-    const baseUrl = getAppBaseUrl();
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+      ? getAppBaseUrl()
+      : request.nextUrl.origin;
     const icsContent = generateSeasonICS(races, year, {
       sessionCodes,
       baseUrl,
