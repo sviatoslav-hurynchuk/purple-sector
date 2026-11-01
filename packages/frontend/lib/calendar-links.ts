@@ -1,7 +1,6 @@
 import type { Race } from '@/types/f1';
 import {
   type SessionCode,
-  type CalendarSessionItem,
   getRaceCalendarSessions,
   formatUTCDateTimeICS,
 } from './ics-generator';

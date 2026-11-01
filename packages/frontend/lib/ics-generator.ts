@@ -1,4 +1,4 @@
-import type { Race, F1Session, SessionScheduleOverride } from '@/types/f1';
+import type { Race, F1Session } from '@/types/f1';
 
 export type SessionCode = 'P1' | 'P2' | 'P3' | 'SQ' | 'SPRINT' | 'QUALY' | 'RACE';
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { Race } from '@/types/f1';
 import { SeasonSelector } from '@/components/f1/season-selector';
 import { CountryFlag } from '@/components/f1/country-flag';
+import { AddToCalendarMenu } from '@/components/f1/calendar/add-to-calendar-menu';
 import { cn } from '@/lib/utils';
 import {
   getRaceWeekendInfo,
@@ -84,7 +85,8 @@ export function CalendarCockpit({ races, year, allYears }: CalendarCockpitProps)
           </h1>
         </div>
 
-        <div className="shrink-0">
+        <div className="shrink-0 flex items-center gap-2.5">
+          <AddToCalendarMenu season={year} label="Subscribe to Season" />
           <SeasonSelector currentSeason={year} allYears={allYears} />
         </div>
       </div>

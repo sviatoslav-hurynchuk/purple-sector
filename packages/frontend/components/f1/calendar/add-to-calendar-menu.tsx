@@ -31,6 +31,8 @@ export interface AddToCalendarMenuProps {
   season: number | string;
   /** Visual variant: full button with text, or compact icon button */
   variant?: 'full' | 'compact';
+  /** Button style variant: 'primary' (vibrant F1 red) or 'default' (zinc) */
+  triggerVariant?: 'primary' | 'default';
   /** Extra trigger class names */
   className?: string;
   /** Custom label for the button */
@@ -51,6 +53,7 @@ export function AddToCalendarMenu({
   race,
   season,
   variant = 'full',
+  triggerVariant = 'primary',
   className,
   label = 'Add to Calendar',
 }: AddToCalendarMenuProps) {
@@ -68,12 +71,15 @@ export function AddToCalendarMenu({
     availableSessions.map((s) => s.code)
   );
 
-  // Sync if race changes
-  useEffect(() => {
-    if (availableSessions.length > 0) {
-      setSelectedSessionCodes(availableSessions.map((s) => s.code));
-    }
-  }, [availableSessions]);
+  // Sync state during render if race changes (React pattern: adjusting state based on props)
+  const [prevRaceKey, setPrevRaceKey] = useState<string | null>(
+    race ? `${race.season}-${race.round}` : null
+  );
+  const currentRaceKey = race ? `${race.season}-${race.round}` : null;
+  if (prevRaceKey !== currentRaceKey) {
+    setPrevRaceKey(currentRaceKey);
+    setSelectedSessionCodes(availableSessions.map((s) => s.code));
+  }
 
   // Close on outside click or Escape key
   useEffect(() => {
@@ -172,16 +178,28 @@ export function AddToCalendarMenu({
         aria-expanded={isOpen}
         aria-haspopup="true"
         className={cn(
-          'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/10 bg-zinc-900/80 hover:bg-white/10 text-zinc-300 hover:text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer select-none',
-          isOpen && 'border-white/20 bg-white/10 text-white',
+          'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/10 font-mono text-xs font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer select-none',
+          triggerVariant === 'primary'
+            ? 'bg-primary text-zinc-200 hover:text-white hover:bg-primary/85'
+            : 'bg-zinc-900/80 hover:bg-white/10 text-zinc-300 hover:text-white',
+          isOpen &&
+            (triggerVariant === 'primary'
+              ? 'border-white/20 bg-primary/80 text-white'
+              : 'border-white/20 bg-white/10 text-white'),
           className
         )}
       >
-        <Calendar className="size-3.5 text-red-500 shrink-0" />
+        <Calendar
+          className={cn(
+            'size-3.5 shrink-0',
+            triggerVariant === 'primary' ? 'text-zinc-200' : 'text-red-500'
+          )}
+        />
         {variant === 'full' && <span>{label}</span>}
         <ChevronDown
           className={cn(
-            'size-3.5 text-zinc-400 transition-transform duration-200',
+            'size-3.5 transition-transform duration-200',
+            triggerVariant === 'primary' ? 'text-zinc-300' : 'text-zinc-400',
             isOpen && 'rotate-180'
           )}
         />
