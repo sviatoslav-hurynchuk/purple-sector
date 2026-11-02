@@ -99,6 +99,7 @@ export interface ConstructorStanding {
   points: string;
   wins: string;
   Constructor: Constructor;
+  isClinchedChampion?: boolean;
 }
 
 export interface QualifyingResultEntry {

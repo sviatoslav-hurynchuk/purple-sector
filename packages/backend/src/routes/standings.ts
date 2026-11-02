@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
-import type { DriverStanding } from '../types/f1';
+import type { DriverStanding, ConstructorStanding } from '../types/f1';
 import {
   getDriverStandings,
   getConstructorStandings,
   isRaceWeekend,
   getDriverChampionshipStatus,
+  getConstructorChampionshipStatus,
   type ChampionshipClinchStatus,
 } from '../services/jolpica';
 
@@ -83,9 +84,19 @@ router.get('/constructors', async (req: Request, res: Response) => {
       return;
     }
     const standings = await getConstructorStandings(season, roundResult.value);
+    let championshipStatus: ChampionshipClinchStatus | null = null;
+    if (!roundResult.value && standings.length > 0) {
+      championshipStatus = await getConstructorChampionshipStatus(season).catch(() => null);
+      if (championshipStatus?.isClinched && championshipStatus.championId) {
+        const leader = standings.find((s) => s.Constructor.constructorId === championshipStatus?.championId);
+        if (leader) {
+          (leader as ConstructorStanding & { isClinchedChampion?: boolean }).isClinchedChampion = true;
+        }
+      }
+    }
     const maxAge = season === currentSeason ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
     setCacheHeaders(res, maxAge);
-    res.json({ season, round: roundResult.value, standings });
+    res.json({ season, round: roundResult.value, standings, championship: championshipStatus });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });

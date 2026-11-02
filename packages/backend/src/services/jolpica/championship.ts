@@ -293,3 +293,170 @@ export async function getDriverChampionshipStatus(
     };
   });
 }
+
+/**
+ * Calculates remaining available points in the season for constructors:
+ * 43 points per remaining GP race (25 for P1 + 18 for P2) + 15 points per remaining Sprint (8 for P1 + 7 for P2).
+ */
+export function calculateRemainingConstructorPoints(
+  schedule: Race[],
+  completedRoundNumber: number
+): { maxRemainingPoints: number; remainingGPs: number; remainingSprints: number } {
+  let remainingGPs = 0;
+  let remainingSprints = 0;
+
+  for (const race of schedule) {
+    const roundNum = parseInt(race.round, 10);
+    if (roundNum > completedRoundNumber) {
+      remainingGPs++;
+      if (race.Sprint) {
+        remainingSprints++;
+      }
+    }
+  }
+
+  const maxRemainingPoints = remainingGPs * 43 + remainingSprints * 15;
+  return { maxRemainingPoints, remainingGPs, remainingSprints };
+}
+
+/**
+ * Determines whether the Constructors' World Championship has been mathematically clinched.
+ */
+export async function getConstructorChampionshipStatus(
+  season?: string | number
+): Promise<ChampionshipClinchStatus> {
+  const s = season ? String(season) : getCurrentSeason();
+  const cacheKey = `f1:championship:constructors:${s}`;
+
+  return cachedFetch<ChampionshipClinchStatus>(cacheKey, TTL.SCHEDULE_CURRENT, async () => {
+    const [standings, schedule] = await Promise.all([
+      getConstructorStandings(s).catch(() => [] as ConstructorStanding[]),
+      getRaceSchedule(s).catch(() => [] as Race[]),
+    ]);
+
+    if (standings.length < 2 || schedule.length === 0) {
+      return {
+        season: s,
+        isClinched: false,
+        leaderPoints: 0,
+        challengerMaxPoints: 0,
+        margin: 0,
+        maxRemainingPoints: 0,
+        remainingRounds: 0,
+        totalRounds: schedule.length,
+        completedRounds: 0,
+        decidedByTiebreaker: false,
+      };
+    }
+
+    const standingsRes = await jolpicaFetch<
+      JolpicaResponse<
+        'StandingsTable',
+        { StandingsLists: Array<{ season: string; round: string }> }
+      >
+    >(`/${s}/constructorStandings.json`).catch(() => null);
+
+    const completedRoundNumber = parseInt(
+      standingsRes?.MRData?.StandingsTable?.StandingsLists?.[0]?.round ?? '0',
+      10
+    );
+
+    const { maxRemainingPoints, remainingGPs } = calculateRemainingConstructorPoints(
+      schedule,
+      completedRoundNumber
+    );
+
+    const remainingRounds = schedule.filter(
+      (r) => parseInt(r.round, 10) > completedRoundNumber
+    ).length;
+
+    const leader = standings[0];
+    const leaderPoints = parseFloat(leader.points || '0');
+    const leaderWins = parseInt(leader.wins || '0', 10);
+    const leaderId = leader.Constructor.constructorId;
+    const leaderName = leader.Constructor.name;
+
+    // If season is completely finished (0 remaining rounds), P1 is the champion
+    if (remainingRounds === 0) {
+      return {
+        season: s,
+        isClinched: true,
+        championId: leaderId,
+        championName: leaderName,
+        leaderPoints,
+        challengerId: standings[1]?.Constructor.constructorId,
+        challengerName: standings[1]?.Constructor.name,
+        challengerMaxPoints: parseFloat(standings[1]?.points || '0'),
+        margin: leaderPoints - parseFloat(standings[1]?.points || '0'),
+        maxRemainingPoints: 0,
+        remainingRounds: 0,
+        totalRounds: schedule.length,
+        completedRounds: completedRoundNumber,
+        decidedByTiebreaker: false,
+      };
+    }
+
+    let allContendersEliminated = true;
+    let primaryChallengerId = standings[1].Constructor.constructorId;
+    let primaryChallengerName = standings[1].Constructor.name;
+    let highestChallengerMax = 0;
+    let decidedByTiebreaker = false;
+    let tiebreakerReason: string | undefined;
+
+    for (let i = 1; i < standings.length; i++) {
+      const challenger = standings[i];
+      const challengerPoints = parseFloat(challenger.points || '0');
+      const challengerMaxPoints = challengerPoints + maxRemainingPoints;
+
+      if (challengerMaxPoints > highestChallengerMax) {
+        highestChallengerMax = challengerMaxPoints;
+        primaryChallengerId = challenger.Constructor.constructorId;
+        primaryChallengerName = challenger.Constructor.name;
+      }
+
+      if (leaderPoints > challengerMaxPoints) {
+        // Strictly eliminated on pure points margin
+        continue;
+      }
+
+      if (leaderPoints === challengerMaxPoints) {
+        // FIA countback for constructors on GP wins
+        const challengerWins = parseInt(challenger.wins || '0', 10);
+        const tieResult = evaluateCountbackTiebreaker(
+          leaderWins,
+          challengerWins,
+          remainingGPs
+        );
+
+        if (tieResult.isClinched) {
+          decidedByTiebreaker = true;
+          tiebreakerReason = tieResult.reason;
+          continue;
+        }
+      }
+
+      allContendersEliminated = false;
+      break;
+    }
+
+    const margin = leaderPoints - highestChallengerMax;
+
+    return {
+      season: s,
+      isClinched: allContendersEliminated,
+      championId: allContendersEliminated ? leaderId : undefined,
+      championName: allContendersEliminated ? leaderName : undefined,
+      leaderPoints,
+      challengerId: primaryChallengerId,
+      challengerName: primaryChallengerName,
+      challengerMaxPoints: highestChallengerMax,
+      margin,
+      maxRemainingPoints,
+      remainingRounds,
+      totalRounds: schedule.length,
+      completedRounds: completedRoundNumber,
+      decidedByTiebreaker,
+      tiebreakerReason,
+    };
+  });
+}
