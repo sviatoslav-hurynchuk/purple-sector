@@ -91,6 +91,7 @@ export interface DriverStanding {
   wins: string;
   Driver: Driver;
   Constructors: Constructor[];
+  isClinchedChampion?: boolean;
 }
 
 export interface ConstructorStanding {
@@ -213,6 +214,7 @@ export interface DriverProfile {
   seasonHistory: DriverSeasonStanding[];
   officialStats?: OfficialDriverStats | null;
   expectedSeasonsCount?: number;
+  isClinchedChampion?: boolean;
 }
 
 // ── Constructor Profiles ─────────────────────────────────────────────────────
