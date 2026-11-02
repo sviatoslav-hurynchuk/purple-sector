@@ -1,5 +1,5 @@
 import type { DriverStanding, ConstructorStanding, Race } from '../../types/f1';
-import { cachedFetch, TTL, getCurrentSeason, jolpicaFetch, type JolpicaResponse } from './client';
+import { cachedFetch, TTL, getCurrentSeason, isRaceWeekend, jolpicaFetch, type JolpicaResponse } from './client';
 import { getRaceSchedule } from './races';
 import { getDriverStandings, getConstructorStandings } from './standings';
 
@@ -137,6 +137,12 @@ export function calculateRemainingDriverPoints(
   return { maxRemainingPoints, remainingGPs, remainingSprints };
 }
 
+function resolveChampionshipTtl(data: ChampionshipClinchStatus): number {
+  if (data.season !== getCurrentSeason()) return TTL.SCHEDULE_PAST;
+  if (data.totalRounds === 0 || data.leaderPoints === 0) return 30;
+  return isRaceWeekend() ? 60 : 300;
+}
+
 /**
  * Determines whether the Drivers' World Championship has been mathematically clinched.
  */
@@ -146,7 +152,10 @@ export async function getDriverChampionshipStatus(
   const s = season ? String(season) : getCurrentSeason();
   const cacheKey = `f1:championship:drivers:${s}`;
 
-  return cachedFetch<ChampionshipClinchStatus>(cacheKey, TTL.SCHEDULE_CURRENT, async () => {
+  return cachedFetch<ChampionshipClinchStatus>(
+    cacheKey,
+    resolveChampionshipTtl,
+    async () => {
     const [standings, schedule] = await Promise.all([
       getDriverStandings(s).catch(() => [] as DriverStanding[]),
       getRaceSchedule(s).catch(() => [] as Race[]),
@@ -291,7 +300,7 @@ export async function getDriverChampionshipStatus(
       decidedByTiebreaker,
       tiebreakerReason,
     };
-  });
+  }, { validate: (data) => data != null && data.totalRounds > 0, negativeTtl: 30 });
 }
 
 /**
@@ -328,7 +337,10 @@ export async function getConstructorChampionshipStatus(
   const s = season ? String(season) : getCurrentSeason();
   const cacheKey = `f1:championship:constructors:${s}`;
 
-  return cachedFetch<ChampionshipClinchStatus>(cacheKey, TTL.SCHEDULE_CURRENT, async () => {
+  return cachedFetch<ChampionshipClinchStatus>(
+    cacheKey,
+    resolveChampionshipTtl,
+    async () => {
     const [standings, schedule] = await Promise.all([
       getConstructorStandings(s).catch(() => [] as ConstructorStanding[]),
       getRaceSchedule(s).catch(() => [] as Race[]),
@@ -458,5 +470,5 @@ export async function getConstructorChampionshipStatus(
       decidedByTiebreaker,
       tiebreakerReason,
     };
-  });
+  }, { validate: (data) => data != null && data.totalRounds > 0, negativeTtl: 30 });
 }

@@ -85,7 +85,7 @@ export const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
   red_bull: {
     fullName: 'Oracle Red Bull Racing',
     base: 'Milton Keynes, United Kingdom',
-    teamPrincipal: 'Christian Horner',
+    teamPrincipal: 'Laurent Mekies',
     technicalChief: 'Pierre Waché',
     chassis: 'RB22',
     powerUnit: 'Red Bull Ford Powertrains',
@@ -109,7 +109,7 @@ export const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
   aston_martin: {
     fullName: 'Aston Martin Aramco F1 Team',
     base: 'Silverstone, United Kingdom',
-    teamPrincipal: 'Mike Krack',
+    teamPrincipal: 'Adrian Newey',
     technicalChief: 'Dan Fallows',
     chassis: 'AMR26',
     powerUnit: 'Honda',
@@ -121,7 +121,7 @@ export const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
   alpine: {
     fullName: 'BWT Alpine F1 Team',
     base: 'Enstone, United Kingdom',
-    teamPrincipal: 'Oliver Oakes',
+    teamPrincipal: 'Flavio Briatore',
     technicalChief: 'David Sanchez',
     chassis: 'A526',
     powerUnit: 'Mercedes',
@@ -145,7 +145,7 @@ export const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
   rb: {
     fullName: 'Visa Cash App RB Formula One Team',
     base: 'Faenza, Italy',
-    teamPrincipal: 'Laurent Mekies',
+    teamPrincipal: 'Alan Permane',
     technicalChief: 'Jody Egginton',
     chassis: 'VCARB 03',
     powerUnit: 'Red Bull Ford Powertrains',
@@ -157,7 +157,7 @@ export const CONSTRUCTOR_REGISTRY: Record<string, ConstructorRegistryData> = {
   racing_bulls: {
     fullName: 'Visa Cash App RB Formula One Team',
     base: 'Faenza, Italy',
-    teamPrincipal: 'Laurent Mekies',
+    teamPrincipal: 'Alan Permane',
     technicalChief: 'Jody Egginton',
     chassis: 'VCARB 03',
     powerUnit: 'Red Bull Ford Powertrains',

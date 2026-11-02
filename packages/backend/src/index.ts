@@ -22,15 +22,20 @@ const app: Express = express();
 const PORT = process.env.PORT ?? 3001;
 
 // ── Middleware ──────────────────────────────────────────────────────────────
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-  : [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://localhost:3001',
-      process.env.FRONTEND_URL,
-      process.env.NEXT_PUBLIC_APP_URL,
-    ].filter(Boolean) as string[];
+const isProduction = process.env.NODE_ENV === 'production';
+const DOCUMENTED_PRODUCTION_ORIGIN = 'https://purple-sector-sviatoslav.vercel.app';
+
+const allowedOrigins: string[] = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : isProduction
+    ? [process.env.FRONTEND_URL, process.env.NEXT_PUBLIC_APP_URL, DOCUMENTED_PRODUCTION_ORIGIN].filter(Boolean) as string[]
+    : [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        process.env.FRONTEND_URL,
+        process.env.NEXT_PUBLIC_APP_URL,
+      ].filter(Boolean) as string[];
 
 app.use(
   cors({
@@ -40,7 +45,7 @@ app.use(
 
       // In non-production, allow any localhost/127.0.0.1 origin
       if (
-        process.env.NODE_ENV !== 'production' &&
+        !isProduction &&
         /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
       ) {
         return callback(null, true);
@@ -48,11 +53,6 @@ app.use(
 
       // Allow explicitly configured origins
       if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-        return callback(null, true);
-      }
-
-      // Allow Vercel deployment and preview subdomains
-      if (/^https:\/\/[a-z0-9-]+-sviatoslav-hurynchuk\.vercel\.app$/.test(origin)) {
         return callback(null, true);
       }
 

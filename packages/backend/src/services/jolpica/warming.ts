@@ -1,5 +1,6 @@
 import { warmOfficialDriverStats } from '../f1-official';
-import { getCurrentSeason, mapConcurrent } from './client';
+import { cache } from '../cache';
+import { getCurrentSeason, mapConcurrent, TTL } from './client';
 import { getNextRace, getRaceSchedule, getRaceResult } from './races';
 import { getDriverStandings, getConstructorStandings } from './standings';
 import { CONSTRUCTOR_REGISTRY, getConstructorProfile } from './constructors';
@@ -34,7 +35,40 @@ export async function warmCache(): Promise<void> {
       }
     });
 
-    // 3. All primary active drivers
+    // 3. Detect newly completed round and invalidate active driver profiles cache before warming
+    const schedule = await getRaceSchedule(currentSeason).catch(() => []);
+    const now = new Date();
+    const candidateRaces = schedule.filter((r) => {
+      const raceStartTime = r.time ? new Date(`${r.date}T${r.time}`) : new Date(`${r.date}T15:00:00Z`);
+      return now.getTime() - raceStartTime.getTime() > 3 * 60 * 60 * 1000;
+    });
+
+    const recentCandidates = candidateRaces.slice(-2);
+    let latestFinishedRound: string | null = null;
+    for (const r of recentCandidates.slice().reverse()) {
+      const raceResult = await getRaceResult(currentSeason, r.round).catch(() => null);
+      if (
+        raceResult &&
+        'Results' in raceResult &&
+        Array.isArray(raceResult.Results) &&
+        raceResult.Results.length > 0
+      ) {
+        latestFinishedRound = r.round;
+        break;
+      }
+    }
+
+    if (latestFinishedRound) {
+      const markerKey = `f1:warm:last-completed-round:${currentSeason}`;
+      const lastProcessedRound = await cache.get<string>(markerKey);
+      if (lastProcessedRound !== latestFinishedRound) {
+        console.log(`[CacheWarming] Newly completed round ${latestFinishedRound} detected! Invalidating driver profiles before warming...`);
+        await invalidateActiveDriverProfilesCache();
+        await cache.set(markerKey, latestFinishedRound, TTL.SCHEDULE_PAST * 30);
+      }
+    }
+
+    // 4. All primary active drivers (warmed with fresh post-race data if a new round completed)
     const driverIdSet = new Set<string>();
     for (const meta of Object.values(CONSTRUCTOR_REGISTRY)) {
       for (const d of meta.currentDrivers) {
@@ -54,18 +88,9 @@ export async function warmCache(): Promise<void> {
       }
     });
 
-    // 4. Completed races for current season (require confirmed start time + results)
-    const schedule = await getRaceSchedule(currentSeason).catch(() => []);
-    const now = new Date();
-    // Candidate completed races whose scheduled start was at least 3 hours ago
-    const candidateRaces = schedule.filter((r) => {
-      const raceStartTime = r.time ? new Date(`${r.date}T${r.time}`) : new Date(`${r.date}T15:00:00Z`);
-      return now.getTime() - raceStartTime.getTime() > 3 * 60 * 60 * 1000;
-    });
-
-    if (candidateRaces.length > 0) {
-      const recentCandidates = candidateRaces.slice(-2);
-      console.log(`[CacheWarming] Verifying completion & pre-fetching telemetry for ${recentCandidates.length} candidate race(s)...`);
+    // 5. Pre-fetch telemetry (pit stops, laps) for finished candidate races
+    if (recentCandidates.length > 0) {
+      console.log(`[CacheWarming] Pre-fetching telemetry for ${recentCandidates.length} candidate race(s)...`);
       await mapConcurrent(recentCandidates, 1, async (r) => {
         const raceResult = await getRaceResult(currentSeason, r.round).catch(() => null);
         const hasFinished =
@@ -75,8 +100,6 @@ export async function warmCache(): Promise<void> {
           raceResult.Results.length > 0;
 
         if (hasFinished) {
-          // Event-driven cache refresh: invalidate driver profiles to ensure post-race standings & points match
-          await invalidateActiveDriverProfilesCache();
           await Promise.allSettled([
             getRacePitStops(currentSeason, r.round),
             getRaceLaps(currentSeason, r.round),
