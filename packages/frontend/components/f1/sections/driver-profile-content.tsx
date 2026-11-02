@@ -75,7 +75,13 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
   const baseCareerPoints =
     officialStats?.career?.careerPoints ??
     seasonHistory.reduce((sum, s) => sum + parseFloat(s.points || '0'), 0);
-  const careerPoints = pointsDelta > 0 ? baseCareerPoints + pointsDelta : baseCareerPoints;
+  const hasOfficialTotals =
+    officialStats?.career?.careerPoints != null &&
+    officialStats?.season?.points != null;
+  const careerPoints =
+    hasOfficialTotals && pointsDelta > 0
+      ? baseCareerPoints + pointsDelta
+      : baseCareerPoints;
 
   const grandsPrixEntered =
     officialStats?.career?.grandsPrixEntered ?? careerStats.totalRaces;
