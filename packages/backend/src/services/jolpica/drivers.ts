@@ -4,12 +4,14 @@ import type {
   DriverSeasonStanding,
   DriverCareerStats,
 } from '../../types/f1';
-import { getOfficialF1DriverStats } from '../f1-official';
+import { getOfficialF1DriverStats, invalidateOfficialDriverCache } from '../f1-official';
+import { cache } from '../cache';
 import { getDriverStandings } from './standings';
 import { getDriverChampionshipStatus } from './championship';
 import {
   TTL,
   getCurrentSeason,
+  isRaceWeekend,
   jolpicaFetch,
   cachedFetch,
   mapConcurrent,
@@ -102,7 +104,12 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       if (profile.expectedSeasonsCount && profile.seasonHistory.length < profile.expectedSeasonsCount) {
         return 60;
       }
-      return TTL.SCHEDULE_PAST;
+      // Adaptive TTL: Active grid drivers update frequently on race weekend
+      const isActive = lookupDriverRegistry(id) !== undefined || lookupDriverRegistry(rawId) !== undefined;
+      if (isActive) {
+        return isRaceWeekend() ? 900 : TTL.SCHEDULE_CURRENT; // 15 mins on race weekends vs 6 hours mid-week
+      }
+      return TTL.SCHEDULE_PAST; // 24 hours for historical/retired drivers
     },
     async () => {
       // Fetch driver bio and seasons from Jolpica
@@ -329,4 +336,24 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       };
     }
   );
+}
+
+/**
+ * Invalidates cached driver profile and official scraped stats for a given driver.
+ */
+export async function invalidateDriverProfileCache(driverId: string): Promise<void> {
+  const rawId = driverId.trim().toLowerCase();
+  await Promise.allSettled([
+    cache.del(`f1:driver:profile:v2:${rawId}`),
+    invalidateOfficialDriverCache(rawId),
+  ]);
+}
+
+/**
+ * Invalidates all active 2026 grid drivers' cached profiles and official scraped stats.
+ * Used for post-race cache warming and event-driven refresh.
+ */
+export async function invalidateActiveDriverProfilesCache(): Promise<void> {
+  const driverIds = Object.keys(DRIVER_2026_REGISTRY);
+  await Promise.allSettled(driverIds.map((did) => invalidateDriverProfileCache(did)));
 }

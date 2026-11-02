@@ -3,7 +3,7 @@ import { getCurrentSeason, mapConcurrent } from './client';
 import { getNextRace, getRaceSchedule, getRaceResult } from './races';
 import { getDriverStandings, getConstructorStandings } from './standings';
 import { CONSTRUCTOR_REGISTRY, getConstructorProfile } from './constructors';
-import { DRIVER_2026_REGISTRY, getDriverProfile } from './drivers';
+import { DRIVER_2026_REGISTRY, getDriverProfile, invalidateActiveDriverProfilesCache } from './drivers';
 import { getRacePitStops, getRaceLaps } from './timing';
 
 export async function warmCache(): Promise<void> {
@@ -75,6 +75,8 @@ export async function warmCache(): Promise<void> {
           raceResult.Results.length > 0;
 
         if (hasFinished) {
+          // Event-driven cache refresh: invalidate driver profiles to ensure post-race standings & points match
+          await invalidateActiveDriverProfilesCache();
           await Promise.allSettled([
             getRacePitStops(currentSeason, r.round),
             getRaceLaps(currentSeason, r.round),

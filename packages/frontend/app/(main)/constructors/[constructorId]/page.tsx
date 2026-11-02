@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getConstructorProfile, isBackendReachable } from '@/lib/api';
 import { ConstructorProfileContent } from '@/components/f1/sections/constructor-profile-content';
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function generateStaticParams() {
   if (!(await isBackendReachable())) {
