@@ -56,7 +56,7 @@
       SC.toast(`Downloaded ${name}`);
     } catch (e) {
       err.hidden = false;
-      err.textContent = e.message === 'Failed to fetch' ? 'Couldn’t reach the map’s server. Ask Claude or Codex to open the floorplan again, then try again.' : e.message;
+      err.textContent = e instanceof TypeError ? 'Couldn’t reach the map’s server. Ask Claude or Codex to open the floorplan again, then try again.' : e.message;
     }
   }
 

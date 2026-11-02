@@ -97,7 +97,7 @@
     renderMenu();
     place();
     menu.classList.add('open');
-    menu.querySelector('#sc-q')?.focus();
+    (menu.querySelector('#sc-q') || menu.querySelector('.sc-r'))?.focus();
   }
   function place() {
     const r = btn.getBoundingClientRect();

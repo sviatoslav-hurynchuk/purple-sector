@@ -372,6 +372,7 @@ function runAgent(res, send, body) {
     const id = crypto.randomBytes(6).toString('hex');
     running.set(id, child);
     send('start', { id });
+    child.stdin.on('error', () => {});
     child.stdin.end(run.input);
     let buf = '', stderr = '', done = false;
     // working out and writing a whole updated plan has long stretches with nothing to report: say so after a quiet spell
