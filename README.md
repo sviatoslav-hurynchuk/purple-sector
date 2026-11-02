@@ -170,7 +170,7 @@ cp packages/backend/.env.example packages/backend/.env
 |---|---|---|---|
 | `PORT` | No | `3001` | Backend HTTP port |
 | `NODE_ENV` | No | `development` | Runtime environment (`development` / `production`) |
-| `ALLOWED_ORIGINS` | No | `http://localhost:3000` | Comma-separated CORS allowed origins (supports wildcards like `https://*.vercel.app`) |
+| `ALLOWED_ORIGINS` | No | `http://localhost:3000` | Comma-separated exact CORS allowed origins (e.g. `http://localhost:3000,https://purple-sector-sviatoslav.vercel.app`) |
 | `UPSTASH_REDIS_REST_URL` | No | — | Upstash Redis REST endpoint. Falls back to in-memory `Map` cache if empty. |
 | `UPSTASH_REDIS_REST_TOKEN` | No | — | Upstash Redis auth token. Falls back to in-memory `Map` cache if empty. |
 | `ADMIN_CACHE_KEY` | **Yes (for admin)** | — | Secret token for admin cache management endpoints (`x-admin-token` or `Authorization: Bearer`). |
