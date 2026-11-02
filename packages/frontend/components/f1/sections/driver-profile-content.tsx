@@ -56,22 +56,38 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
     ? seasonPosNum.toString().padStart(2, '0')
     : seasonPosRaw;
 
+  // Single source of truth: prioritize live standings if points are higher than cached official scraper
+  const currentSeasonPtsNum = parseFloat(currentSeason?.points || '0');
+  const officialSeasonPtsNum = parseFloat(officialStats?.season?.points || '0');
+  const resolvedSeasonPoints = Math.max(currentSeasonPtsNum, officialSeasonPtsNum);
   const seasonPoints =
-    officialStats?.season?.points ?? currentSeason?.points ?? '0';
+    resolvedSeasonPoints > 0
+      ? String(resolvedSeasonPoints)
+      : currentSeason?.points ?? officialStats?.season?.points ?? '0';
+
   const gpRaces = officialStats?.season?.gpRaces ?? (currentSeason ? 1 : 0);
   const gpTop10s = officialStats?.season?.gpTop10s ?? 0;
   const fastestLaps = officialStats?.season?.fastestLaps ?? 0;
   const sprintPoints = officialStats?.season?.sprintPoints ?? 0;
 
-  // Career calculations (all-time benchmark numbers)
-  const careerPoints =
+  // Career calculations (reconcile with season points delta to prevent discrepancies)
+  const pointsDelta = resolvedSeasonPoints - officialSeasonPtsNum;
+  const baseCareerPoints =
     officialStats?.career?.careerPoints ??
     seasonHistory.reduce((sum, s) => sum + parseFloat(s.points || '0'), 0);
+  const careerPoints = pointsDelta > 0 ? baseCareerPoints + pointsDelta : baseCareerPoints;
+
   const grandsPrixEntered =
     officialStats?.career?.grandsPrixEntered ?? careerStats.totalRaces;
-  const worldChampionships =
-    officialStats?.career?.worldChampionships ?? careerStats.championships;
-  const careerWins = careerStats.wins;
+
+  const isClinched = profile.isClinchedChampion ?? false;
+  const baseChampionships = Math.max(
+    officialStats?.career?.worldChampionships ?? 0,
+    careerStats.championships ?? 0
+  );
+  const worldChampionships = isClinched && baseChampionships === 0 ? 1 : baseChampionships;
+
+  const careerWins = Math.max(careerStats.wins, parseInt(currentSeason?.wins || '0', 10));
   const careerPodiums = officialStats?.career?.podiums ?? careerStats.podiums;
   const careerPoles =
     officialStats?.career?.polePositions ?? careerStats.poles;
@@ -191,12 +207,17 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                       #{driverNumber}
                     </span>
                   )}
-                  {worldChampionships > 0 && (
+                  {isClinched ? (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-transparent text-amber-300 font-mono text-[11px] sm:text-xs font-black tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.25)]">
+                      <Trophy className="size-3.5 sm:size-4 fill-amber-400 text-amber-400 shrink-0" />
+                      <span>{activeSeason} WORLD CHAMPION (CLINCHED)</span>
+                    </div>
+                  ) : worldChampionships > 0 ? (
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 font-mono text-[11px] font-black tracking-wide">
                       <Trophy className="size-3.5 fill-amber-400/20 text-amber-400 shrink-0" />
                       <span>{worldChampionships}× CHAMPION</span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
@@ -326,7 +347,7 @@ export function DriverProfileContent({ profile }: DriverProfileContentProps) {
                       )}
                     </div>
                     <p className="text-[11px] font-mono text-zinc-400 mt-1">
-                      {worldChampionships > 0 ? 'F1 World Champion' : 'Championship Titles'}
+                      {isClinched ? `${activeSeason} Champion (Clinched)` : worldChampionships > 0 ? 'F1 World Champion' : 'Championship Titles'}
                     </p>
                   </div>
                 </div>

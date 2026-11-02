@@ -5,6 +5,8 @@ import type {
   DriverCareerStats,
 } from '../../types/f1';
 import { getOfficialF1DriverStats } from '../f1-official';
+import { getDriverStandings } from './standings';
+import { getDriverChampionshipStatus } from './championship';
 import {
   TTL,
   getCurrentSeason,
@@ -184,28 +186,90 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
         seasonHistory = standingsResults.filter((s): s is DriverSeasonStanding => s !== null);
       }
 
-      // Ensure active season from official stats is present if missing from Jolpica
-      const activeOfficialSeason = officialStats?.season?.year ?? currentSeason;
-      if (officialStats?.season && !seasonHistory.some((s) => s.season === activeOfficialSeason)) {
-        const constructors = fallbackMeta
-          ? [
-              {
-                constructorId: fallbackMeta.constructorId,
-                name: fallbackMeta.constructorName,
-              },
-            ]
-          : [];
-        seasonHistory.unshift({
-          season: activeOfficialSeason,
+      // Fetch live standings and championship clinch status for the current season (Single Source of Truth)
+      const [liveStandings, clinchStatus] = await Promise.all([
+        getDriverStandings(currentSeason).catch(() => []),
+        getDriverChampionshipStatus(currentSeason).catch(() => null),
+      ]);
+
+      const liveStanding = liveStandings.find(
+        (s) => s.Driver.driverId === id || s.Driver.driverId === rawId
+      );
+
+      if (liveStanding) {
+        const liveConstructors =
+          liveStanding.Constructors && liveStanding.Constructors.length > 0
+            ? liveStanding.Constructors.map((c) => ({
+                constructorId: c.constructorId,
+                name: c.name,
+              }))
+            : fallbackMeta
+            ? [{ constructorId: fallbackMeta.constructorId, name: fallbackMeta.constructorName }]
+            : [];
+
+        const liveEntry: DriverSeasonStanding = {
+          season: currentSeason,
           round: '1',
-          position: officialStats.season.position || '—',
-          points: officialStats.season.points || '0',
-          wins: String(officialStats.season.gpWins || 0),
-          constructors,
-        });
+          position: liveStanding.position,
+          points: liveStanding.points,
+          wins: liveStanding.wins,
+          constructors: liveConstructors,
+        };
+
+        const activeIdx = seasonHistory.findIndex((s) => s.season === currentSeason);
+        if (activeIdx >= 0) {
+          seasonHistory[activeIdx] = liveEntry;
+        } else {
+          seasonHistory.unshift(liveEntry);
+        }
+      } else {
+        // Ensure active season from official stats is present if missing from Jolpica
+        const activeOfficialSeason = officialStats?.season?.year ?? currentSeason;
+        if (officialStats?.season && !seasonHistory.some((s) => s.season === activeOfficialSeason)) {
+          const constructors = fallbackMeta
+            ? [
+                {
+                  constructorId: fallbackMeta.constructorId,
+                  name: fallbackMeta.constructorName,
+                },
+              ]
+            : [];
+          seasonHistory.unshift({
+            season: activeOfficialSeason,
+            round: '1',
+            position: officialStats.season.position || '—',
+            points: officialStats.season.points || '0',
+            wins: String(officialStats.season.gpWins || 0),
+            constructors,
+          });
+        }
       }
 
       seasonHistory.sort((a, b) => Number(b.season) - Number(a.season));
+
+      // Reconcile officialStats season and career points with live standings delta
+      if (officialStats?.season && liveStanding) {
+        const livePoints = parseFloat(liveStanding.points || '0');
+        const officialPoints = parseFloat(officialStats.season.points || '0');
+        const pointsDelta = livePoints - officialPoints;
+
+        if (pointsDelta > 0) {
+          officialStats.season.points = liveStanding.points;
+          officialStats.season.position = liveStanding.position;
+          officialStats.season.gpWins = Math.max(
+            officialStats.season.gpWins,
+            parseInt(liveStanding.wins || '0', 10)
+          );
+          if (officialStats.career) {
+            officialStats.career.careerPoints += pointsDelta;
+          }
+        }
+      }
+
+      // Check whether this driver has mathematically clinched the World Championship
+      const isClinchedChampion =
+        !!clinchStatus?.isClinched &&
+        (clinchStatus.championId === id || clinchStatus.championId === rawId);
 
       // Fallback for rookie drivers without past season standings history
       if (seasonHistory.length === 0) {
@@ -230,19 +294,28 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
       }
 
       const calcWins = () => {
+        const liveWins = liveStanding ? parseInt(liveStanding.wins || '0', 10) : 0;
         if (officialStats?.career) {
           const m = officialStats.career.highestRaceFinish.match(/1\s*\(x(\d+)\)/);
-          if (m) return parseInt(m[1], 10);
-          if (officialStats.career.highestRaceFinish === '1') return 1;
+          if (m) return Math.max(parseInt(m[1], 10), liveWins);
+          if (officialStats.career.highestRaceFinish === '1') return Math.max(1, liveWins);
         }
-        return seasonHistory.reduce((sum, s) => sum + parseInt(s.wins || '0', 10), 0);
+        return Math.max(
+          seasonHistory.reduce((sum, s) => sum + parseInt(s.wins || '0', 10), 0),
+          liveWins
+        );
       };
+
+      let championships = officialStats?.career?.worldChampionships ?? 0;
+      if (isClinchedChampion && championships === 0) {
+        championships = 1;
+      }
 
       const careerStats: DriverCareerStats = {
         wins: calcWins(),
         podiums: officialStats?.career?.podiums ?? 0,
         poles: officialStats?.career?.polePositions ?? 0,
-        championships: officialStats?.career?.worldChampionships ?? 0,
+        championships,
         totalRaces: officialStats?.career?.grandsPrixEntered ?? 0,
       };
 
@@ -251,6 +324,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
         careerStats,
         seasonHistory,
         officialStats,
+        isClinchedChampion,
         expectedSeasonsCount: seasons.length,
       };
     }
