@@ -16,6 +16,7 @@ reviews:
     - "!pnpm-lock.yaml"
     - "!**/dist/**"
     - "!**/build/**"
+    - "!.agents/**"
 
   path_instructions:
     - path: "**/*"

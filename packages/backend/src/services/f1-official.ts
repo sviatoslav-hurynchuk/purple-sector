@@ -34,7 +34,38 @@ const DRIVER_SLUG_MAP: Record<string, string> = {
   doohan: 'jack-doohan',
 };
 
-const TTL_OFFICIAL_DRIVER = 86400; // 24 hours
+const ACTIVE_GRID_DRIVERS = new Set([
+  'antonelli', 'russell', 'hamilton', 'leclerc', 'verstappen', 'max_verstappen',
+  'hadjar', 'norris', 'piastri', 'alonso', 'stroll', 'gasly', 'colapinto',
+  'albon', 'sainz', 'carlos_sainz', 'bearman', 'ocon', 'hulkenberg',
+  'bortoleto', 'lawson', 'lindblad', 'arvid_lindblad', 'bottas', 'perez'
+]);
+
+function isRaceWeekend(now = new Date()): boolean {
+  const day = now.getUTCDay();
+  return day === 0 || day === 5 || day === 6;
+}
+
+function getOfficialDriverTTL(driverId: string): number {
+  const isActive = ACTIVE_GRID_DRIVERS.has(driverId.trim().toLowerCase());
+  if (!isActive) {
+    return 30 * 86400; // 30 days for retired/historical drivers
+  }
+  return isRaceWeekend() ? 1800 : 12 * 3600; // 30 mins on race weekends vs 12 hours mid-week
+}
+
+export async function invalidateOfficialDriverCache(driverIdOrSlug: string): Promise<void> {
+  const key = driverIdOrSlug.trim().toLowerCase();
+  const slug = DRIVER_SLUG_MAP[key] ?? key.replace(/_/g, '-');
+  await cache.del(`f1:official:driver:${slug}`).catch(() => {});
+}
+
+export async function invalidateAllActiveOfficialDriverCaches(): Promise<void> {
+  const promises = Array.from(ACTIVE_GRID_DRIVERS).map((driverId) =>
+    invalidateOfficialDriverCache(driverId)
+  );
+  await Promise.allSettled(promises);
+}
 
 async function fetchWithRetry(
   url: string,
@@ -157,8 +188,8 @@ export async function getOfficialF1DriverStats(driverId: string, givenName?: str
       },
     };
 
-    // Cache the result in Redis
-    await cache.set(cacheKey, stats, TTL_OFFICIAL_DRIVER);
+    // Cache the result in Redis with adaptive TTL
+    await cache.set(cacheKey, stats, getOfficialDriverTTL(key));
     return stats;
   } catch (err) {
     console.warn(`[F1 Official] Failed to fetch official stats for ${slug}:`, err);
@@ -242,7 +273,7 @@ export async function getOfficialF1TeamDetails(constructorId: string): Promise<i
     };
 
     // Cache the result in Redis for 24h
-    await cache.set(cacheKey, details, TTL_OFFICIAL_DRIVER);
+    await cache.set(cacheKey, details, 86400);
     return details;
   } catch (err) {
     console.warn(`[F1 Official] Failed to fetch official team details for ${slug}:`, err);

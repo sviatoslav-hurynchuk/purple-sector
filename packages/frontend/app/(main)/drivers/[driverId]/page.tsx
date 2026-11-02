@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { getDriverProfile, isBackendReachable } from '@/lib/api';
 import { DriverProfileContent } from '@/components/f1/sections/driver-profile-content';
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function generateStaticParams() {
   if (!(await isBackendReachable())) {

@@ -8,7 +8,9 @@
     "dev:frontend": "pnpm --filter frontend dev",
     "build": "pnpm --recursive run build",
     "lint": "pnpm --recursive run lint",
-    "warm-pages": "node scripts/warm-pages.mjs"
+    "warm-pages": "node scripts/warm-pages.mjs",
+    "floorplan": "node .agents/skills/floorplan/scripts/build.mjs . && node .agents/skills/floorplan/scripts/open.mjs .",
+    "floorplan:scan": "node .agents/skills/floorplan/scripts/scan.mjs ."
   },
   "devDependencies": {
     "typescript": "^5.5.0"

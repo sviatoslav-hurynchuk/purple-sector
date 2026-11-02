@@ -22,7 +22,45 @@ const app: Express = express();
 const PORT = process.env.PORT ?? 3001;
 
 // ── Middleware ──────────────────────────────────────────────────────────────
-app.use(cors());
+const isProduction = process.env.NODE_ENV === 'production';
+const DOCUMENTED_PRODUCTION_ORIGIN = 'https://purple-sector-sviatoslav.vercel.app';
+
+const allowedOrigins: string[] = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : isProduction
+    ? [process.env.FRONTEND_URL, process.env.NEXT_PUBLIC_APP_URL, DOCUMENTED_PRODUCTION_ORIGIN].filter(Boolean) as string[]
+    : [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        process.env.FRONTEND_URL,
+        process.env.NEXT_PUBLIC_APP_URL,
+      ].filter(Boolean) as string[];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow server-to-server, curl, or mobile requests with no origin header
+      if (!origin) return callback(null, true);
+
+      // In non-production, allow any localhost/127.0.0.1 origin
+      if (
+        !isProduction &&
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+
+      // Allow explicitly configured origins
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS policy blocked access from origin: ${origin}`));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // ── Routes ──────────────────────────────────────────────────────────────────

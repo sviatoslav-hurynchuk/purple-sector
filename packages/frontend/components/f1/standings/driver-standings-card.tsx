@@ -90,6 +90,7 @@ export function DriverStandingsCard({
                                 : '—';
                             const isLeader = posNum === 1;
                             const isPodium = posNum === 2 || posNum === 3;
+                            const isClinched = Boolean(item.isClinchedChampion);
                             const constructorId = item.Constructors[0]?.constructorId ?? '';
                             const theme = getTeamTheme(constructorId);
                             const pts = parseFloat(item.points) || 0;
@@ -98,11 +99,29 @@ export function DriverStandingsCard({
                             return (
                                 <tr
                                     key={`${item.Driver.driverId}-${item.position}`}
-                                    className="group hover:bg-zinc-900/40 transition-colors"
+                                    className={cn(
+                                        'group transition-colors',
+                                        isClinched
+                                            ? 'bg-amber-500/[0.08] hover:bg-amber-500/[0.13] shadow-[inset_0_0_15px_rgba(245,158,11,0.06)]'
+                                            : 'hover:bg-zinc-900/40'
+                                    )}
                                 >
                                     {/* Position */}
-                                    <td className="py-1.5 sm:py-2 px-2 sm:px-2.5 text-center">
-                                        {isLeader ? (
+                                    <td
+                                        className={cn(
+                                            'py-1.5 sm:py-2 px-2 sm:px-2.5 text-center',
+                                            isClinched &&
+                                                'border-y border-amber-500/50 border-l-2 border-l-amber-400'
+                                        )}
+                                    >
+                                        {isClinched ? (
+                                            <span
+                                                title="World Champion (Clinched)"
+                                                className="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 ring-1 ring-amber-400 font-mono font-black text-xs shadow-[0_0_10px_rgba(245,158,11,0.35)]"
+                                            >
+                                                C
+                                            </span>
+                                        ) : isLeader ? (
                                             <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/40 font-mono font-black text-xs">
                                                 P01
                                             </span>
@@ -118,7 +137,12 @@ export function DriverStandingsCard({
                                     </td>
 
                                     {/* Driver */}
-                                    <td className="py-1.5 sm:py-2 px-2 sm:px-2.5">
+                                    <td
+                                        className={cn(
+                                            'py-1.5 sm:py-2 px-2 sm:px-2.5',
+                                            isClinched && 'border-y border-amber-500/50'
+                                        )}
+                                    >
                                         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                                             <CountryFlag
                                                 countryName={item.Driver.nationality}
@@ -149,7 +173,12 @@ export function DriverStandingsCard({
                                     </td>
 
                                     {/* Constructor (Desktop) */}
-                                    <td className="py-1.5 sm:py-2 px-2 sm:px-2.5 hidden sm:table-cell">
+                                    <td
+                                        className={cn(
+                                            'py-1.5 sm:py-2 px-2 sm:px-2.5 hidden sm:table-cell',
+                                            isClinched && 'border-y border-amber-500/50'
+                                        )}
+                                    >
                                         <Link
                                             href={`/constructors/${constructorId}`}
                                             className="inline-flex items-center gap-1.5 group/team"
@@ -166,7 +195,12 @@ export function DriverStandingsCard({
                                     </td>
 
                                     {/* Points + Micro Bar */}
-                                    <td className="py-1.5 sm:py-2 px-2 sm:px-2.5 text-right">
+                                    <td
+                                        className={cn(
+                                            'py-1.5 sm:py-2 px-2 sm:px-2.5 text-right',
+                                            isClinched && 'border-y border-amber-500/50'
+                                        )}
+                                    >
                                         <span className="font-mono font-black text-white text-xs sm:text-sm tabular-nums">
                                             {item.points}
                                         </span>
@@ -182,7 +216,13 @@ export function DriverStandingsCard({
                                     </td>
 
                                     {/* Wins */}
-                                    <td className="py-1.5 sm:py-2 px-2 sm:px-2.5 text-right font-mono text-xs">
+                                    <td
+                                        className={cn(
+                                            'py-1.5 sm:py-2 px-2 sm:px-2.5 text-right font-mono text-xs',
+                                            isClinched &&
+                                                'border-y border-amber-500/50 border-r-2 border-r-amber-400/80'
+                                        )}
+                                    >
                                         {item.wins !== '0' ? (
                                             <span className="font-bold text-amber-400">{item.wins}</span>
                                         ) : (
