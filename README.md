@@ -291,13 +291,13 @@ All admin endpoints require `x-admin-token` or `Authorization: Bearer <token>` m
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/calendar/:season` | Serves an RFC 5545 compliant `.ics` calendar feed with session filtering (`?sessions=all|races|qualy`) and alarm reminders (`?alarm=none|15m|30m|1h`) for direct Webcal (`webcal://`), Apple Calendar, Google Calendar, and Microsoft Outlook subscriptions |
+| `GET` | `/api/calendar/:season` | Serves an RFC 5545 compliant `.ics` calendar feed with session filtering (`?sessions=all\|races\|qualy`) and alarm reminders (`?alarm=none\|15m\|30m\|1h`) for direct Webcal (`webcal://`), Apple Calendar, Google Calendar, and Microsoft Outlook subscriptions |
 
 ---
 
 ## Championship Clinch Engine & Tiebreaker Architecture
 
-The platform features an automated, mathematically rigorous championship clinch detection engine ([`championship.ts`](file:///c:/Users/Админ/WebstormProjects/f1-data-demo/packages/backend/src/services/jolpica/championship.ts)) supporting both the **Drivers' World Championship** and **Constructors' World Championship**:
+The platform features an automated, mathematically rigorous championship clinch detection engine ([`championship.ts`](packages/backend/src/services/jolpica/championship.ts)) supporting both the **Drivers' World Championship** and **Constructors' World Championship**:
 
 1. **Available Points Calculation**:
    - **Drivers**: 25 points per remaining Grand Prix + 8 points per remaining Sprint. (Fastest lap bonus point was abolished by the FIA starting from the 2025 season).
