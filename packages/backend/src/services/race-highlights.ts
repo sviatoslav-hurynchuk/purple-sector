@@ -1,0 +1,302 @@
+import crypto from 'crypto';
+import type {
+  RaceEvent,
+  PitStopDetail,
+  LapSectorTiming,
+  TeamRadioClip,
+  RaceHighlight,
+  RaceHighlightCategory,
+  RaceResultEntry,
+} from '../types/f1';
+import type { OpenF1Driver } from '../types/openf1-types';
+import { findIconicTranscript } from './transcription-registry';
+
+export interface DriverHighlightMeta {
+  driverId: string;
+  driverNumber: number;
+  driverName: string;
+  driverSurname: string;
+  driverCode?: string;
+  teamName?: string;
+  teamColour?: string;
+}
+
+export interface DnfHighlightInfo {
+  driverNumber: number;
+  status: string;
+  laps: number;
+}
+
+function isDnf(status: string | undefined): boolean {
+  if (!status) return false;
+  const s = status.trim().toLowerCase();
+  if (s === 'finished' || s.startsWith('+')) return false;
+  return true;
+}
+
+function buildHighlightId(
+  category: RaceHighlightCategory,
+  lap: number,
+  driverNumber: number,
+  timestamp: string
+): string {
+  const hash = crypto.createHash('md5').update(`${category}:${lap}:${driverNumber}:${timestamp}`).digest('hex').slice(0, 8);
+  return `hl-${category}-l${lap}-${driverNumber}-${hash}`;
+}
+
+/**
+ * Extracts clean surname from a driver full name (e.g. "Lewis HAMILTON" -> "HAMILTON", "Max Verstappen" -> "VERSTAPPEN").
+ */
+function extractSurname(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  return (parts[parts.length - 1] || fullName).toUpperCase();
+}
+
+/**
+ * Correlates all official FOM TV broadcast radio clips with session laps and race context.
+ * Every broadcast clip is preserved, presented as an authentic F1 TV graphic ({DRIVER} RADIO),
+ * and categorized into iconic, victory, safety car, pit stop, dnf, or tactical radio.
+ */
+export function correlateRaceHighlights(params: {
+  teamRadio: TeamRadioClip[];
+  raceControlEvents: RaceEvent[];
+  pitStops: PitStopDetail[];
+  laps: LapSectorTiming[];
+  openF1Drivers?: OpenF1Driver[];
+  driverMap: Map<number, string>;
+  results?: RaceResultEntry[];
+}): RaceHighlight[] {
+  const {
+    teamRadio = [],
+    raceControlEvents = [],
+    pitStops = [],
+    laps = [],
+    openF1Drivers = [],
+    driverMap,
+    results = [],
+  } = params;
+
+  if (!teamRadio || teamRadio.length === 0) {
+    return [];
+  }
+
+  // 1. Build rich driver metadata map
+  const driverMetaMap = new Map<number, DriverHighlightMeta>();
+
+  for (const d of openF1Drivers) {
+    const rawColour = d.team_colour ? d.team_colour.trim() : undefined;
+    const teamColour = rawColour ? (rawColour.startsWith('#') ? rawColour : `#${rawColour}`) : undefined;
+    const driverId = driverMap.get(d.driver_number) ?? `driver_${d.driver_number}`;
+    const fullName = d.broadcast_name || d.full_name || `${d.first_name} ${d.last_name}`.trim();
+    const surname = d.last_name ? d.last_name.toUpperCase() : extractSurname(fullName);
+
+    driverMetaMap.set(d.driver_number, {
+      driverId,
+      driverNumber: d.driver_number,
+      driverName: fullName,
+      driverSurname: surname,
+      driverCode: d.name_acronym,
+      teamName: d.team_name,
+      teamColour,
+    });
+  }
+
+  let winnerNumber: number | undefined;
+  const dnfMap = new Map<number, DnfHighlightInfo>();
+
+  for (const res of results) {
+    const num = parseInt(res.number, 10);
+    if (!isNaN(num)) {
+      if (res.position === '1') {
+        winnerNumber = num;
+      }
+
+      if (isDnf(res.status)) {
+        dnfMap.set(num, {
+          driverNumber: num,
+          status: res.status,
+          laps: parseInt(res.laps, 10) || 0,
+        });
+      }
+
+      if (!driverMetaMap.has(num)) {
+        driverMetaMap.set(num, {
+          driverId: res.Driver.driverId,
+          driverNumber: num,
+          driverName: `${res.Driver.givenName} ${res.Driver.familyName}`,
+          driverSurname: res.Driver.familyName.toUpperCase(),
+          driverCode: res.Driver.code,
+          teamName: res.Constructor.name,
+        });
+      } else {
+        const existing = driverMetaMap.get(num)!;
+        if (!existing.driverCode && res.Driver.code) {
+          existing.driverCode = res.Driver.code;
+        }
+        if (!existing.driverSurname && res.Driver.familyName) {
+          existing.driverSurname = res.Driver.familyName.toUpperCase();
+        }
+      }
+    }
+  }
+
+  // 2. Index laps by driver for precise lap mapping
+  // driverNumber -> sorted list of { lapNumber, startTime }
+  const driverLapsMap = new Map<number, Array<{ lapNumber: number; startTime: number }>>();
+  let overallMinLapTime = Infinity;
+  let overallMaxLap = 1;
+
+  for (const lap of laps) {
+    if (!lap.dateStart) continue;
+    const t = new Date(lap.dateStart).getTime();
+    if (isNaN(t)) continue;
+
+    if (t < overallMinLapTime) overallMinLapTime = t;
+    if (lap.lapNumber > overallMaxLap) overallMaxLap = lap.lapNumber;
+
+    let list = driverLapsMap.get(lap.driverNumber);
+    if (!list) {
+      list = [];
+      driverLapsMap.set(lap.driverNumber, list);
+    }
+    list.push({ lapNumber: lap.lapNumber, startTime: t });
+  }
+
+  for (const list of driverLapsMap.values()) {
+    list.sort((a, b) => a.startTime - b.startTime);
+  }
+
+  // Chequered flag event time
+  const chequeredFlagEvent = raceControlEvents.find(
+    (e) => e.type === 'chequered_flag' || (e.message && e.message.toUpperCase().includes('CHEQUERED FLAG'))
+  );
+  const chequeredTime = chequeredFlagEvent?.date ? new Date(chequeredFlagEvent.date).getTime() : undefined;
+
+  // 3. Process every broadcast team radio clip (no arbitrary discarding!)
+  const highlights: RaceHighlight[] = [];
+
+  for (const clip of teamRadio) {
+    const clipTime = new Date(clip.date).getTime();
+    if (isNaN(clipTime)) continue;
+
+    const driverNum = clip.driverNumber;
+    const meta = driverMetaMap.get(driverNum) ?? {
+      driverId: clip.driverId || `driver_${driverNum}`,
+      driverNumber: driverNum,
+      driverName: `Car #${driverNum}`,
+      driverSurname: `CAR #${driverNum}`,
+      driverCode: undefined,
+    };
+
+    // Resolve accurate Lap Number
+    let lap = 0;
+    const driverLaps = driverLapsMap.get(driverNum);
+    if (driverLaps && driverLaps.length > 0) {
+      for (let i = driverLaps.length - 1; i >= 0; i--) {
+        if (driverLaps[i].startTime <= clipTime) {
+          lap = driverLaps[i].lapNumber;
+          break;
+        }
+      }
+      if (lap === 0) lap = driverLaps[0].lapNumber;
+    }
+
+    // Fallback: estimate from leader's laps if driver has no lap log
+    if (lap === 0 && driverLapsMap.size > 0) {
+      for (const lapsList of driverLapsMap.values()) {
+        for (let i = lapsList.length - 1; i >= 0; i--) {
+          if (lapsList[i].startTime <= clipTime) {
+            lap = Math.max(lap, lapsList[i].lapNumber);
+            break;
+          }
+        }
+      }
+    }
+    if (lap === 0) lap = 1;
+
+    // Check iconic registry
+    const iconic = findIconicTranscript(driverNum, clip.recordingUrl);
+    let category: RaceHighlightCategory = 'team_radio';
+    let isIconic = false;
+    let score = 50;
+    let transcript: string | null = clip.transcript ?? null;
+    let description = `Official Team Radio Broadcast on Lap ${lap}`;
+
+    if (iconic) {
+      category = 'iconic';
+      isIconic = true;
+      score = 100;
+      transcript = iconic.quote;
+      description = iconic.quote;
+    } else if (winnerNumber === driverNum && chequeredTime && clipTime >= chequeredTime - 30_000) {
+      // Victory / Checkered Flag celebration
+      category = 'victory';
+      score = 95;
+      description = `${meta.driverName} victory celebration & chequered flag radio`;
+    } else if (dnfMap.has(driverNum) && Math.abs(lap - (dnfMap.get(driverNum)?.laps || 0)) <= 1) {
+      // DNF Reaction
+      category = 'dnf';
+      score = 90;
+      description = `${meta.driverName} retirement communication (${dnfMap.get(driverNum)?.status})`;
+    } else {
+      // Check Safety Car / VSC
+      const scEvent = raceControlEvents.find((e) => {
+        if (e.type !== 'safety_car' && e.type !== 'vsc' && e.type !== 'red_flag') return false;
+        if (!e.date) return false;
+        const eTime = new Date(e.date).getTime();
+        return Math.abs(eTime - clipTime) <= 60_000 || (e.lap && e.lap === lap);
+      });
+
+      if (scEvent) {
+        category = scEvent.type === 'safety_car' ? 'safety_car' : scEvent.type === 'vsc' ? 'vsc' : 'red_flag';
+        score = 80;
+        description = `Safety Car Period · Lap ${lap}`;
+      } else {
+        // Check Pit Stop window
+        const matchingPit = pitStops.find((pit) => {
+          if (pit.driverNumber !== driverNum) return false;
+          if (pit.date) {
+            const pitTime = new Date(pit.date).getTime();
+            if (Math.abs(pitTime - clipTime) <= 45_000) return true;
+          }
+          return pit.lapNumber && pit.lapNumber === lap;
+        });
+
+        if (matchingPit) {
+          category = 'pit_stop';
+          score = 75;
+          description = `Pit Stop Window · Lap ${lap}`;
+        }
+      }
+    }
+
+    // Official F1 TV On-Screen Graphic Title: e.g. "NORRIS RADIO", "HAMILTON RADIO"
+    const title = `${meta.driverSurname} RADIO`;
+    const highlightId = buildHighlightId(category, lap, driverNum, clip.date);
+
+    highlights.push({
+      id: highlightId,
+      category,
+      lap,
+      timestamp: clip.date,
+      title,
+      description,
+      driverNumber: driverNum,
+      driverId: meta.driverId,
+      driverName: meta.driverName,
+      driverCode: meta.driverCode,
+      teamName: meta.teamName,
+      teamColour: meta.teamColour,
+      radioClip: clip,
+      transcript,
+      significanceScore: score,
+      isIconic,
+    });
+  }
+
+  // Sort chronologically by lap ascending, then timestamp
+  return highlights.sort((a, b) => {
+    if (a.lap !== b.lap) return a.lap - b.lap;
+    return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+  });
+}

@@ -8,6 +8,7 @@ import {
   getOpenF1RaceControlEvents,
   resolveSessionKey,
 } from '../services/openf1';
+import { getAudioTranscript } from '../services/transcription';
 
 const router: Router = Router();
 
@@ -57,6 +58,27 @@ const handleRaceSession = async (req: Request, res: Response): Promise<void> => 
 
 router.get('/race/:season/:round', handleRaceSession);
 router.get('/session/:season/:round', handleRaceSession);
+
+/**
+ * GET /api/openf1/radio/transcript
+ * Returns speech-to-text transcript for an official FIA team radio MP3 URL.
+ */
+router.get('/radio/transcript', async (req: Request, res: Response) => {
+  try {
+    const url = req.query.url;
+    if (!url || typeof url !== 'string') {
+      res.status(400).json({ error: 'Missing or invalid "url" query parameter' });
+      return;
+    }
+    const driverNumber = req.query.driverNumber ? parseInt(String(req.query.driverNumber), 10) : undefined;
+    const result = await getAudioTranscript(url, driverNumber);
+    setCacheHeaders(res, 86400 * 30); // 30 days cache header
+    res.json({ url, ...result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
 
 
 /**

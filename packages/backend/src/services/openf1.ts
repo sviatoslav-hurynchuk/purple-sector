@@ -18,7 +18,8 @@ import type {
   OpenF1TeamRadio,
 } from '../types/openf1-types';
 import { cache } from './cache';
-import { getRaceSchedule } from './jolpica';
+import { getRaceSchedule, getRaceResult } from './jolpica';
+import { correlateRaceHighlights } from './race-highlights';
 import {
   mapStints,
   mapRaceControlEvents,
@@ -598,7 +599,7 @@ export async function getRaceSessionData(
     return null;
   }
 
-  const cacheKey = `f1:openf1:session_data:v7:${s}:${r}`;
+  const cacheKey = `f1:openf1:session_data:v9:${s}:${r}`;
 
   return cachedFetch<RaceSessionData | null>(cacheKey, TTL.ENRICHED_RACE, async () => {
     // 1. Resolve OpenF1 session_key
@@ -607,23 +608,27 @@ export async function getRaceSessionData(
 
     const { sessionKey, meetingKey } = sessionMeta;
 
-    // 2. Fetch driver map and raw OpenF1 data in parallel via throttled queue
+    // 2. Fetch driver map, raw OpenF1 data, and Jolpica results in parallel via throttled queue
     const [
       driverMap,
+      openF1Drivers,
       rawStints,
       rawRaceControl,
       rawWeather,
       rawLaps,
       rawPits,
       rawRadio,
+      jolpicaResult,
     ] = await Promise.all([
       buildDriverMap(sessionKey),
+      getOpenF1Drivers(sessionKey).catch(() => []),
       getOpenF1Stints(sessionKey).catch(() => []),
       getOpenF1RaceControlEvents(sessionKey).catch(() => []),
       getOpenF1Weather(sessionKey).catch(() => []),
       getOpenF1Laps(sessionKey).catch(() => []),
       getOpenF1Pit(sessionKey).catch(() => []),
       getOpenF1TeamRadio(sessionKey).catch(() => []),
+      getRaceResult(s, r).catch(() => null),
     ]);
 
     // 3. Map all data via pure transformation mappers
@@ -633,6 +638,17 @@ export async function getRaceSessionData(
     const laps: LapSectorTiming[] = mapLapSectorTimings(rawLaps, driverMap);
     const pitStops: PitStopDetail[] = mapPitStops(rawPits, driverMap);
     const teamRadio: TeamRadioClip[] = mapTeamRadio(rawRadio, driverMap);
+
+    // 4. Correlate curated high-stakes race highlights (Safety Cars, Box Calls, DNFs, Victory)
+    const highlights = correlateRaceHighlights({
+      teamRadio,
+      raceControlEvents,
+      pitStops,
+      laps,
+      openF1Drivers,
+      driverMap,
+      results: jolpicaResult && 'Results' in jolpicaResult ? jolpicaResult.Results : undefined,
+    });
 
     return {
       sessionKey,
@@ -645,6 +661,7 @@ export async function getRaceSessionData(
       laps,
       pitStops,
       teamRadio,
+      highlights,
     };
   });
 }

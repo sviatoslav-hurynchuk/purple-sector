@@ -373,4 +373,33 @@ export async function getConstructorMultiSeasonReliability(
     revalidate
   );
 }
+
+export interface RadioTranscriptResponse {
+  transcript: string | null;
+  requiresApiKey?: boolean;
+  isIconic?: boolean;
+}
+
+/**
+ * Fetches speech-to-text transcript for an FIA team radio recording URL.
+ */
+export async function fetchRadioTranscript(
+  recordingUrl: string,
+  driverNumber?: number
+): Promise<RadioTranscriptResponse> {
+  try {
+    const params = new URLSearchParams({ url: recordingUrl });
+    if (driverNumber) params.set('driverNumber', String(driverNumber));
+
+    const res = await fetch(`${BACKEND_URL}/api/openf1/radio/transcript?${params.toString()}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return { transcript: null, requiresApiKey: false };
+    const json = (await res.json()) as RadioTranscriptResponse;
+    return json;
+  } catch {
+    return { transcript: null, requiresApiKey: false };
+  }
+}
+
 
