@@ -402,4 +402,16 @@ export async function fetchRadioTranscript(
   }
 }
 
+/**
+ * Returns a proxied audio URL with CORS headers to enable Web Audio GainNode amplification.
+ */
+export function getProxiedRadioAudioUrl(rawUrl: string): string {
+  if (!rawUrl) return '';
+  if (typeof window !== 'undefined') {
+    const backendBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    return `${backendBase}/api/openf1/audio-proxy?url=${encodeURIComponent(rawUrl)}`;
+  }
+  return rawUrl;
+}
+
 

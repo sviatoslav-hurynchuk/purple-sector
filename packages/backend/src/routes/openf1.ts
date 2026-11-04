@@ -197,4 +197,50 @@ router.get('/race_control/:sessionKey', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/openf1/audio-proxy
+ * Proxies and streams external Formula 1 team radio audio files with proper CORS headers.
+ * Allows Web Audio API GainNode amplification (up to 200%) in frontend browsers without CORS silencing.
+ */
+router.get('/audio-proxy', async (req: Request, res: Response) => {
+  try {
+    const rawUrl = req.query.url as string;
+    if (!rawUrl) {
+      res.status(400).json({ error: 'Missing url parameter' });
+      return;
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      res.status(400).json({ error: 'Invalid URL' });
+      return;
+    }
+
+    // Security check: only proxy official Formula 1 timing audio CDN
+    if (!parsed.hostname.endsWith('formula1.com')) {
+      res.status(403).json({ error: 'Origin not allowed for audio proxying' });
+      return;
+    }
+
+    const upstream = await fetch(rawUrl);
+    if (!upstream.ok || !upstream.body) {
+      res.status(upstream.status).json({ error: 'Failed to fetch upstream audio stream' });
+      return;
+    }
+
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    const length = upstream.headers.get('content-length');
+    if (length) res.setHeader('Content-Length', length);
+
+    const { Readable } = await import('stream');
+    Readable.fromWeb(upstream.body as import('stream/web').ReadableStream).pipe(res);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Audio proxy error';
+    res.status(500).json({ error: message });
+  }
+});
+
 export default router;

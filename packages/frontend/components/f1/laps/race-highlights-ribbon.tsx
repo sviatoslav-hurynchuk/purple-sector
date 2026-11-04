@@ -20,7 +20,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { fetchRadioTranscript } from '@/lib/api';
+import { fetchRadioTranscript, getProxiedRadioAudioUrl } from '@/lib/api';
 import { playF1RadioChime } from '@/lib/f1-radio-sound';
 import { cn } from '@/lib/utils';
 
@@ -58,11 +58,69 @@ export function RaceHighlightsRibbon({
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+  const sourceConnectedRef = useRef<boolean>(false);
 
-  // Sync volume with audio element
+  // Initialize Web Audio graph on user gesture: Broadcast Compressor + Super Boost GainNode
+  const initWebAudio = useCallback(() => {
+    if (typeof window === 'undefined' || !audioRef.current) return;
+    try {
+      if (!audioCtxRef.current) {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (!AudioCtx) return;
+        audioCtxRef.current = new AudioCtx();
+      }
+
+      if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+
+      const ctx = audioCtxRef.current;
+
+      if (!gainNodeRef.current || !compressorRef.current) {
+        // 1. Broadcast vocal compressor: brings quiet whispering voices up while preventing clipping distortion
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.setValueAtTime(-24, ctx.currentTime);
+        comp.knee.setValueAtTime(10, ctx.currentTime);
+        comp.ratio.setValueAtTime(6, ctx.currentTime);
+        comp.attack.setValueAtTime(0.003, ctx.currentTime);
+        comp.release.setValueAtTime(0.2, ctx.currentTime);
+
+        // 2. High-headroom GainNode for massive volume boost
+        const gain = ctx.createGain();
+
+        // Audio pipeline: source -> compressor -> gain -> destination
+        comp.connect(gain);
+        gain.connect(ctx.destination);
+
+        compressorRef.current = comp;
+        gainNodeRef.current = gain;
+      }
+
+      if (!sourceConnectedRef.current && audioRef.current && compressorRef.current) {
+        const source = ctx.createMediaElementSource(audioRef.current);
+        source.connect(compressorRef.current);
+        sourceConnectedRef.current = true;
+      }
+    } catch {
+      // AudioContext fallback
+    }
+  }, []);
+
+  // Sync volume with Web Audio GainNode (supports 0% to 300%+) with speech clarity preamp
   useEffect(() => {
+    const effectiveVol = isMuted ? 0 : volume;
+    if (gainNodeRef.current) {
+      // Preamp multiplier (1.6x) elevates quiet FOM cockpit radio to crystal clear broadcast level
+      gainNodeRef.current.gain.value = effectiveVol * 1.6;
+    }
     if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
+      // Standard HTMLMediaElement.volume is strictly clamped [0, 1]
+      audioRef.current.volume = sourceConnectedRef.current ? 1 : Math.min(1, Math.max(0, effectiveVol));
     }
   }, [volume, isMuted]);
 
@@ -119,11 +177,13 @@ export function RaceHighlightsRibbon({
     }
   }, [currentLap, isReplayPlaying, highlights]);
 
-  // Audio Playback Controls with signature F1 TV radio intro chime
+  // Audio Playback Controls with signature F1 TV radio intro chime & 200% Web Audio Gain
   const handlePlayToggle = useCallback(
     (highlight: RaceHighlight) => {
       const audio = audioRef.current;
       if (!audio) return;
+
+      initWebAudio();
 
       if (playingId === highlight.id) {
         if (!audio.paused) {
@@ -136,13 +196,19 @@ export function RaceHighlightsRibbon({
             .catch(() => setPlayingId(null));
         }
       } else {
-        audio.src = highlight.radioClip.recordingUrl;
+        const proxiedUrl = getProxiedRadioAudioUrl(highlight.radioClip.recordingUrl);
+        try {
+          audio.crossOrigin = 'anonymous';
+        } catch {
+          // ignore
+        }
+        audio.src = proxiedUrl;
         audio.currentTime = 0;
         setCurrentTime(0);
         setDuration(0);
 
-        // 1. Play the signature double-beep F1 TV radio intro chime
-        playF1RadioChime().finally(() => {
+        // 1. Play signature F1 TV radio intro chime with user volume
+        playF1RadioChime(isMuted ? 0 : volume).finally(() => {
           if (!audioRef.current) return;
           // 2. Play driver team radio recording
           audioRef.current
@@ -153,11 +219,21 @@ export function RaceHighlightsRibbon({
                 onLapChange(highlight.lap);
               }
             })
-            .catch(() => setPlayingId(null));
+            .catch(() => {
+              // Direct fallback without proxy if network blocks CORS
+              if (audioRef.current) {
+                audioRef.current.crossOrigin = null;
+                audioRef.current.src = highlight.radioClip.recordingUrl;
+                audioRef.current
+                  .play()
+                  .then(() => setPlayingId(highlight.id))
+                  .catch(() => setPlayingId(null));
+              }
+            });
         });
       }
     },
-    [playingId, onLapChange]
+    [playingId, onLapChange, volume, isMuted, initWebAudio]
   );
 
   const handleTimeUpdate = useCallback(() => {
@@ -394,8 +470,17 @@ export function RaceHighlightsRibbon({
             </select>
           )}
 
-          {/* ── Neat Audio Volume Slider & Mute Toggle ── */}
-          <div className="flex items-center gap-1.5 bg-zinc-900/90 border border-white/10 rounded px-2 py-0.5 h-6">
+          {/* ── Neat Audio Volume Slider & Mute Toggle with 300% Gain & Vocal Compression ── */}
+          <div
+            className="flex items-center gap-1.5 bg-zinc-900/90 border border-white/10 rounded px-2 py-0.5 h-6"
+            title={
+              volume > 2
+                ? 'Super Boost (300% + Vocal Compression)'
+                : volume > 1
+                  ? 'Vocal Boost (up to 200%)'
+                  : 'Radio Volume'
+            }
+          >
             <button
               type="button"
               onClick={toggleMute}
@@ -408,20 +493,34 @@ export function RaceHighlightsRibbon({
               ) : volume < 0.5 ? (
                 <Volume1 className="size-3 text-zinc-300" />
               ) : (
-                <Volume2 className="size-3 text-zinc-300" />
+                <Volume2
+                  className={cn(
+                    'size-3',
+                    volume > 2 ? 'text-red-400' : volume > 1 ? 'text-amber-400' : 'text-zinc-300'
+                  )}
+                />
               )}
             </button>
             <input
               type="range"
               min={0}
-              max={1}
+              max={3}
               step={0.05}
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
-              className="w-14 sm:w-16 h-1 bg-zinc-700 rounded appearance-none cursor-pointer accent-white hover:accent-zinc-300 transition-all"
-              aria-label="Radio Volume"
+              className="w-16 sm:w-24 h-1 bg-zinc-700 rounded appearance-none cursor-pointer accent-white hover:accent-zinc-300 transition-all"
+              aria-label="Radio Volume (up to 300%)"
             />
-            <span className="text-[10px] font-mono text-zinc-400 tabular-nums w-6 text-right">
+            <span
+              className={cn(
+                'text-[10px] font-mono tabular-nums min-w-[34px] text-right',
+                volume > 2
+                  ? 'text-red-400 font-bold'
+                  : volume > 1
+                    ? 'text-amber-400 font-bold'
+                    : 'text-zinc-400'
+              )}
+            >
               {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
             </span>
           </div>
