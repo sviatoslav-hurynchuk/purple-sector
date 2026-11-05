@@ -123,14 +123,18 @@ async function resilientFetch(
   throw lastError;
 }
 
+const isDev = process.env.NODE_ENV === 'development';
+
 /**
  * Fetches a resource that is expected to exist.
  * Throws on any non-2xx response after retries.
  */
 async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
-  const res = await resilientFetch(`${BACKEND_URL}${path}`, {
-    next: { revalidate },
-  });
+  const fetchOptions: RequestInit = isDev
+    ? { cache: 'no-store' }
+    : { next: { revalidate } };
+
+  const res = await resilientFetch(`${BACKEND_URL}${path}`, fetchOptions);
 
   if (!res.ok) {
     throw new Error(`Backend API error: ${res.status} ${res.statusText} — ${path}`);
@@ -145,9 +149,11 @@ async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
  */
 async function apiFetchNullable<T>(path: string, revalidate = 60): Promise<T | null> {
   try {
-    const res = await resilientFetch(`${BACKEND_URL}${path}`, {
-      next: { revalidate },
-    });
+    const fetchOptions: RequestInit = isDev
+      ? { cache: 'no-store' }
+      : { next: { revalidate } };
+
+    const res = await resilientFetch(`${BACKEND_URL}${path}`, fetchOptions);
 
     if (res.status === 404) return null;
 
