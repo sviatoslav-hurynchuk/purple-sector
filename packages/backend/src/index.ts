@@ -51,8 +51,8 @@ app.use(
         return callback(null, true);
       }
 
-      // Allow any Vercel preview or production deployment origin
-      if (/^https:\/\/([a-zA-Z0-9_-]+)\.vercel\.app$/.test(origin)) {
+      // Allow only this project's Vercel preview and production deployment origins
+      if (/^https:\/\/(purple-sector|purple-sector-[a-zA-Z0-9_-]+)\.vercel\.app$/.test(origin)) {
         return callback(null, true);
       }
 
