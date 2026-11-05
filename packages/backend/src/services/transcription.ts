@@ -25,7 +25,7 @@ export async function getAudioTranscript(
   }
 
   const hash = crypto.createHash('sha256').update(recordingUrl).digest('hex').slice(0, 32);
-  const cacheKey = `f1:radio:transcript:v2:${hash}`;
+  const cacheKey = `f1:radio:transcript:v3:${hash}`;
 
   const cached = await cache.get<string | null>(cacheKey);
   if (cached !== null && cached !== undefined) {

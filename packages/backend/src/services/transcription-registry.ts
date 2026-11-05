@@ -51,16 +51,6 @@ export const ICONIC_RADIO_REGISTRY: IconicRadioEntry[] = [
 
   // ── Charles Leclerc (#16, Ferrari) ────────────────────────────────────────
   {
-    id: 'leclerc-water-seat',
-    driverNumber: 16,
-    driverCode: 'LEC',
-    driverName: 'Charles Leclerc',
-    teamName: 'Ferrari',
-    title: 'LECLERC RADIO',
-    quote: '"IS THERE A LEAKAGE?" — "A LEAKAGE OF WHAT?" — "I HAVE THE SEAT FULL OF WATER! LIKE, FULL OF WATER!" — "MUST BE THE WATER."',
-    keywords: ['leakage', 'water', 'seat'],
-  },
-  {
     id: 'leclerc-forza-ferrari',
     driverNumber: 16,
     driverCode: 'LEC',
