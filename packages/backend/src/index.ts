@@ -51,6 +51,11 @@ app.use(
         return callback(null, true);
       }
 
+      // Allow any Vercel preview or production deployment origin
+      if (/^https:\/\/([a-zA-Z0-9_-]+)\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+
       // Allow explicitly configured origins
       if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
         return callback(null, true);
