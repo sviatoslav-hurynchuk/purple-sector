@@ -383,7 +383,6 @@ export async function getConstructorMultiSeasonReliability(
 export interface RadioTranscriptResponse {
   transcript: string | null;
   requiresApiKey?: boolean;
-  isIconic?: boolean;
 }
 
 /**
@@ -398,7 +397,7 @@ export async function fetchRadioTranscript(
     if (driverNumber) params.set('driverNumber', String(driverNumber));
 
     const res = await fetch(`${BACKEND_URL}/api/openf1/radio/transcript?${params.toString()}`, {
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(25000),
     });
     if (!res.ok) return { transcript: null, requiresApiKey: false };
     const json = (await res.json()) as RadioTranscriptResponse;

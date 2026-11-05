@@ -50,11 +50,14 @@ export function RaceHighlightsRibbon({
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolume] = useState<number>(85);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [graphReady, setGraphReady] = useState<boolean>(false);
   const [transcriptsMap, setTranscriptsMap] = useState<Record<string, string>>({});
 
   const inFlightTranscriptsRef = useRef<Set<string>>(new Set());
+  const playRequestRef = useRef<number>(0);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fallbackAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
@@ -102,10 +105,33 @@ export function RaceHighlightsRibbon({
         const source = ctx.createMediaElementSource(audioRef.current);
         source.connect(compressorRef.current);
         sourceConnectedRef.current = true;
+        setGraphReady(true);
       }
     } catch {
       // AudioContext fallback
     }
+  }, []);
+
+  // Cleanup Web Audio resources on unmount
+  useEffect(() => {
+    const audioEl = audioRef.current;
+    const fallbackAudioEl = fallbackAudioRef.current;
+    return () => {
+      audioEl?.pause();
+      fallbackAudioEl?.pause();
+      gainNodeRef.current?.disconnect();
+      compressorRef.current?.disconnect();
+      sourceConnectedRef.current = false;
+
+      const ctx = audioCtxRef.current;
+      audioCtxRef.current = null;
+      gainNodeRef.current = null;
+      compressorRef.current = null;
+
+      if (ctx && ctx.state !== 'closed') {
+        void ctx.close().catch(() => {});
+      }
+    };
   }, []);
 
   // Sync volume with Web Audio GainNode (super boosted under the hood) and HTMLMediaElement fallback
@@ -121,7 +147,10 @@ export function RaceHighlightsRibbon({
         ? 1
         : Math.min(1, Math.max(0, isMuted ? 0 : volume / 100));
     }
-  }, [volume, isMuted]);
+    if (fallbackAudioRef.current) {
+      fallbackAudioRef.current.volume = isMuted ? 0 : Math.min(1, Math.max(0, volume / 100));
+    }
+  }, [volume, isMuted, graphReady]);
 
   // Filtered highlights based on category and driver
   const filteredHighlights = useMemo(() => {
@@ -165,19 +194,20 @@ export function RaceHighlightsRibbon({
   // Replay Lap Synchronization: smooth auto-scroll when replaying laps
   useEffect(() => {
     if (!isReplayPlaying || currentLap <= 0 || !scrollContainerRef.current) return;
-    const match = highlights.find((h) => h.lap === currentLap);
+    const match = filteredHighlights.find((h) => h.lap === currentLap);
     if (match) {
       const el = scrollContainerRef.current.querySelector<HTMLElement>(`[data-highlight-id="${match.id}"]`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
     }
-  }, [currentLap, isReplayPlaying, highlights]);
+  }, [currentLap, isReplayPlaying, filteredHighlights]);
 
   // Audio Playback Controls with signature F1 TV radio intro chime & 200% Web Audio Gain
   const handlePlayToggle = useCallback(
     (highlight: RaceHighlight) => {
       const audio = audioRef.current;
+      const fallbackAudio = fallbackAudioRef.current;
       if (!audio) return;
 
       initWebAudio();
@@ -185,14 +215,17 @@ export function RaceHighlightsRibbon({
       if (playingId === highlight.id) {
         if (!audio.paused) {
           audio.pause();
-          setPlayingId(null);
-        } else {
-          audio
-            .play()
-            .then(() => setPlayingId(highlight.id))
-            .catch(() => setPlayingId(null));
         }
+        if (fallbackAudio && !fallbackAudio.paused) {
+          fallbackAudio.pause();
+        }
+        setPlayingId(null);
       } else {
+        // Pause any previous playback
+        if (!audio.paused) audio.pause();
+        if (fallbackAudio && !fallbackAudio.paused) fallbackAudio.pause();
+
+        const requestId = ++playRequestRef.current;
         const proxiedUrl = getProxiedRadioAudioUrl(highlight.radioClip.recordingUrl);
         try {
           audio.crossOrigin = 'anonymous';
@@ -207,25 +240,40 @@ export function RaceHighlightsRibbon({
         // 1. Play signature F1 TV radio intro chime with boosted user volume
         const normalizedBoost = isMuted ? 0 : (volume / 100) * 3.0;
         playF1RadioChime(normalizedBoost).finally(() => {
-          if (!audioRef.current) return;
-          // 2. Play driver team radio recording
+          if (!audioRef.current || requestId !== playRequestRef.current) return;
+
+          // 2. Play driver team radio recording through Web Audio graph
           audioRef.current
             .play()
             .then(() => {
-              setPlayingId(highlight.id);
-              if (onLapChange && highlight.lap > 0) {
-                onLapChange(highlight.lap);
+              if (requestId === playRequestRef.current) {
+                setPlayingId(highlight.id);
+                if (onLapChange && highlight.lap > 0) {
+                  onLapChange(highlight.lap);
+                }
               }
             })
             .catch(() => {
-              // Direct fallback without proxy if network blocks CORS
-              if (audioRef.current) {
-                audioRef.current.crossOrigin = null;
-                audioRef.current.src = highlight.radioClip.recordingUrl;
-                audioRef.current
+              // Direct fallback without Web Audio graph if proxy or CORS blocks Web Audio
+              const fb = fallbackAudioRef.current;
+              if (fb && requestId === playRequestRef.current) {
+                fb.src = highlight.radioClip.recordingUrl;
+                fb.volume = isMuted ? 0 : volume / 100;
+                fb
                   .play()
-                  .then(() => setPlayingId(highlight.id))
-                  .catch(() => setPlayingId(null));
+                  .then(() => {
+                    if (requestId === playRequestRef.current) {
+                      setPlayingId(highlight.id);
+                      if (onLapChange && highlight.lap > 0) {
+                        onLapChange(highlight.lap);
+                      }
+                    }
+                  })
+                  .catch(() => {
+                    if (requestId === playRequestRef.current) {
+                      setPlayingId(null);
+                    }
+                  });
               }
             });
         });
@@ -341,12 +389,24 @@ export function RaceHighlightsRibbon({
         className
       )}
     >
-      {/* Invisible global audio element */}
+      {/* Invisible global audio element routed through Web Audio Gain/Compressor */}
       <audio
         ref={audioRef}
         preload="metadata"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onEnded={handleEnded}
+      />
+      {/* Un-routed fallback audio element for direct stream playback if CORS/proxy fails */}
+      <audio
+        ref={fallbackAudioRef}
+        preload="none"
+        onTimeUpdate={() => {
+          if (fallbackAudioRef.current) setCurrentTime(fallbackAudioRef.current.currentTime);
+        }}
+        onLoadedMetadata={() => {
+          if (fallbackAudioRef.current) setDuration(fallbackAudioRef.current.duration || 0);
+        }}
         onEnded={handleEnded}
       />
 

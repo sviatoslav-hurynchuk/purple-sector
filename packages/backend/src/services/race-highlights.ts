@@ -24,12 +24,13 @@ export interface DnfHighlightInfo {
   driverNumber: number;
   status: string;
   laps: number;
+  retirementTime?: number;
 }
 
 function isDnf(status: string | undefined): boolean {
   if (!status) return false;
   const s = status.trim().toLowerCase();
-  if (s === 'finished' || s.startsWith('+')) return false;
+  if (s === 'finished' || s.startsWith('+') || s === 'disqualified') return false;
   return true;
 }
 
@@ -37,9 +38,14 @@ function buildHighlightId(
   category: RaceHighlightCategory,
   lap: number,
   driverNumber: number,
-  timestamp: string
+  timestamp: string,
+  recordingUrl?: string
 ): string {
-  const hash = crypto.createHash('md5').update(`${category}:${lap}:${driverNumber}:${timestamp}`).digest('hex').slice(0, 8);
+  const hash = crypto
+    .createHash('md5')
+    .update(`${category}:${lap}:${driverNumber}:${timestamp}:${recordingUrl || ''}`)
+    .digest('hex')
+    .slice(0, 8);
   return `hl-${category}-l${lap}-${driverNumber}-${hash}`;
 }
 
@@ -167,6 +173,28 @@ export function correlateRaceHighlights(params: {
     list.sort((a, b) => a.startTime - b.startTime);
   }
 
+  // Populate retirementTime for DNF drivers from race control incident messages or driver's last recorded lap
+  for (const [dNum, dnfInfo] of dnfMap.entries()) {
+    const incidentMsg = raceControlEvents.find(
+      (e) =>
+        (e.driverNumber === dNum || (e.message && e.message.toUpperCase().includes(`CAR ${dNum}`))) &&
+        (e.message.toUpperCase().includes('STOPPED') ||
+          e.message.toUpperCase().includes('OFF TRACK') ||
+          e.message.toUpperCase().includes('ACCIDENT'))
+    );
+    if (incidentMsg?.date) {
+      const t = new Date(incidentMsg.date).getTime();
+      if (!isNaN(t)) dnfInfo.retirementTime = t;
+    }
+
+    if (!dnfInfo.retirementTime) {
+      const dLaps = driverLapsMap.get(dNum);
+      if (dLaps && dLaps.length > 0) {
+        dnfInfo.retirementTime = dLaps[dLaps.length - 1].startTime;
+      }
+    }
+  }
+
   // Chequered flag event time
   const chequeredFlagEvent = raceControlEvents.find(
     (e) => e.type === 'chequered_flag' || (e.message && e.message.toUpperCase().includes('CHEQUERED FLAG'))
@@ -232,23 +260,43 @@ export function correlateRaceHighlights(params: {
     let transcript: string | null = clip.transcript ?? null;
     let description = 'Official Team Radio Broadcast';
 
-    if (winnerNumber === driverNum && chequeredTime && clipTime >= chequeredTime - 30_000) {
+    const dnfInfo = dnfMap.get(driverNum);
+    const isRetirement =
+      dnfInfo &&
+      ((dnfInfo.retirementTime && Math.abs(clipTime - dnfInfo.retirementTime) <= 3 * 60 * 1000) ||
+        (!dnfInfo.retirementTime && Math.abs(lap - dnfInfo.laps) <= 1 && clipTime >= overallMinLapTime));
+
+    if (
+      winnerNumber === driverNum &&
+      chequeredTime &&
+      clipTime >= chequeredTime - 30_000 &&
+      clipTime <= chequeredTime + 10 * 60 * 1000
+    ) {
       // Victory / Checkered Flag celebration
       category = 'victory';
       score = 95;
       description = `${meta.driverName} victory celebration & chequered flag radio`;
-    } else if (dnfMap.has(driverNum) && Math.abs(lap - (dnfMap.get(driverNum)?.laps || 0)) <= 1) {
+    } else if (isRetirement) {
       // DNF Reaction
       category = 'dnf';
       score = 90;
-      description = `${meta.driverName} retirement communication (${dnfMap.get(driverNum)?.status})`;
+      description = `${meta.driverName} retirement communication (${dnfInfo.status})`;
     } else {
       // Check Safety Car / VSC
       const scEvent = raceControlEvents.find((e) => {
         if (e.type !== 'safety_car' && e.type !== 'vsc' && e.type !== 'red_flag') return false;
         if (!e.date) return false;
         const eTime = new Date(e.date).getTime();
-        return Math.abs(eTime - clipTime) <= 60_000 || (e.lap && e.lap === lap);
+        if (isNaN(eTime)) return false;
+        // Must not precede deployment
+        if (clipTime < eTime - 15_000) return false;
+        // Near deployment broadcast
+        if (Math.abs(eTime - clipTime) <= 60_000) return true;
+        // Within valid lap range
+        if (e.lap !== undefined && e.endLap !== undefined && lap >= e.lap && lap <= e.endLap) {
+          return true;
+        }
+        return false;
       });
 
       if (scEvent) {
@@ -261,9 +309,12 @@ export function correlateRaceHighlights(params: {
           if (pit.driverNumber !== driverNum) return false;
           if (pit.date) {
             const pitTime = new Date(pit.date).getTime();
-            if (Math.abs(pitTime - clipTime) <= 45_000) return true;
+            if (!isNaN(pitTime)) {
+              return Math.abs(pitTime - clipTime) <= 45_000;
+            }
           }
-          return pit.lapNumber && pit.lapNumber === lap;
+          // Only fallback to same-lap if pit.date is missing/invalid
+          return Boolean(pit.lapNumber && pit.lapNumber === lap);
         });
 
         if (matchingPit) {
@@ -276,7 +327,7 @@ export function correlateRaceHighlights(params: {
 
     // Official F1 TV On-Screen Graphic Title: e.g. "NORRIS RADIO", "HAMILTON RADIO"
     const title = `${meta.driverSurname} RADIO`;
-    const highlightId = buildHighlightId(category, lap, driverNum, clip.date);
+    const highlightId = buildHighlightId(category, lap, driverNum, clip.date, clip.recordingUrl);
 
     highlights.push({
       id: highlightId,

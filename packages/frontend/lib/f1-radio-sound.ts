@@ -71,6 +71,11 @@ export function playF1RadioChime(volume = 1): Promise<void> {
 
 function playWebAudioFallback(volume = 1): Promise<void> {
   return new Promise((resolve) => {
+    if (volume <= 0) {
+      resolve();
+      return;
+    }
+
     try {
       const AudioCtx =
         window.AudioContext ||

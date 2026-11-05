@@ -72,7 +72,11 @@ router.get('/radio/transcript', async (req: Request, res: Response) => {
     }
     const driverNumber = req.query.driverNumber ? parseInt(String(req.query.driverNumber), 10) : undefined;
     const result = await getAudioTranscript(url, driverNumber);
-    setCacheHeaders(res, 86400 * 30); // 30 days cache header
+    if (result.transcript) {
+      setCacheHeaders(res, 86400 * 30); // 30 days cache header for successful transcripts
+    } else {
+      res.setHeader('Cache-Control', 'no-store');
+    }
     res.json({ url, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -218,13 +222,15 @@ router.get('/audio-proxy', async (req: Request, res: Response) => {
       return;
     }
 
-    // Security check: only proxy official Formula 1 timing audio CDN
-    if (!parsed.hostname.endsWith('formula1.com')) {
+    // Security check: only proxy official Formula 1 timing audio CDN over HTTPS
+    const host = parsed.hostname;
+    const isAllowedHost = host === 'formula1.com' || host.endsWith('.formula1.com');
+    if (parsed.protocol !== 'https:' || !isAllowedHost) {
       res.status(403).json({ error: 'Origin not allowed for audio proxying' });
       return;
     }
 
-    const upstream = await fetch(rawUrl);
+    const upstream = await fetch(parsed.href, { redirect: 'manual' });
     if (!upstream.ok || !upstream.body) {
       res.status(upstream.status).json({ error: 'Failed to fetch upstream audio stream' });
       return;
