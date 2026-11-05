@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { fetchRadioTranscript, getProxiedRadioAudioUrl } from '@/lib/api';
 import { playF1RadioChime } from '@/lib/f1-radio-sound';
 import { cn } from '@/lib/utils';
+import { WAVE_BARS, getWaveformBarStyle } from '@/lib/f1-waveform';
 
 interface RaceHighlightsRibbonProps {
   highlights: RaceHighlight[];
@@ -30,11 +31,6 @@ interface RaceHighlightsRibbonProps {
 }
 
 type FilterCategory = 'all' | 'safety_car' | 'pit_stop' | 'dnf' | 'victory';
-
-// 28 baseline soundwave frequency heights (percentages) mimicking voice telemetry
-const WAVE_BARS = [
-  35, 60, 40, 85, 70, 95, 45, 65, 80, 50, 90, 75, 40, 60, 100, 85, 55, 70, 90, 65, 45, 80, 60, 40, 70, 50, 35, 25,
-];
 
 export function RaceHighlightsRibbon({
   highlights = [],
@@ -134,21 +130,20 @@ export function RaceHighlightsRibbon({
     };
   }, []);
 
-  // Sync volume with Web Audio GainNode (super boosted under the hood) and HTMLMediaElement fallback
+  // Sync volume with Web Audio GainNode and HTMLMediaElement fallback
   useEffect(() => {
-    // Under the hood: visual 0..100% maps to 0..3.0x multiplier, boosted with 1.6x speech preamp (up to 4.8x)
-    const normalizedBoost = isMuted ? 0 : (volume / 100) * 3.0;
+    const userVolume = isMuted ? 0 : volume / 100;
     if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = normalizedBoost * 1.6;
+      gainNodeRef.current.gain.value = userVolume;
     }
     if (audioRef.current) {
       // Standard HTMLMediaElement.volume is strictly clamped [0, 1]
       audioRef.current.volume = sourceConnectedRef.current
         ? 1
-        : Math.min(1, Math.max(0, isMuted ? 0 : volume / 100));
+        : Math.min(1, Math.max(0, userVolume));
     }
     if (fallbackAudioRef.current) {
-      fallbackAudioRef.current.volume = isMuted ? 0 : Math.min(1, Math.max(0, volume / 100));
+      fallbackAudioRef.current.volume = userVolume;
     }
   }, [volume, isMuted, graphReady]);
 
@@ -237,9 +232,9 @@ export function RaceHighlightsRibbon({
         setCurrentTime(0);
         setDuration(0);
 
-        // 1. Play signature F1 TV radio intro chime with boosted user volume
-        const normalizedBoost = isMuted ? 0 : (volume / 100) * 3.0;
-        playF1RadioChime(normalizedBoost).finally(() => {
+        // 1. Play signature F1 TV radio intro chime at calibrated broadcast volume (balanced with radio voice)
+        const userVolume = isMuted ? 0 : volume / 100;
+        playF1RadioChime(userVolume).finally(() => {
           if (!audioRef.current || requestId !== playRequestRef.current) return;
 
           // 2. Play driver team radio recording through Web Audio graph
@@ -660,7 +655,7 @@ export function RaceHighlightsRibbon({
                     )}
                   </button>
 
-                  {/* 28 Animated Soundwave Frequency Bars */}
+                  {/* 28 Animated Soundwave Frequency Bars (buttery smooth 60/120fps) */}
                   <div className="flex-1 flex items-center justify-center gap-[2.5px] h-7 overflow-hidden px-1">
                     {WAVE_BARS.map((heightPct, idx) => {
                       const isPlayed = isPlayingThis && idx <= playedBarsCount;
@@ -668,18 +663,14 @@ export function RaceHighlightsRibbon({
                       return (
                         <span
                           key={idx}
-                          className="w-[3px] rounded-full transition-all duration-150"
-                          style={{
-                            height: isPlayingThis
-                              ? `${Math.max(25, (heightPct * (0.6 + ((idx * 7) % 5) * 0.15)))}%`
-                              : `${heightPct}%`,
-                            backgroundColor: isPlayed ? '#ffffff' : livery,
-                            opacity: isPlayingThis ? (isPlayed ? 1 : 0.85) : 0.6,
-                            transform: isPlayingThis
-                              ? `scaleY(${0.4 + ((idx + Math.floor(currentTime * 4)) % 5) * 0.18})`
-                              : 'scaleY(1)',
-                            transformOrigin: 'bottom',
-                          }}
+                          className="w-[3px] rounded-full"
+                          style={getWaveformBarStyle({
+                            idx,
+                            isPlaying: isPlayingThis,
+                            baseHeightPct: heightPct,
+                            isPlayed,
+                            livery,
+                          })}
                         />
                       );
                     })}

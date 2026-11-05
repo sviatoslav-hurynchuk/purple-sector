@@ -30,7 +30,16 @@ export interface DnfHighlightInfo {
 function isDnf(status: string | undefined): boolean {
   if (!status) return false;
   const s = status.trim().toLowerCase();
-  if (s === 'finished' || s.startsWith('+') || s === 'disqualified') return false;
+  if (
+    s === 'finished' ||
+    s === 'lapped' ||
+    s.startsWith('+') ||
+    s.includes('lap') ||
+    s.includes('disqualif') ||
+    s === 'dsq'
+  ) {
+    return false;
+  }
   return true;
 }
 
@@ -108,15 +117,25 @@ export function correlateRaceHighlights(params: {
 
   let winnerNumber: number | undefined;
   const dnfMap = new Map<number, DnfHighlightInfo>();
+  const driverFinishPosMap = new Map<number, number>();
 
   for (const res of results) {
     const num = parseInt(res.number, 10);
     if (!isNaN(num)) {
+      const pos = parseInt(res.position, 10);
+      if (!isNaN(pos)) {
+        driverFinishPosMap.set(num, pos);
+      }
+
       if (res.position === '1') {
         winnerNumber = num;
       }
 
-      if (isDnf(res.status)) {
+      const isFinisher =
+        (res.positionText && res.positionText !== 'R' && !isNaN(parseInt(res.positionText, 10))) ||
+        !isDnf(res.status);
+
+      if (!isFinisher && isDnf(res.status)) {
         dnfMap.set(num, {
           driverNumber: num,
           status: res.status,
@@ -321,7 +340,34 @@ export function correlateRaceHighlights(params: {
           category = 'pit_stop';
           score = 75;
           description = 'Pit Stop Window';
+        } else {
+          // Generic team radio: calculate score based on finishing position and race stage
+          const finishPos = driverFinishPosMap.get(driverNum);
+          if (finishPos !== undefined) {
+            if (finishPos <= 3) score = 65;
+            else if (finishPos <= 6) score = 60;
+            else if (finishPos <= 10) score = 55;
+            else score = 45;
+          }
+
+          // Penalize lap 1 routine radio checks (typically 1-second static/bleeps)
+          if (lap <= 1) {
+            score = 15;
+          }
+
+          // Late-race battle bonus
+          if (lap >= 45) {
+            score += 10;
+          }
         }
+      }
+    }
+
+    // Deprecate bleeped/empty noise transcripts (e.g. "." or single characters)
+    if (transcript != null) {
+      const alphanumeric = transcript.replace(/[^a-zA-Z0-9]/g, '').trim();
+      if (alphanumeric.length < 3) {
+        score = Math.min(score, 10);
       }
     }
 

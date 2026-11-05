@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Race, RaceResult, RaceResultEntry, QualifyingResultEntry } from '@/types/f1';
+import type { Race, RaceResult, RaceResultEntry, QualifyingResultEntry, RaceHighlight } from '@/types/f1';
 import {
   getCircuitTimezone,
   getFormattedSessions,
@@ -16,6 +16,7 @@ import { RaceResultsTable } from '@/components/f1/race-results-table';
 import { QualifyingResultsTable } from '@/components/f1/qualifying-results-table';
 import { ChevronDown, AlertTriangle } from 'lucide-react';
 import { AddToCalendarMenu } from '@/components/f1/calendar/add-to-calendar-menu';
+import { BestRaceRadioRibbon } from '@/components/f1/radio/best-race-radio-ribbon';
 import {
   TelemetryRibbon,
   TelemetryRibbonCell,
@@ -26,6 +27,7 @@ import {
 
 interface RaceScheduleProps {
   race: Race | RaceResult;
+  radioHighlights?: RaceHighlight[];
 }
 
 /** Checkered flag SVG icon with distinct checkered pattern on a flagpole */
@@ -103,7 +105,7 @@ function formatTimeZoneLabel(tz: string, date: Date | null) {
   }
 }
 
-export function RaceSchedule({ race }: RaceScheduleProps) {
+export function RaceSchedule({ race, radioHighlights }: RaceScheduleProps) {
   const [mode, setMode] = useState<'my' | 'track'>('my');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [userTimeZone, setUserTimeZone] = useState<string>('UTC');
@@ -185,8 +187,16 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
 
   return (
     <div className="space-y-6">
-      {/* ── Race Pulse Telemetry Ribbon (Monolithic 4-Metric Bar) ───── */}
-      <TelemetryRibbon>
+      {/* ── Race Pulse Ribbon: If race radio highlights exist, show BEST RACE RADIO ribbon. Otherwise fallback to timing/distance ribbon ───── */}
+      <div className="relative z-30">
+        {radioHighlights && radioHighlights.length > 0 ? (
+          <BestRaceRadioRibbon
+            highlights={radioHighlights}
+            season={race.season}
+            round={race.round}
+          />
+        ) : (
+          <TelemetryRibbon>
         {/* Metric 1: Weekend Status / Lights Out */}
         <TelemetryRibbonCell>
           <TelemetryRibbonLabel>
@@ -253,9 +263,11 @@ export function RaceSchedule({ race }: RaceScheduleProps) {
           </TelemetryRibbonSub>
         </TelemetryRibbonCell>
       </TelemetryRibbon>
+      )}
+      </div>
 
       {/* ── Timetable Controls Bar ───────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
         <div className="flex items-center gap-2.5">
           <h2 className="text-lg sm:text-xl font-black font-mono uppercase tracking-tight text-white">
             Weekend Timetable
