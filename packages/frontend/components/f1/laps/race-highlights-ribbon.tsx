@@ -664,7 +664,7 @@ export function RaceHighlightsRibbon({
                     </p>
                   ) : (
                     <p className="text-[11px] font-mono text-zinc-400 leading-snug line-clamp-2">
-                      {hl.description}
+                      {hl.description.replace(/\s*(?:·|on|-)\s*Lap\s*\d+\s*$/i, '')}
                     </p>
                   )}
                 </div>

@@ -234,7 +234,7 @@ export function correlateRaceHighlights(params: {
     let isIconic = false;
     let score = 50;
     let transcript: string | null = clip.transcript ?? null;
-    let description = `Official Team Radio Broadcast on Lap ${lap}`;
+    let description = 'Official Team Radio Broadcast';
 
     if (iconic) {
       category = 'iconic';
@@ -264,7 +264,7 @@ export function correlateRaceHighlights(params: {
       if (scEvent) {
         category = scEvent.type === 'safety_car' ? 'safety_car' : scEvent.type === 'vsc' ? 'vsc' : 'red_flag';
         score = 80;
-        description = `Safety Car Period · Lap ${lap}`;
+        description = scEvent.type === 'safety_car' ? 'Safety Car Period' : scEvent.type === 'vsc' ? 'Virtual Safety Car Period' : 'Red Flag Period';
       } else {
         // Check Pit Stop window
         const matchingPit = pitStops.find((pit) => {
@@ -279,7 +279,7 @@ export function correlateRaceHighlights(params: {
         if (matchingPit) {
           category = 'pit_stop';
           score = 75;
-          description = `Pit Stop Window · Lap ${lap}`;
+          description = 'Pit Stop Window';
         }
       }
     }
