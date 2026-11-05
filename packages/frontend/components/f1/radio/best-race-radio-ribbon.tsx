@@ -22,6 +22,12 @@ interface BestRaceRadioRibbonProps {
   className?: string;
 }
 
+/**
+ * BestRaceRadioRibbon renders the apex 4-tile F1 cockpit radio highlight bar
+ * displayed on the Grand Prix details page, replacing generic telemetry distance cells.
+ * It provides top 3 curated audio broadcast moments with synchronized, GPU-accelerated
+ * frequency waveforms, authentic F1 broadcast chimes, and live speech-to-text quotes.
+ */
 export function BestRaceRadioRibbon({
   highlights = [],
   season,
@@ -46,12 +52,12 @@ export function BestRaceRadioRibbon({
   const bestHighlights = useMemo(() => {
     if (!highlights || highlights.length === 0) return [];
 
-    // Filter out invalid/empty/bleeped noise clips
+    // Filter out invalid/empty/bleeped noise clips using Unicode letter/number support
     const valid = highlights.filter((h) => {
       // 1. If transcript is present, filter out "." or single characters or whitespace
       const text = h.transcript || transcriptsMap[h.id];
       if (text != null) {
-        const alphanumeric = text.replace(/[^a-zA-Z0-9]/g, '').trim();
+        const alphanumeric = text.replace(/[^\p{L}\p{N}]/gu, '').trim();
         if (alphanumeric.length < 3) return false;
       }
       // 2. Filter out lap 1 generic team_radio checks (which are 99% static/bleeps)
@@ -61,7 +67,7 @@ export function BestRaceRadioRibbon({
       return true;
     });
 
-    const candidates = valid.length >= 3 ? valid : highlights;
+    const candidates = valid;
 
     // Calculate quality ranking score for each highlight
     const scored = candidates.map((h) => {
@@ -78,10 +84,10 @@ export function BestRaceRadioRibbon({
         qScore -= 80;
       }
 
-      // Bonus for clips with substantial speech
+      // Bonus for clips with substantial speech (Unicode-aware)
       const text = h.transcript || transcriptsMap[h.id];
       if (text) {
-        const letters = text.replace(/[^a-zA-Z]/g, '').length;
+        const letters = text.replace(/[^\p{L}]/gu, '').length;
         if (letters > 20) qScore += 25;
         else if (letters < 4) qScore -= 60;
       }
@@ -117,6 +123,18 @@ export function BestRaceRadioRibbon({
 
     return picked;
   }, [highlights, transcriptsMap]);
+
+  // Stop playback when the active highlight leaves the selected set
+  useEffect(() => {
+    if (playingId === null || bestHighlights.some((h) => h.id === playingId)) return;
+    playRequestRef.current += 1;
+    audioRef.current?.pause();
+    fallbackAudioRef.current?.pause();
+    const timer = setTimeout(() => {
+      setPlayingId(null);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [playingId, bestHighlights]);
 
   // Web Audio pipeline
   const initWebAudio = useCallback(() => {
@@ -195,6 +213,7 @@ export function BestRaceRadioRibbon({
       initWebAudio();
 
       if (playingId === highlight.id) {
+        playRequestRef.current += 1;
         if (!audio.paused) audio.pause();
         if (fallbackAudio && !fallbackAudio.paused) fallbackAudio.pause();
         setPlayingId(null);
@@ -212,6 +231,8 @@ export function BestRaceRadioRibbon({
           // ignore
         }
         audio.src = proxiedUrl;
+        audio.volume = sourceConnectedRef.current ? 1 : 0.85;
+        audio.load();
         audio.currentTime = 0;
         setCurrentTime(0);
         setDuration(0);
@@ -335,6 +356,10 @@ export function BestRaceRadioRibbon({
           setPlayingId(null);
           setCurrentTime(0);
         }}
+        onError={() => {
+          setPlayingId(null);
+          setCurrentTime(0);
+        }}
       />
       <audio
         ref={fallbackAudioRef}
@@ -346,6 +371,10 @@ export function BestRaceRadioRibbon({
           if (fallbackAudioRef.current) setDuration(fallbackAudioRef.current.duration || 0);
         }}
         onEnded={() => {
+          setPlayingId(null);
+          setCurrentTime(0);
+        }}
+        onError={() => {
           setPlayingId(null);
           setCurrentTime(0);
         }}

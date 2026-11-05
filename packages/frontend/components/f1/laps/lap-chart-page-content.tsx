@@ -19,6 +19,7 @@ interface LapChartPageContentProps {
   lapsData: RaceLapsResponse;
   pitStops: PitStopEntry[];
   openF1Data?: RaceSessionData | null;
+  initialLap?: number;
 }
 
 export function LapChartPageContent({
@@ -26,9 +27,15 @@ export function LapChartPageContent({
   lapsData,
   pitStops,
   openF1Data,
+  initialLap,
 }: LapChartPageContentProps) {
   const totalLaps = Math.max(1, lapsData.totalLaps);
-  const [currentLap, setCurrentLap] = useState(0);
+  const [currentLap, setCurrentLap] = useState(() => {
+    if (initialLap !== undefined && !isNaN(initialLap)) {
+      return Math.max(0, Math.min(totalLaps, initialLap));
+    }
+    return 0;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [selectedDriverIds, setSelectedDriverIds] = useState<Set<string>>(new Set());

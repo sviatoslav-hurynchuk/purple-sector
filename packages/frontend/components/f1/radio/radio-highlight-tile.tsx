@@ -31,6 +31,10 @@ interface RadioHighlightTileProps {
   className?: string;
 }
 
+/**
+ * RadioHighlightTile renders an individual F1 team radio highlight card.
+ * Supports compact preview and expanded cockpit views with telemetry wave visualization.
+ */
 export function RadioHighlightTile({
   highlight: hl,
   isPlaying,

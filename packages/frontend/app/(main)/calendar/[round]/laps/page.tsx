@@ -13,7 +13,7 @@ export const revalidate = 3600;
 
 interface LapsPageProps {
   params: Promise<{ round: string }>;
-  searchParams: Promise<{ season?: string }>;
+  searchParams: Promise<{ season?: string; lap?: string }>;
 }
 
 export async function generateMetadata({ params, searchParams }: LapsPageProps): Promise<Metadata> {
@@ -35,7 +35,7 @@ export async function generateMetadata({ params, searchParams }: LapsPageProps):
 
 export default async function LapsPage({ params, searchParams }: LapsPageProps) {
   const { round } = await params;
-  const { season } = await searchParams;
+  const { season, lap } = await searchParams;
 
   const parsedRound = parseRound(round);
   const maxYear = getMaxYear();
@@ -110,6 +110,7 @@ export default async function LapsPage({ params, searchParams }: LapsPageProps) 
         lapsData={lapsData}
         pitStops={pitStops ?? []}
         openF1Data={openF1Data}
+        initialLap={lap ? parseInt(lap, 10) : undefined}
       />
     </Suspense>
   );
