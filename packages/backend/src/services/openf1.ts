@@ -599,7 +599,7 @@ export async function getRaceSessionData(
     return null;
   }
 
-  const cacheKey = `f1:openf1:session_data:v12:${s}:${r}`;
+  const cacheKey = `f1:openf1:session_data:v13:${s}:${r}`;
 
   return cachedFetch<RaceSessionData | null>(cacheKey, TTL.ENRICHED_RACE, async () => {
     // 1. Resolve OpenF1 session_key

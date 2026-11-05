@@ -144,6 +144,7 @@ export function correlateRaceHighlights(params: {
   // driverNumber -> sorted list of { lapNumber, startTime }
   const driverLapsMap = new Map<number, Array<{ lapNumber: number; startTime: number }>>();
   let overallMinLapTime = Infinity;
+  let overallMaxLapTime = -Infinity;
   let overallMaxLap = 1;
 
   for (const lap of laps) {
@@ -152,6 +153,7 @@ export function correlateRaceHighlights(params: {
     if (isNaN(t)) continue;
 
     if (t < overallMinLapTime) overallMinLapTime = t;
+    if (t > overallMaxLapTime) overallMaxLapTime = t;
     if (lap.lapNumber > overallMaxLap) overallMaxLap = lap.lapNumber;
 
     let list = driverLapsMap.get(lap.driverNumber);
@@ -178,6 +180,18 @@ export function correlateRaceHighlights(params: {
   for (const clip of teamRadio) {
     const clipTime = new Date(clip.date).getTime();
     if (isNaN(clipTime)) continue;
+
+    // Filter out stray clips from previous sessions or support races (e.g. F1 Academy, Porsche Supercup, Qualifying)
+    // Allow up to 10 minutes before lights out (formation lap & grid radio)
+    if (overallMinLapTime !== Infinity && clipTime < overallMinLapTime - 10 * 60 * 1000) {
+      continue;
+    }
+
+    // Allow up to 30 minutes after chequered flag or last recorded lap
+    const sessionEndTime = chequeredTime || (overallMaxLapTime !== -Infinity ? overallMaxLapTime + 15 * 60 * 1000 : Infinity);
+    if (sessionEndTime !== Infinity && clipTime > sessionEndTime + 30 * 60 * 1000) {
+      continue;
+    }
 
     const driverNum = clip.driverNumber;
     const meta = driverMetaMap.get(driverNum) ?? {
