@@ -25,17 +25,27 @@ const PORT = process.env.PORT ?? 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 const DOCUMENTED_PRODUCTION_ORIGIN = 'https://purple-sector-sviatoslav.vercel.app';
 
-const allowedOrigins: string[] = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
-  : isProduction
-    ? [process.env.FRONTEND_URL, process.env.NEXT_PUBLIC_APP_URL, DOCUMENTED_PRODUCTION_ORIGIN].filter(Boolean) as string[]
-    : [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://localhost:3001',
-        process.env.FRONTEND_URL,
-        process.env.NEXT_PUBLIC_APP_URL,
-      ].filter(Boolean) as string[];
+// Parse allowed origins strictly from environment variables (ALLOWED_ORIGINS, FRONTEND_URL, NEXT_PUBLIC_APP_URL)
+const rawEnvOrigins = [
+  process.env.ALLOWED_ORIGINS,
+  process.env.FRONTEND_URL,
+  process.env.NEXT_PUBLIC_APP_URL,
+]
+  .filter(Boolean)
+  .flatMap((v) => (v as string).split(','))
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
+const allowedOrigins: string[] =
+  rawEnvOrigins.length > 0
+    ? rawEnvOrigins
+    : isProduction
+      ? [DOCUMENTED_PRODUCTION_ORIGIN]
+      : [
+          'http://localhost:3000',
+          'http://127.0.0.1:3000',
+          'http://localhost:3001',
+        ];
 
 app.use(
   cors({
@@ -43,21 +53,18 @@ app.use(
       // Allow server-to-server, curl, or mobile requests with no origin header
       if (!origin) return callback(null, true);
 
+      const cleanOrigin = origin.replace(/\/+$/, '');
+
       // In non-production, allow any localhost/127.0.0.1 origin
       if (
         !isProduction &&
-        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin)
       ) {
         return callback(null, true);
       }
 
-      // Allow only this project's Vercel preview and production deployment origins
-      if (/^https:\/\/(purple-sector|purple-sector-[a-zA-Z0-9_-]+)\.vercel\.app$/.test(origin)) {
-        return callback(null, true);
-      }
-
-      // Allow explicitly configured origins
-      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      // Allow explicitly configured origins from ENV
+      if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes('*')) {
         return callback(null, true);
       }
 
