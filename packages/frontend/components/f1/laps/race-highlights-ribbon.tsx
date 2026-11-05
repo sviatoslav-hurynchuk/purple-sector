@@ -18,7 +18,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { getProxiedRadioAudioUrl } from '@/lib/api';
+import { fetchRadioTranscript, getProxiedRadioAudioUrl } from '@/lib/api';
 import { playF1RadioChime } from '@/lib/f1-radio-sound';
 import { cn } from '@/lib/utils';
 
@@ -51,7 +51,9 @@ export function RaceHighlightsRibbon({
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolume] = useState<number>(85);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [transcriptsMap, setTranscriptsMap] = useState<Record<string, string>>({});
 
+  const inFlightTranscriptsRef = useRef<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -230,9 +232,25 @@ export function RaceHighlightsRibbon({
               }
             });
         });
+
+        // 3. Auto-transcribe on the fly in background if not already available
+        const existingTranscript = highlight.transcript || transcriptsMap[highlight.id];
+        if (!existingTranscript && !inFlightTranscriptsRef.current.has(highlight.id)) {
+          inFlightTranscriptsRef.current.add(highlight.id);
+          fetchRadioTranscript(highlight.radioClip.recordingUrl, highlight.driverNumber)
+            .then((res) => {
+              if (res?.transcript) {
+                setTranscriptsMap((prev) => ({ ...prev, [highlight.id]: res.transcript! }));
+              }
+            })
+            .catch(() => {})
+            .finally(() => {
+              inFlightTranscriptsRef.current.delete(highlight.id);
+            });
+        }
       }
     },
-    [playingId, onLapChange, volume, isMuted, initWebAudio]
+    [playingId, onLapChange, volume, isMuted, initWebAudio, transcriptsMap]
   );
 
   const handleTimeUpdate = useCallback(() => {
@@ -646,9 +664,11 @@ export function RaceHighlightsRibbon({
                       | {hl.driverCode || hl.driverName.split(' ').pop()}
                     </span>
 
-                    {hl.transcript ? (
-                      <p className="text-xs font-mono font-bold text-zinc-100 italic leading-snug line-clamp-3">
-                        {hl.transcript.startsWith('"') ? hl.transcript : `"${hl.transcript}"`}
+                    {transcriptsMap[hl.id] || hl.transcript ? (
+                      <p className="text-xs font-mono font-bold text-zinc-100 italic leading-snug line-clamp-3 animate-in fade-in duration-300">
+                        {(transcriptsMap[hl.id] || hl.transcript)!.startsWith('"')
+                          ? transcriptsMap[hl.id] || hl.transcript
+                          : `"${transcriptsMap[hl.id] || hl.transcript}"`}
                       </p>
                     ) : (
                       <p className="text-[11px] font-mono text-zinc-300 leading-snug line-clamp-2">
