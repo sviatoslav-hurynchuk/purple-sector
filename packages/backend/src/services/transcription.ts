@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import { cache } from './cache';
-import { findIconicTranscript } from './transcription-registry';
 
 const TRANSCRIPT_TTL_SECONDS = 365 * 24 * 60 * 60; // 1 year (audio broadcasts are permanent)
 
@@ -13,12 +12,11 @@ export interface TranscriptResult {
 /**
  * Returns speech-to-text transcription for an official FIA team radio MP3 URL.
  * 1. Checks Redis cache first.
- * 2. Checks built-in iconic radio moments registry.
- * 3. If an STT key is configured (Groq, OpenAI, or Gemini), executes transcription and caches result permanently.
+ * 2. If an STT key is configured (Groq, OpenAI, or Gemini), executes transcription and caches result permanently.
  */
 export async function getAudioTranscript(
   recordingUrl: string,
-  driverNumber?: number
+  _driverNumber?: number
 ): Promise<TranscriptResult> {
   if (!recordingUrl || !recordingUrl.startsWith('http')) {
     return { transcript: null, requiresApiKey: false };
@@ -30,21 +28,6 @@ export async function getAudioTranscript(
   const cached = await cache.get<string | null>(cacheKey);
   if (cached !== null && cached !== undefined) {
     return { transcript: cached, requiresApiKey: false };
-  }
-
-  // Check iconic registry if driverNumber is supplied or extracted from URL
-  let detectedNum = driverNumber;
-  if (!detectedNum) {
-    const match = recordingUrl.match(/_(\d{1,2})_\d{8}_/);
-    if (match) detectedNum = parseInt(match[1], 10);
-  }
-
-  if (detectedNum) {
-    const iconic = findIconicTranscript(detectedNum, recordingUrl);
-    if (iconic) {
-      await cache.set(cacheKey, iconic.quote, TRANSCRIPT_TTL_SECONDS);
-      return { transcript: iconic.quote, requiresApiKey: false, isIconic: true };
-    }
   }
 
   const groqKey = process.env.GROQ_API_KEY;

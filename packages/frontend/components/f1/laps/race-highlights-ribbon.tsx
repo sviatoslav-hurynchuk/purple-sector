@@ -12,7 +12,6 @@ import {
   Wrench,
   Trophy,
   AlertOctagon,
-  Star,
   Volume2,
   Volume1,
   VolumeX,
@@ -30,7 +29,7 @@ interface RaceHighlightsRibbonProps {
   className?: string;
 }
 
-type FilterCategory = 'all' | 'iconic' | 'safety_car' | 'pit_stop' | 'dnf' | 'victory';
+type FilterCategory = 'all' | 'safety_car' | 'pit_stop' | 'dnf' | 'victory';
 
 // 28 baseline soundwave frequency heights (percentages) mimicking voice telemetry
 const WAVE_BARS = [
@@ -127,9 +126,7 @@ export function RaceHighlightsRibbon({
   // Filtered highlights based on category and driver
   const filteredHighlights = useMemo(() => {
     let list = highlights;
-    if (filter === 'iconic') {
-      list = list.filter((h) => h.isIconic || h.category === 'iconic');
-    } else if (filter === 'safety_car') {
+    if (filter === 'safety_car') {
       list = list.filter((h) => h.category === 'safety_car' || h.category === 'vsc' || h.category === 'red_flag');
     } else if (filter !== 'all') {
       list = list.filter((h) => h.category === filter);
@@ -287,14 +284,6 @@ export function RaceHighlightsRibbon({
   };
 
   const getCategoryBadge = (hl: RaceHighlight) => {
-    if (hl.isIconic || hl.category === 'iconic') {
-      return (
-        <span className="flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-300 bg-amber-500/15">
-          <Star className="size-2.5 fill-amber-400 text-amber-400" />
-          <span>ICONIC</span>
-        </span>
-      );
-    }
     if (hl.category === 'victory') {
       return (
         <span className="flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-yellow-500/40 text-yellow-300 bg-yellow-500/15">
@@ -391,18 +380,6 @@ export function RaceHighlightsRibbon({
               )}
             >
               All
-            </button>
-            <button
-              onClick={() => setFilter('iconic')}
-              className={cn(
-                'px-2 py-0.5 rounded text-[11px] font-mono font-semibold transition-colors flex items-center gap-1',
-                filter === 'iconic'
-                  ? 'bg-amber-950/50 text-amber-300 border border-amber-500/30'
-                  : 'text-zinc-400 hover:text-amber-300 hover:bg-zinc-900'
-              )}
-            >
-              <Star className="size-2.5 fill-amber-400 text-amber-400" />
-              <span>Iconic</span>
             </button>
             <button
               onClick={() => setFilter('safety_car')}

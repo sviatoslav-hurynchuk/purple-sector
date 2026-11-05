@@ -9,7 +9,6 @@ import type {
   RaceResultEntry,
 } from '../types/f1';
 import type { OpenF1Driver } from '../types/openf1-types';
-import { findIconicTranscript } from './transcription-registry';
 
 export interface DriverHighlightMeta {
   driverId: string;
@@ -55,7 +54,7 @@ function extractSurname(fullName: string): string {
 /**
  * Correlates all official FOM TV broadcast radio clips with session laps and race context.
  * Every broadcast clip is preserved, presented as an authentic F1 TV graphic ({DRIVER} RADIO),
- * and categorized into iconic, victory, safety car, pit stop, dnf, or tactical radio.
+ * and categorized into victory, safety car, pit stop, dnf, or team radio.
  */
 export function correlateRaceHighlights(params: {
   teamRadio: TeamRadioClip[];
@@ -228,21 +227,12 @@ export function correlateRaceHighlights(params: {
     }
     if (lap === 0) lap = 1;
 
-    // Check iconic registry
-    const iconic = findIconicTranscript(driverNum, clip.recordingUrl);
     let category: RaceHighlightCategory = 'team_radio';
-    let isIconic = false;
     let score = 50;
     let transcript: string | null = clip.transcript ?? null;
     let description = 'Official Team Radio Broadcast';
 
-    if (iconic) {
-      category = 'iconic';
-      isIconic = true;
-      score = 100;
-      transcript = iconic.quote;
-      description = iconic.quote;
-    } else if (winnerNumber === driverNum && chequeredTime && clipTime >= chequeredTime - 30_000) {
+    if (winnerNumber === driverNum && chequeredTime && clipTime >= chequeredTime - 30_000) {
       // Victory / Checkered Flag celebration
       category = 'victory';
       score = 95;
@@ -304,7 +294,6 @@ export function correlateRaceHighlights(params: {
       radioClip: clip,
       transcript,
       significanceScore: score,
-      isIconic,
     });
   }
 
