@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getRaceDetail, getRaceSchedule } from '@/lib/api';
+import { getRaceDetail, getRaceSchedule, getOpenF1RaceData } from '@/lib/api';
 import { RaceSchedule } from '@/components/f1/race-schedule';
 import { CircuitDetailsCard } from '@/components/f1/circuit-details-card';
 import { PitStopButton } from '@/components/f1/pit-stops/pit-stop-button';
@@ -27,7 +27,12 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
         notFound();
     }
 
-    let race: Race | null = await getRaceDetail(year, parsedRound, mockParam);
+    const [raceData, openF1Data] = await Promise.all([
+        getRaceDetail(year, parsedRound, mockParam).catch(() => null),
+        year >= 2023 ? getOpenF1RaceData(year, parsedRound).catch(() => null) : Promise.resolve(null),
+    ]);
+
+    let race: Race | null = raceData;
 
     if (!race) {
         const schedule = await getRaceSchedule(year).catch(() => [] as Race[]);
@@ -46,6 +51,9 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
             : undefined;
 
     const hasResults = Boolean(validResults && validResults.length > 0);
+    const radioHighlights = openF1Data?.highlights && openF1Data.highlights.length > 0
+        ? openF1Data.highlights
+        : [];
 
     return (
         <>
@@ -64,7 +72,8 @@ export async function RaceDetailContent({ params, searchParams }: RaceDetailCont
                 }
             />
 
-            <RaceSchedule race={race} />
+            {/* ── Race Schedule with Best Race Radio in Telemetry Ribbon ─────── */}
+            <RaceSchedule race={race} radioHighlights={radioHighlights} />
 
             <CircuitDetailsCard
                 circuitId={race.Circuit.circuitId}

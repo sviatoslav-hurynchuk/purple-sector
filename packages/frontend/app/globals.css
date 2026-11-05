@@ -151,3 +151,44 @@
   background: #e10600;
   box-shadow: 0 0 16px rgba(225, 6, 0, 0), inset 0 1px 1px rgba(255, 255, 255, 0.3);
 }
+
+
+/* ── F1 Broadcast Audio Waveform Keyframes (Buttery smooth 60/120fps GPU compositor motion) ── */
+@keyframes f1Waveform1 {
+  0%, 100% {
+    transform: scaleY(0.32);
+  }
+  50% {
+    transform: scaleY(1.35);
+  }
+}
+
+@keyframes f1Waveform2 {
+  0%, 100% {
+    transform: scaleY(0.42);
+  }
+  50% {
+    transform: scaleY(1.18);
+  }
+}
+
+@keyframes f1Waveform3 {
+  0%, 100% {
+    transform: scaleY(0.26);
+  }
+  40% {
+    transform: scaleY(1.4);
+  }
+  75% {
+    transform: scaleY(0.65);
+  }
+}
+
+@keyframes f1Waveform4 {
+  0%, 100% {
+    transform: scaleY(0.38);
+  }
+  65% {
+    transform: scaleY(1.28);
+  }
+}
