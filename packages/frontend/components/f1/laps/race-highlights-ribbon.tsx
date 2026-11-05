@@ -12,15 +12,13 @@ import {
   Wrench,
   Trophy,
   AlertOctagon,
-  Sparkles,
-  Loader2,
   Star,
   Volume2,
   Volume1,
   VolumeX,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { fetchRadioTranscript, getProxiedRadioAudioUrl } from '@/lib/api';
+import { getProxiedRadioAudioUrl } from '@/lib/api';
 import { playF1RadioChime } from '@/lib/f1-radio-sound';
 import { cn } from '@/lib/utils';
 
@@ -51,10 +49,8 @@ export function RaceHighlightsRibbon({
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
-  const [volume, setVolume] = useState<number>(0.85);
+  const [volume, setVolume] = useState<number>(85);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [transcriptsMap, setTranscriptsMap] = useState<Record<string, string>>({});
-  const [loadingTranscriptId, setLoadingTranscriptId] = useState<string | null>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -111,16 +107,18 @@ export function RaceHighlightsRibbon({
     }
   }, []);
 
-  // Sync volume with Web Audio GainNode (supports 0% to 300%+) with speech clarity preamp
+  // Sync volume with Web Audio GainNode (super boosted under the hood) and HTMLMediaElement fallback
   useEffect(() => {
-    const effectiveVol = isMuted ? 0 : volume;
+    // Under the hood: visual 0..100% maps to 0..3.0x multiplier, boosted with 1.6x speech preamp (up to 4.8x)
+    const normalizedBoost = isMuted ? 0 : (volume / 100) * 3.0;
     if (gainNodeRef.current) {
-      // Preamp multiplier (1.6x) elevates quiet FOM cockpit radio to crystal clear broadcast level
-      gainNodeRef.current.gain.value = effectiveVol * 1.6;
+      gainNodeRef.current.gain.value = normalizedBoost * 1.6;
     }
     if (audioRef.current) {
       // Standard HTMLMediaElement.volume is strictly clamped [0, 1]
-      audioRef.current.volume = sourceConnectedRef.current ? 1 : Math.min(1, Math.max(0, effectiveVol));
+      audioRef.current.volume = sourceConnectedRef.current
+        ? 1
+        : Math.min(1, Math.max(0, isMuted ? 0 : volume / 100));
     }
   }, [volume, isMuted]);
 
@@ -207,8 +205,9 @@ export function RaceHighlightsRibbon({
         setCurrentTime(0);
         setDuration(0);
 
-        // 1. Play signature F1 TV radio intro chime with user volume
-        playF1RadioChime(isMuted ? 0 : volume).finally(() => {
+        // 1. Play signature F1 TV radio intro chime with boosted user volume
+        const normalizedBoost = isMuted ? 0 : (volume / 100) * 3.0;
+        playF1RadioChime(normalizedBoost).finally(() => {
           if (!audioRef.current) return;
           // 2. Play driver team radio recording
           audioRef.current
@@ -258,25 +257,9 @@ export function RaceHighlightsRibbon({
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    setVolume(val);
+    const val = parseInt(e.target.value, 10);
+    setVolume(isNaN(val) ? 0 : Math.min(100, Math.max(0, val)));
     if (isMuted && val > 0) setIsMuted(false);
-  };
-
-  // Request AI Transcript on demand
-  const handleRequestTranscript = async (e: React.MouseEvent, hl: RaceHighlight) => {
-    e.stopPropagation();
-    if (loadingTranscriptId || transcriptsMap[hl.id]) return;
-
-    setLoadingTranscriptId(hl.id);
-    try {
-      const res = await fetchRadioTranscript(hl.radioClip.recordingUrl, hl.driverNumber);
-      if (res?.transcript) {
-        setTranscriptsMap((prev) => ({ ...prev, [hl.id]: res.transcript! }));
-      }
-    } finally {
-      setLoadingTranscriptId(null);
-    }
   };
 
   const handleScrollNav = (direction: 'left' | 'right') => {
@@ -470,16 +453,10 @@ export function RaceHighlightsRibbon({
             </select>
           )}
 
-          {/* ── Neat Audio Volume Slider & Mute Toggle with 300% Gain & Vocal Compression ── */}
+          {/* ── Neat Audio Volume Slider & Mute Toggle with 0-100% Visual Scale (Boosted Under The Hood) ── */}
           <div
             className="flex items-center gap-1.5 bg-zinc-900/90 border border-white/10 rounded px-2 py-0.5 h-6"
-            title={
-              volume > 2
-                ? 'Super Boost (300% + Vocal Compression)'
-                : volume > 1
-                  ? 'Vocal Boost (up to 200%)'
-                  : 'Radio Volume'
-            }
+            title="Radio Volume (0% - 100%)"
           >
             <button
               type="button"
@@ -490,38 +467,24 @@ export function RaceHighlightsRibbon({
             >
               {isMuted || volume === 0 ? (
                 <VolumeX className="size-3 text-red-400" />
-              ) : volume < 0.5 ? (
+              ) : volume < 50 ? (
                 <Volume1 className="size-3 text-zinc-300" />
               ) : (
-                <Volume2
-                  className={cn(
-                    'size-3',
-                    volume > 2 ? 'text-red-400' : volume > 1 ? 'text-amber-400' : 'text-zinc-300'
-                  )}
-                />
+                <Volume2 className="size-3 text-zinc-300" />
               )}
             </button>
             <input
               type="range"
               min={0}
-              max={3}
-              step={0.05}
+              max={100}
+              step={1}
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
-              className="w-16 sm:w-24 h-1 bg-zinc-700 rounded appearance-none cursor-pointer accent-white hover:accent-zinc-300 transition-all"
-              aria-label="Radio Volume (up to 300%)"
+              className="w-16 sm:w-20 h-1 bg-zinc-700 rounded appearance-none cursor-pointer accent-white hover:accent-zinc-300 transition-all"
+              aria-label="Radio Volume (0% - 100%)"
             />
-            <span
-              className={cn(
-                'text-[10px] font-mono tabular-nums min-w-[34px] text-right',
-                volume > 2
-                  ? 'text-red-400 font-bold'
-                  : volume > 1
-                    ? 'text-amber-400 font-bold'
-                    : 'text-zinc-400'
-              )}
-            >
-              {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
+            <span className="text-[10px] font-mono tabular-nums min-w-[28px] text-right text-zinc-300 font-semibold">
+              {isMuted ? '0%' : `${volume}%`}
             </span>
           </div>
         </div>
@@ -555,8 +518,6 @@ export function RaceHighlightsRibbon({
             const isPlayingThis = playingId === hl.id;
             const isCurrentLapMatch = currentLap > 0 && currentLap === hl.lap;
             const livery = hl.teamColour || '#e10600';
-            const transcriptText = transcriptsMap[hl.id] ?? hl.transcript ?? null;
-            const isTranscribingThis = loadingTranscriptId === hl.id;
 
             // Audio progress for this tile
             const progressRatio = isPlayingThis && duration > 0 ? Math.min(1, currentTime / duration) : 0;
@@ -675,7 +636,7 @@ export function RaceHighlightsRibbon({
                   </span>
                 </div>
 
-                {/* ── Bottom: Driver Tag & Authentic Quotation Dialogue ── */}
+                {/* ── Bottom: Driver Tag & Authentic Quotation / Broadcast Context ── */}
                 <div className="p-3 pt-2.5 space-y-1.5">
                   <div className="flex items-start gap-1.5">
                     <span
@@ -685,31 +646,14 @@ export function RaceHighlightsRibbon({
                       | {hl.driverCode || hl.driverName.split(' ').pop()}
                     </span>
 
-                    {transcriptText ? (
+                    {hl.transcript ? (
                       <p className="text-xs font-mono font-bold text-zinc-100 italic leading-snug line-clamp-3">
-                        {transcriptText.startsWith('"') ? transcriptText : `"${transcriptText}"`}
+                        {hl.transcript.startsWith('"') ? hl.transcript : `"${hl.transcript}"`}
                       </p>
                     ) : (
-                      <div className="flex-1 flex items-center justify-between gap-1.5">
-                        <p className="text-[11px] font-mono text-zinc-400 truncate">
-                          {hl.description}
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={(e) => handleRequestTranscript(e, hl)}
-                          disabled={isTranscribingThis}
-                          className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border border-white/10 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 shrink-0 flex items-center gap-1 transition-colors"
-                          title="Generate text transcript"
-                        >
-                          {isTranscribingThis ? (
-                            <Loader2 className="size-2.5 animate-spin text-purple-400" />
-                          ) : (
-                            <Sparkles className="size-2.5 text-purple-400" />
-                          )}
-                          <span>Transcript</span>
-                        </button>
-                      </div>
+                      <p className="text-[11px] font-mono text-zinc-300 leading-snug line-clamp-2">
+                        {hl.description}
+                      </p>
                     )}
                   </div>
                 </div>
