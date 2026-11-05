@@ -11,6 +11,7 @@ import { PlaybackControls } from './playback-controls';
 import { RaceLeaderboard } from './race-leaderboard';
 import { PositionChart } from './position-chart';
 import { RaceEventsOverlay } from './race-events-overlay';
+import { RaceHighlightsRibbon } from './race-highlights-ribbon';
 import { PaceComparison } from './pace-comparison';
 
 interface LapChartPageContentProps {
@@ -146,6 +147,16 @@ export function LapChartPageContent({
         currentLap={currentLap}
         totalLaps={totalLaps}
       />
+
+      {/* ── Curated Race Highlights & Team Radio Ribbon ─────────────────── */}
+      {openF1Data?.highlights && openF1Data.highlights.length > 0 && (
+        <RaceHighlightsRibbon
+          highlights={openF1Data.highlights}
+          currentLap={currentLap}
+          isReplayPlaying={isPlaying}
+          onLapChange={handleLapChange}
+        />
+      )}
 
       {/* Main Grid: Leaderboard (4 cols) | Position Chart & Controls (8 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">

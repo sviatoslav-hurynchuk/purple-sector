@@ -18,7 +18,8 @@ import type {
   OpenF1TeamRadio,
 } from '../types/openf1-types';
 import { cache } from './cache';
-import { getRaceSchedule } from './jolpica';
+import { getRaceSchedule, getRaceResult } from './jolpica';
+import { correlateRaceHighlights } from './race-highlights';
 import {
   mapStints,
   mapRaceControlEvents,
@@ -598,33 +599,70 @@ export async function getRaceSessionData(
     return null;
   }
 
-  const cacheKey = `f1:openf1:session_data:v7:${s}:${r}`;
+  const cacheKey = `f1:openf1:session_data:v14:${s}:${r}`;
 
-  return cachedFetch<RaceSessionData | null>(cacheKey, TTL.ENRICHED_RACE, async () => {
+  const cached = await cache.get<RaceSessionData | NegativeCacheSentinel>(cacheKey);
+  if (cached !== null && cached !== undefined) {
+    if (isNegativeCacheSentinel(cached)) return null;
+    return cached as RaceSessionData;
+  }
+
+  const existing = inFlight.get(cacheKey);
+  if (existing) {
+    return existing as Promise<RaceSessionData | null>;
+  }
+
+  const promise = (async () => {
     // 1. Resolve OpenF1 session_key
     const sessionMeta = await resolveSessionKey(s, r, 'Race');
-    if (!sessionMeta) return null;
+    if (!sessionMeta) {
+      const sentinel: NegativeCacheSentinel = { __negativeCache: true };
+      await cache.set(cacheKey, sentinel, TTL.NEGATIVE_CACHE);
+      return null;
+    }
 
     const { sessionKey, meetingKey } = sessionMeta;
 
-    // 2. Fetch driver map and raw OpenF1 data in parallel via throttled queue
+    // 2. Bounded Jolpica results fetch with 3.5s deadline so slow requests don't block session loading
+    let jolpicaTimeout: NodeJS.Timeout | undefined;
+    const boundedJolpica = Promise.race([
+      getRaceResult(s, r).catch(() => null),
+      new Promise<null>((resolve) => {
+        jolpicaTimeout = setTimeout(() => resolve(null), 3500);
+      }),
+    ]).finally(() => {
+      if (jolpicaTimeout) clearTimeout(jolpicaTimeout);
+    });
+
+    // Fetch driver map, raw OpenF1 data, and bounded Jolpica results in parallel via throttled queue
     const [
       driverMap,
+      openF1Drivers,
       rawStints,
       rawRaceControl,
       rawWeather,
       rawLaps,
       rawPits,
       rawRadio,
+      jolpicaResult,
     ] = await Promise.all([
       buildDriverMap(sessionKey),
+      getOpenF1Drivers(sessionKey).catch(() => []),
       getOpenF1Stints(sessionKey).catch(() => []),
       getOpenF1RaceControlEvents(sessionKey).catch(() => []),
       getOpenF1Weather(sessionKey).catch(() => []),
       getOpenF1Laps(sessionKey).catch(() => []),
       getOpenF1Pit(sessionKey).catch(() => []),
       getOpenF1TeamRadio(sessionKey).catch(() => []),
+      boundedJolpica,
     ]);
+
+    const hasResults = Boolean(
+      jolpicaResult &&
+      'Results' in jolpicaResult &&
+      Array.isArray(jolpicaResult.Results) &&
+      jolpicaResult.Results.length > 0
+    );
 
     // 3. Map all data via pure transformation mappers
     const stints: TireStint[] = mapStints(rawStints, driverMap);
@@ -634,7 +672,18 @@ export async function getRaceSessionData(
     const pitStops: PitStopDetail[] = mapPitStops(rawPits, driverMap);
     const teamRadio: TeamRadioClip[] = mapTeamRadio(rawRadio, driverMap);
 
-    return {
+    // 4. Correlate curated high-stakes race highlights (Safety Cars, Box Calls, DNFs, Victory)
+    const highlights = correlateRaceHighlights({
+      teamRadio,
+      raceControlEvents,
+      pitStops,
+      laps,
+      openF1Drivers,
+      driverMap,
+      results: hasResults && jolpicaResult && 'Results' in jolpicaResult ? jolpicaResult.Results : undefined,
+    });
+
+    const sessionData: RaceSessionData = {
       sessionKey,
       meetingKey,
       season: s,
@@ -645,6 +694,19 @@ export async function getRaceSessionData(
       laps,
       pitStops,
       teamRadio,
+      highlights,
     };
+
+    // 5. Only cache long-term when results are successfully populated
+    if (hasResults) {
+      await cache.set(cacheKey, sessionData, TTL.ENRICHED_RACE);
+    }
+
+    return sessionData;
+  })().finally(() => {
+    inFlight.delete(cacheKey);
   });
+
+  inFlight.set(cacheKey, promise);
+  return promise;
 }

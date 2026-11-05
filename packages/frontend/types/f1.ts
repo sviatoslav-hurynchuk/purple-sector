@@ -440,6 +440,40 @@ export interface TeamRadioClip {
     driverNumber: number;
     date: string;
     recordingUrl: string;
+    transcript?: string | null;
+}
+
+/** Category of a curated race highlight. */
+export type RaceHighlightCategory =
+    | 'iconic'
+    | 'safety_car'
+    | 'vsc'
+    | 'red_flag'
+    | 'incident'
+    | 'dnf'
+    | 'pit_stop'
+    | 'victory'
+    | 'penalty'
+    | 'team_radio';
+
+/** Curated, event-linked race highlight with official FIA team radio broadcast. */
+export interface RaceHighlight {
+    id: string;
+    category: RaceHighlightCategory;
+    lap: number;
+    timestamp: string;
+    title: string;
+    description: string;
+    driverNumber: number;
+    driverId: string;
+    driverName: string;
+    driverCode?: string;
+    teamName?: string;
+    teamColour?: string;
+    radioClip: TeamRadioClip;
+    transcript?: string | null;
+    significanceScore: number;
+    isIconic?: boolean;
 }
 
 /** Complete session dataset returned by GET /api/openf1/race/:season/:round */
@@ -454,6 +488,7 @@ export interface RaceSessionData {
     laps: LapSectorTiming[];
     pitStops: PitStopDetail[];
     teamRadio: TeamRadioClip[];
+    highlights?: RaceHighlight[];
 }
 
 // ── Live Realtime Session State ──────────────────────────────────────────────

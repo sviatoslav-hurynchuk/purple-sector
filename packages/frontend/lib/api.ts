@@ -123,14 +123,18 @@ async function resilientFetch(
   throw lastError;
 }
 
+const isDev = process.env.NODE_ENV === 'development';
+
 /**
  * Fetches a resource that is expected to exist.
  * Throws on any non-2xx response after retries.
  */
 async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
-  const res = await resilientFetch(`${BACKEND_URL}${path}`, {
-    next: { revalidate },
-  });
+  const fetchOptions: RequestInit = isDev
+    ? { cache: 'no-store' }
+    : { next: { revalidate } };
+
+  const res = await resilientFetch(`${BACKEND_URL}${path}`, fetchOptions);
 
   if (!res.ok) {
     throw new Error(`Backend API error: ${res.status} ${res.statusText} — ${path}`);
@@ -145,9 +149,11 @@ async function apiFetch<T>(path: string, revalidate = 60): Promise<T> {
  */
 async function apiFetchNullable<T>(path: string, revalidate = 60): Promise<T | null> {
   try {
-    const res = await resilientFetch(`${BACKEND_URL}${path}`, {
-      next: { revalidate },
-    });
+    const fetchOptions: RequestInit = isDev
+      ? { cache: 'no-store' }
+      : { next: { revalidate } };
+
+    const res = await resilientFetch(`${BACKEND_URL}${path}`, fetchOptions);
 
     if (res.status === 404) return null;
 
@@ -373,4 +379,44 @@ export async function getConstructorMultiSeasonReliability(
     revalidate
   );
 }
+
+export interface RadioTranscriptResponse {
+  transcript: string | null;
+  requiresApiKey?: boolean;
+}
+
+/**
+ * Fetches speech-to-text transcript for an FIA team radio recording URL.
+ */
+export async function fetchRadioTranscript(
+  recordingUrl: string,
+  driverNumber?: number
+): Promise<RadioTranscriptResponse> {
+  try {
+    const params = new URLSearchParams({ url: recordingUrl });
+    if (driverNumber) params.set('driverNumber', String(driverNumber));
+
+    const res = await fetch(`${BACKEND_URL}/api/openf1/radio/transcript?${params.toString()}`, {
+      signal: AbortSignal.timeout(25000),
+    });
+    if (!res.ok) return { transcript: null, requiresApiKey: false };
+    const json = (await res.json()) as RadioTranscriptResponse;
+    return json;
+  } catch {
+    return { transcript: null, requiresApiKey: false };
+  }
+}
+
+/**
+ * Returns a proxied audio URL with CORS headers to enable Web Audio GainNode amplification.
+ */
+export function getProxiedRadioAudioUrl(rawUrl: string): string {
+  if (!rawUrl) return '';
+  if (typeof window !== 'undefined') {
+    const backendBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    return `${backendBase}/api/openf1/audio-proxy?url=${encodeURIComponent(rawUrl)}`;
+  }
+  return rawUrl;
+}
+
 
