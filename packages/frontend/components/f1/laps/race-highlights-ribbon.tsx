@@ -654,28 +654,19 @@ export function RaceHighlightsRibbon({
                   </span>
                 </div>
 
-                {/* ── Bottom: Driver Tag & Authentic Quotation / Broadcast Context ── */}
-                <div className="p-3 pt-2.5 space-y-1.5">
-                  <div className="flex items-start gap-1.5">
-                    <span
-                      className="text-[11px] font-mono font-black shrink-0 uppercase"
-                      style={{ color: livery }}
-                    >
-                      | {hl.driverCode || hl.driverName.split(' ').pop()}
-                    </span>
-
-                    {transcriptsMap[hl.id] || hl.transcript ? (
-                      <p className="text-xs font-mono font-bold text-zinc-100 italic leading-snug line-clamp-3 animate-in fade-in duration-300">
-                        {(transcriptsMap[hl.id] || hl.transcript)!.startsWith('"')
-                          ? transcriptsMap[hl.id] || hl.transcript
-                          : `"${transcriptsMap[hl.id] || hl.transcript}"`}
-                      </p>
-                    ) : (
-                      <p className="text-[11px] font-mono text-zinc-300 leading-snug line-clamp-2">
-                        {hl.description}
-                      </p>
-                    )}
-                  </div>
+                {/* ── Bottom: Authentic Quotation / Broadcast Context ── */}
+                <div className="p-3 pt-2.5">
+                  {transcriptsMap[hl.id] || hl.transcript ? (
+                    <p className="text-xs font-mono font-bold text-zinc-100 italic leading-snug line-clamp-3 animate-in fade-in duration-300">
+                      {(transcriptsMap[hl.id] || hl.transcript)!.startsWith('"')
+                        ? transcriptsMap[hl.id] || hl.transcript
+                        : `"${transcriptsMap[hl.id] || hl.transcript}"`}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] font-mono text-zinc-400 leading-snug line-clamp-2">
+                      {hl.description}
+                    </p>
+                  )}
                 </div>
               </div>
             );
