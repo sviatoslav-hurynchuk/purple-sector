@@ -134,21 +134,20 @@ export function RaceHighlightsRibbon({
     };
   }, []);
 
-  // Sync volume with Web Audio GainNode (super boosted under the hood) and HTMLMediaElement fallback
+  // Sync volume with Web Audio GainNode and HTMLMediaElement fallback
   useEffect(() => {
-    // Under the hood: visual 0..100% maps to 0..3.0x multiplier, boosted with 1.6x speech preamp (up to 4.8x)
-    const normalizedBoost = isMuted ? 0 : (volume / 100) * 3.0;
+    const userVolume = isMuted ? 0 : volume / 100;
     if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = normalizedBoost * 1.6;
+      gainNodeRef.current.gain.value = userVolume;
     }
     if (audioRef.current) {
       // Standard HTMLMediaElement.volume is strictly clamped [0, 1]
       audioRef.current.volume = sourceConnectedRef.current
         ? 1
-        : Math.min(1, Math.max(0, isMuted ? 0 : volume / 100));
+        : Math.min(1, Math.max(0, userVolume));
     }
     if (fallbackAudioRef.current) {
-      fallbackAudioRef.current.volume = isMuted ? 0 : Math.min(1, Math.max(0, volume / 100));
+      fallbackAudioRef.current.volume = userVolume;
     }
   }, [volume, isMuted, graphReady]);
 

@@ -7,7 +7,7 @@
  */
 
 let sharedAudioContext: AudioContext | null = null;
-const INTRO_CHIME_ATTENUATION = 0.32; // Calibrated to match radio speech decibels without blasting
+const INTRO_CHIME_ATTENUATION = 0.5; // Calibrated to quiet down the intro sound so it never blasts into the ears
 
 export function playF1RadioChime(volume = 1): Promise<void> {
   return new Promise((resolve) => {
@@ -85,8 +85,8 @@ function playWebAudioFallback(volume = 1): Promise<void> {
 
       const ctx = sharedAudioContext;
       const now = ctx.currentTime;
-      // Soft, balanced chime gain matching the vocal level without harsh clipping
-      const gainVal = Math.min(0.35, Math.max(0.02, volume * 0.22));
+      // Soft, gentle chime gain matching quiet cockpit audio without harshness
+      const gainVal = Math.min(0.15, Math.max(0.01, volume * 0.10));
 
       // Tone 1: ~1050 Hz
       const osc1 = ctx.createOscillator();
