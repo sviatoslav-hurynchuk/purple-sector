@@ -237,9 +237,9 @@ export function RaceHighlightsRibbon({
         setCurrentTime(0);
         setDuration(0);
 
-        // 1. Play signature F1 TV radio intro chime with boosted user volume
-        const normalizedBoost = isMuted ? 0 : (volume / 100) * 3.0;
-        playF1RadioChime(normalizedBoost).finally(() => {
+        // 1. Play signature F1 TV radio intro chime at calibrated broadcast volume (balanced with radio voice)
+        const userVolume = isMuted ? 0 : volume / 100;
+        playF1RadioChime(userVolume).finally(() => {
           if (!audioRef.current || requestId !== playRequestRef.current) return;
 
           // 2. Play driver team radio recording through Web Audio graph
