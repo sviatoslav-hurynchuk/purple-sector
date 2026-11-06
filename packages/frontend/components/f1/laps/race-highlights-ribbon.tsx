@@ -200,14 +200,14 @@ export function RaceHighlightsRibbon({
 
   // Audio Playback Controls with signature F1 TV radio intro chime & 200% Web Audio Gain
   const handlePlayToggle = useCallback(
-    (highlight: RaceHighlight) => {
+    (highlight: RaceHighlight, initialSeekRatio?: number) => {
       const audio = audioRef.current;
       const fallbackAudio = fallbackAudioRef.current;
       if (!audio) return;
 
       initWebAudio();
 
-      if (playingId === highlight.id) {
+      if (playingId === highlight.id && initialSeekRatio === undefined) {
         if (!audio.paused) {
           audio.pause();
         }
@@ -237,12 +237,21 @@ export function RaceHighlightsRibbon({
         playF1RadioChime(userVolume).finally(() => {
           if (!audioRef.current || requestId !== playRequestRef.current) return;
 
+          if (typeof initialSeekRatio === 'number' && audioRef.current.duration) {
+            audioRef.current.currentTime = initialSeekRatio * audioRef.current.duration;
+            setCurrentTime(audioRef.current.currentTime);
+          }
+
           // 2. Play driver team radio recording through Web Audio graph
           audioRef.current
             .play()
             .then(() => {
               if (requestId === playRequestRef.current) {
                 setPlayingId(highlight.id);
+                if (typeof initialSeekRatio === 'number' && audioRef.current?.duration) {
+                  audioRef.current.currentTime = initialSeekRatio * audioRef.current.duration;
+                  setCurrentTime(audioRef.current.currentTime);
+                }
                 if (onLapChange && highlight.lap > 0) {
                   onLapChange(highlight.lap);
                 }
@@ -254,6 +263,10 @@ export function RaceHighlightsRibbon({
               if (fb && requestId === playRequestRef.current) {
                 fb.src = highlight.radioClip.recordingUrl;
                 fb.volume = isMuted ? 0 : volume / 100;
+                if (typeof initialSeekRatio === 'number' && fb.duration) {
+                  fb.currentTime = initialSeekRatio * fb.duration;
+                  setCurrentTime(fb.currentTime);
+                }
                 fb
                   .play()
                   .then(() => {
@@ -291,6 +304,34 @@ export function RaceHighlightsRibbon({
       }
     },
     [playingId, onLapChange, volume, isMuted, initWebAudio, transcriptsMap]
+  );
+
+  // Waveform click seeking handler
+  const handleWaveformSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, highlight: RaceHighlight) => {
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const ratio = clickX / rect.width;
+
+      const audio = audioRef.current;
+      const fallbackAudio = fallbackAudioRef.current;
+
+      if (playingId === highlight.id && duration > 0) {
+        const targetTime = ratio * duration;
+        if (audio && !isNaN(targetTime)) {
+          audio.currentTime = targetTime;
+          setCurrentTime(targetTime);
+        }
+        if (fallbackAudio && !isNaN(targetTime)) {
+          fallbackAudio.currentTime = targetTime;
+        }
+      } else {
+        handlePlayToggle(highlight, ratio);
+      }
+    },
+    [playingId, duration, handlePlayToggle]
   );
 
   const handleTimeUpdate = useCallback(() => {
@@ -655,8 +696,12 @@ export function RaceHighlightsRibbon({
                     )}
                   </button>
 
-                  {/* 28 Animated Soundwave Frequency Bars (buttery smooth 60/120fps) */}
-                  <div className="flex-1 flex items-center justify-center gap-[2.5px] h-7 overflow-hidden px-1">
+                  {/* 28 Animated Soundwave Frequency Bars (buttery smooth 60/120fps with click seeking) */}
+                  <div
+                    onClick={(e) => handleWaveformSeek(e, hl)}
+                    className="flex-1 flex items-center justify-center gap-[2.5px] h-7 overflow-hidden px-1 cursor-pointer hover:opacity-85 transition-opacity"
+                    title="Click to seek"
+                  >
                     {WAVE_BARS.map((heightPct, idx) => {
                       const isPlayed = isPlayingThis && idx <= playedBarsCount;
 

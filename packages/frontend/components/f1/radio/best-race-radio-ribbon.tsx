@@ -207,14 +207,14 @@ export function BestRaceRadioRibbon({
 
   // Playback control
   const handlePlayToggle = useCallback(
-    (highlight: RaceHighlight) => {
+    (highlight: RaceHighlight, initialSeekRatio?: number) => {
       const audio = audioRef.current;
       const fallbackAudio = fallbackAudioRef.current;
       if (!audio) return;
 
       initWebAudio();
 
-      if (playingId === highlight.id) {
+      if (playingId === highlight.id && initialSeekRatio === undefined) {
         playRequestRef.current += 1;
         if (!audio.paused) audio.pause();
         if (fallbackAudio && !fallbackAudio.paused) fallbackAudio.pause();
@@ -242,11 +242,20 @@ export function BestRaceRadioRibbon({
         playF1RadioChime(0.85).finally(() => {
           if (!audioRef.current || requestId !== playRequestRef.current) return;
 
+          if (typeof initialSeekRatio === 'number' && audioRef.current.duration) {
+            audioRef.current.currentTime = initialSeekRatio * audioRef.current.duration;
+            setCurrentTime(audioRef.current.currentTime);
+          }
+
           audioRef.current
             .play()
             .then(() => {
               if (requestId === playRequestRef.current) {
                 setPlayingId(highlight.id);
+                if (typeof initialSeekRatio === 'number' && audioRef.current?.duration) {
+                  audioRef.current.currentTime = initialSeekRatio * audioRef.current.duration;
+                  setCurrentTime(audioRef.current.currentTime);
+                }
               }
             })
             .catch(() => {
@@ -254,6 +263,10 @@ export function BestRaceRadioRibbon({
               if (fb && requestId === playRequestRef.current) {
                 fb.src = highlight.radioClip.recordingUrl;
                 fb.volume = 0.85;
+                if (typeof initialSeekRatio === 'number' && fb.duration) {
+                  fb.currentTime = initialSeekRatio * fb.duration;
+                  setCurrentTime(fb.currentTime);
+                }
                 fb
                   .play()
                   .then(() => {
@@ -288,6 +301,34 @@ export function BestRaceRadioRibbon({
       }
     },
     [playingId, initWebAudio, transcriptsMap]
+  );
+
+  // Waveform click seeking handler
+  const handleWaveformSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, highlight: RaceHighlight) => {
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const ratio = clickX / rect.width;
+
+      const audio = audioRef.current;
+      const fallbackAudio = fallbackAudioRef.current;
+
+      if (playingId === highlight.id && duration > 0) {
+        const targetTime = ratio * duration;
+        if (audio && !isNaN(targetTime)) {
+          audio.currentTime = targetTime;
+          setCurrentTime(targetTime);
+        }
+        if (fallbackAudio && !isNaN(targetTime)) {
+          fallbackAudio.currentTime = targetTime;
+        }
+      } else {
+        handlePlayToggle(highlight, ratio);
+      }
+    },
+    [playingId, duration, handlePlayToggle]
   );
 
   const formatSecs = (secs: number) => {
@@ -445,7 +486,11 @@ export function BestRaceRadioRibbon({
                 </span>
 
                 {/* Waveform visualizer in team color (frameless & borderless, buttery smooth 60/120fps) */}
-                <div className="flex items-center gap-[2px] h-4 overflow-hidden flex-1 max-w-[70px] sm:max-w-[85px]">
+                <div
+                  onClick={(e) => handleWaveformSeek(e, hl)}
+                  className="flex items-center gap-[2px] h-4 overflow-hidden flex-1 max-w-[70px] sm:max-w-[85px] cursor-pointer hover:opacity-85 transition-opacity"
+                  title="Click to seek"
+                >
                   {WAVE_BARS.slice(0, 12).map((heightPct, idx) => {
                     const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
                     const playedBarsCount = Math.floor(progressRatio * 12);
@@ -557,7 +602,11 @@ export function BestRaceRadioRibbon({
                     <Pause className="size-3 fill-black" />
                   </button>
 
-                  <div className="flex-1 flex items-center justify-center gap-[2px] h-6 overflow-hidden px-1">
+                  <div
+                    onClick={(e) => handleWaveformSeek(e, hl)}
+                    className="flex-1 flex items-center justify-center gap-[2px] h-6 overflow-hidden px-1 cursor-pointer hover:opacity-85 transition-opacity"
+                    title="Click to seek"
+                  >
                     {WAVE_BARS.map((heightPct, idx) => {
                       const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
                       const playedBarsCount = Math.floor(progressRatio * WAVE_BARS.length);
