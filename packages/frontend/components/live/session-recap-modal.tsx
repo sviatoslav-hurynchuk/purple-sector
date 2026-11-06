@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clientFetchNullable } from '@/lib/api-client';
-import type { LiveDriverState, RaceEvent, Race } from '@/types/f1';
+import { BestRaceRadioRibbon } from '@/components/f1/radio/best-race-radio-ribbon';
+import type { LiveDriverState, RaceEvent, Race, RaceHighlight, RaceSessionData } from '@/types/f1';
 
 /**
  * Resolves the start time of Free Practice 1 (or the first session of the weekend)
@@ -165,7 +166,7 @@ export const SessionResultsButton = React.forwardRef<HTMLButtonElement, SessionR
           />
         )}
         <span className="font-mono text-xs sm:text-sm font-black text-zinc-300 group-hover:text-white tracking-tight whitespace-nowrap">
-          {sessionType} Results
+          {sessionType} Results & Radio
         </span>
         <svg
           className="size-4 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0"
@@ -324,6 +325,39 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
     [raceControlFeed]
   );
 
+  // Radio highlights resolution (prefer live session state snapshot; fallback to on-demand fetch when opened)
+  const stateHighlights = state?.highlights ?? null;
+  const [fetchedHighlights, setFetchedHighlights] = useState<RaceHighlight[] | null>(null);
+
+  const season = state?.season ?? nextRace?.season ?? new Date().getFullYear();
+  const round = state?.round ?? nextRace?.round ?? null;
+
+  useEffect(() => {
+    if (!open) return;
+    if (stateHighlights && stateHighlights.length > 0) return;
+    if (!round) return;
+
+    let cancelled = false;
+    clientFetchNullable<RaceSessionData>(`/api/openf1/race/${season}/${round}`)
+      .then((data) => {
+        if (!cancelled && data?.highlights && data.highlights.length > 0) {
+          setFetchedHighlights(data.highlights);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, stateHighlights, season, round]);
+
+  const activeHighlights = useMemo(() => {
+    if (stateHighlights && stateHighlights.length > 0) {
+      return stateHighlights;
+    }
+    return fetchedHighlights ?? [];
+  }, [stateHighlights, fetchedHighlights]);
+
   if (!isVisible) return null;
 
   return (
@@ -337,7 +371,7 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
         />
       </DialogTrigger>
 
-      <DialogPanel className="max-w-xl sm:max-w-2xl">
+      <DialogPanel className="max-w-xl sm:max-w-2xl lg:max-w-3xl">
         <DialogHeader>
           <div className="flex items-center gap-3 min-w-0">
             {countryName && (
@@ -360,6 +394,18 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
         </DialogHeader>
 
         <DialogContent className="p-0">
+          {/* ── Best Race Radio Highlights Ribbon ───────────────────── */}
+          {activeHighlights.length > 0 && (
+            <div className="border-b border-zinc-800 bg-zinc-950 relative z-20">
+              <BestRaceRadioRibbon
+                highlights={activeHighlights}
+                season={season}
+                round={round || 1}
+                seamless
+              />
+            </div>
+          )}
+
           {/* ── Top-10 Classification ─────────────────────────────────── */}
           <div className="border-b border-zinc-800">
             <div className="px-5 py-3 flex items-center gap-2">

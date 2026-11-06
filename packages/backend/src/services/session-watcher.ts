@@ -2,6 +2,7 @@ import type {
   LiveSessionState,
   LiveDriverState,
   Race,
+  RaceHighlight,
 } from '../types/f1';
 import type {
   OpenF1Session,
@@ -12,6 +13,8 @@ import type {
   OpenF1Stint,
   OpenF1Weather,
   OpenF1RaceControl,
+  OpenF1TeamRadio,
+  OpenF1Pit,
 } from '../types/openf1-types';
 import {
   openF1Fetch,
@@ -19,13 +22,19 @@ import {
   getOpenF1Stints,
   getOpenF1Weather,
   getOpenF1RaceControlEvents,
+  getOpenF1TeamRadio,
+  getOpenF1Pit,
   buildDriverMap,
 } from './openf1';
 import {
   mapRaceControlEvents,
   mapWeather,
+  mapTeamRadio,
+  mapPitStops,
+  mapLapSectorTimings,
   normalizeCompound,
 } from './openf1-mapper';
+import { correlateRaceHighlights } from './race-highlights';
 import { getRaceSchedule, getCurrentSeason } from './jolpica';
 import { livePollingEngine } from './live-polling';
 import { cache } from './cache';
@@ -256,12 +265,14 @@ export class SessionWatcher {
           countryName: session.country_name,
           dateStart: session.date_start,
           dateEnd: session.date_end,
+          season: session.year,
           isActive: false,
           status: 'UPCOMING',
           lastUpdated: new Date().toISOString(),
           drivers: [],
           raceControlFeed: [],
           weather: null,
+          highlights: [],
         };
 
         this.cachedSnapshot = upcomingState;
@@ -279,7 +290,7 @@ export class SessionWatcher {
    */
   public async hydrateCompletedSnapshot(session: OpenF1Session): Promise<LiveSessionState | null> {
     const sessionKey = session.session_key;
-    const cacheKey = `f1:openf1:completed_snapshot:v4:${sessionKey}`;
+    const cacheKey = `f1:openf1:completed_snapshot:v5:${sessionKey}`;
 
     // 1. Check Redis cache first
     const cached = await cache.get<LiveSessionState>(cacheKey);
@@ -300,6 +311,8 @@ export class SessionWatcher {
         stints,
         weather,
         raceControl,
+        rawRadio,
+        rawPits,
       ] = await Promise.all([
         getOpenF1Drivers(sessionKey).catch(() => [] as OpenF1Driver[]),
         buildDriverMap(sessionKey).catch(() => new Map<number, string>()),
@@ -309,6 +322,8 @@ export class SessionWatcher {
         getOpenF1Stints(sessionKey).catch(() => [] as OpenF1Stint[]),
         getOpenF1Weather(sessionKey).catch(() => [] as OpenF1Weather[]),
         getOpenF1RaceControlEvents(sessionKey).catch(() => [] as OpenF1RaceControl[]),
+        getOpenF1TeamRadio(sessionKey).catch(() => [] as OpenF1TeamRadio[]),
+        getOpenF1Pit(sessionKey).catch(() => [] as OpenF1Pit[]),
       ]);
 
       if (drivers.length === 0) {
@@ -397,6 +412,73 @@ export class SessionWatcher {
 
       const mappedWeather = mapWeather(weather);
       const mappedRaceControl = mapRaceControlEvents(raceControl);
+      const mappedRadio = mapTeamRadio(rawRadio, canonicalMap);
+      const mappedPits = mapPitStops(rawPits, canonicalMap);
+      const mappedLaps = mapLapSectorTimings(laps, canonicalMap);
+
+      // Correlate race radio broadcast highlights
+      const highlights = correlateRaceHighlights({
+        teamRadio: mappedRadio,
+        raceControlEvents: mappedRaceControl,
+        pitStops: mappedPits,
+        laps: mappedLaps,
+        openF1Drivers: drivers,
+        driverMap: canonicalMap,
+        results: classifiedDrivers.map((d) => {
+          const nameParts = (d.name || '').trim().split(' ');
+          const givenName = nameParts[0] || '';
+          const familyName = nameParts.slice(1).join(' ') || d.name || '';
+          const teamName = d.teamName || 'Unknown';
+          return {
+            number: String(d.driverNumber),
+            position: String(d.position),
+            positionText: String(d.position),
+            points: '0',
+            Driver: {
+              driverId: d.driverId,
+              permanentNumber: String(d.driverNumber),
+              code: d.code,
+              url: '',
+              givenName,
+              familyName,
+              dateOfBirth: '',
+              nationality: '',
+            },
+            Constructor: {
+              constructorId: teamName.toLowerCase().replace(/\s+/g, '-'),
+              url: '',
+              name: teamName,
+              nationality: '',
+            },
+            grid: '0',
+            laps: '0',
+            status: 'Finished',
+          };
+        }),
+      });
+
+      // Best-effort correlation of season round from Jolpica schedule
+      let round: number | undefined;
+      try {
+        const schedule = await getRaceSchedule(session.year);
+        const sDate = session.date_start ? session.date_start.slice(0, 10) : '';
+        const sCountry = (session.country_name || '').toLowerCase();
+        const sCircuit = (session.circuit_short_name || '').toLowerCase();
+
+        const matchedRace = schedule.find((r) => {
+          if (sDate && r.date && (r.date === sDate || sDate.startsWith(r.date))) return true;
+          const rCountry = (r.Circuit?.Location?.country || '').toLowerCase();
+          const rCircuit = (r.Circuit?.circuitName || '').toLowerCase();
+          if (sCircuit && rCircuit.includes(sCircuit)) return true;
+          if (sCountry && rCountry.includes(sCountry)) return true;
+          return false;
+        });
+        if (matchedRace) {
+          round = parseInt(matchedRace.round, 10);
+        }
+      } catch {
+        // Round correlation is best effort
+      }
 
       const snapshot: LiveSessionState = {
         sessionKey: session.session_key,
@@ -407,12 +489,15 @@ export class SessionWatcher {
         countryName: session.country_name,
         dateStart: session.date_start,
         dateEnd: session.date_end,
+        season: session.year,
+        round,
         isActive: false,
         status: 'COMPLETED',
         lastUpdated: new Date().toISOString(),
         drivers: classifiedDrivers,
         raceControlFeed: mappedRaceControl,
         weather: mappedWeather.length > 0 ? mappedWeather[mappedWeather.length - 1] : null,
+        highlights,
       };
 
       // Cache snapshot
