@@ -47,6 +47,14 @@ interface ActiveCalendarSession {
   dateEnd: string;
 }
 
+/**
+ * Searches the official race calendar for any session currently within its active
+ * lifecycle window (including a 15-minute pre-session buffer and a 20-minute post-session buffer).
+ *
+ * @param races - Array of scheduled races for the season
+ * @param nowMs - Current epoch timestamp in milliseconds (defaults to Date.now())
+ * @returns Active session details if in progress, or null if idle
+ */
 function findActiveCalendarSession(races: Race[], nowMs = Date.now()): ActiveCalendarSession | null {
   for (const race of races) {
     const candidateSessions: Array<{ name: string; type: string; date?: string; time?: string; durationMinutes: number }> = [
@@ -302,6 +310,7 @@ export class SessionWatcher {
 
     try {
       // 2. Fetch session records in parallel
+      let isRadioUnavailable = false;
       const [
         drivers,
         canonicalMap,
@@ -322,7 +331,10 @@ export class SessionWatcher {
         getOpenF1Stints(sessionKey).catch(() => [] as OpenF1Stint[]),
         getOpenF1Weather(sessionKey).catch(() => [] as OpenF1Weather[]),
         getOpenF1RaceControlEvents(sessionKey).catch(() => [] as OpenF1RaceControl[]),
-        getOpenF1TeamRadio(sessionKey).catch(() => [] as OpenF1TeamRadio[]),
+        getOpenF1TeamRadio(sessionKey).catch(() => {
+          isRadioUnavailable = true;
+          return [] as OpenF1TeamRadio[];
+        }),
         getOpenF1Pit(sessionKey).catch(() => [] as OpenF1Pit[]),
       ]);
 
@@ -465,14 +477,50 @@ export class SessionWatcher {
         const sCountry = (session.country_name || '').toLowerCase();
         const sCircuit = (session.circuit_short_name || '').toLowerCase();
 
-        const matchedRace = schedule.find((r) => {
-          if (sDate && r.date && (r.date === sDate || sDate.startsWith(r.date))) return true;
-          const rCountry = (r.Circuit?.Location?.country || '').toLowerCase();
-          const rCircuit = (r.Circuit?.circuitName || '').toLowerCase();
-          if (sCircuit && rCircuit.includes(sCircuit)) return true;
-          if (sCountry && rCountry.includes(sCountry)) return true;
+        // 1. Session date / weekend match across all races in the schedule
+        let matchedRace = schedule.find((r) => {
+          if (!sDate) return false;
+          if (r.date === sDate) return true;
+          const sessionDates = [
+            r.FirstPractice?.date,
+            r.SecondPractice?.date,
+            r.ThirdPractice?.date,
+            r.Qualifying?.date,
+            r.Sprint?.date,
+            r.SprintQualifying?.date,
+          ];
+          if (sessionDates.includes(sDate)) return true;
+          // Weekend date proximity (within 4 days before the race date)
+          if (r.date) {
+            const raceTime = new Date(r.date).getTime();
+            const sessionTime = new Date(sDate).getTime();
+            const diffDays = (raceTime - sessionTime) / (1000 * 60 * 60 * 24);
+            if (diffDays >= 0 && diffDays <= 4) return true;
+          }
           return false;
         });
+
+        // 2. Circuit match across full schedule
+        if (!matchedRace && sCircuit) {
+          matchedRace = schedule.find((r) => {
+            const rCircuit = (r.Circuit?.circuitName || '').toLowerCase();
+            const rCircuitId = (r.Circuit?.circuitId || '').toLowerCase();
+            const rRaceName = (r.raceName || '').toLowerCase();
+            return rCircuit.includes(sCircuit) || rCircuitId.includes(sCircuit) || rRaceName.includes(sCircuit);
+          });
+        }
+
+        // 3. Fallback: country match ONLY if it uniquely identifies a single round
+        if (!matchedRace && sCountry) {
+          const countryMatches = schedule.filter((r) => {
+            const rCountry = (r.Circuit?.Location?.country || '').toLowerCase();
+            return rCountry && (rCountry === sCountry || rCountry.includes(sCountry) || sCountry.includes(rCountry));
+          });
+          if (countryMatches.length === 1) {
+            matchedRace = countryMatches[0];
+          }
+        }
+
         if (matchedRace) {
           round = parseInt(matchedRace.round, 10);
         }
@@ -500,9 +548,11 @@ export class SessionWatcher {
         highlights,
       };
 
-      // Cache snapshot
-      await cache.set(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_SEC);
-      this.cachedSnapshot = snapshot;
+      // Cache snapshot only if critical radio hydration succeeded (avoid caching empty highlights due to transient failure)
+      if (!isRadioUnavailable) {
+        await cache.set(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_SEC);
+        this.cachedSnapshot = snapshot;
+      }
       livePollingEngine.setCompletedState(snapshot);
 
       console.log(
@@ -518,4 +568,8 @@ export class SessionWatcher {
 
 // Singleton export
 export const sessionWatcher = new SessionWatcher();
+
+/**
+ * Helper to start the global singleton session watcher background timer.
+ */
 export const startSessionWatcher = () => sessionWatcher.startWatcher();
