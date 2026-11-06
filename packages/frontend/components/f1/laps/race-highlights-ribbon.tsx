@@ -32,6 +32,12 @@ interface RaceHighlightsRibbonProps {
 
 type FilterCategory = 'all' | 'safety_car' | 'pit_stop' | 'dnf' | 'victory';
 
+/**
+ * RaceHighlightsRibbon renders an interactive horizontal broadcast ribbon for race replay audio highlights.
+ *
+ * Provides real-time synchronization with race replay laps, waveform scrubbing, category and driver filters,
+ * playback speed adjustments (1x / 1.25x / 1.5x), and signature F1 radio chimes.
+ */
 export function RaceHighlightsRibbon({
   highlights = [],
   currentLap,
@@ -52,6 +58,7 @@ export function RaceHighlightsRibbon({
 
   const inFlightTranscriptsRef = useRef<Set<string>>(new Set());
   const playRequestRef = useRef<number>(0);
+  const pendingFallbackSeekRef = useRef<{ requestId: number; ratio: number } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fallbackAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -221,10 +228,20 @@ export function RaceHighlightsRibbon({
 
       if (e.code === 'Escape') {
         e.preventDefault();
+        pendingFallbackSeekRef.current = null;
         if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
         if (fallbackAudioRef.current && !fallbackAudioRef.current.paused) fallbackAudioRef.current.pause();
         setPlayingId(null);
       } else if (e.code === 'Space') {
+        if (
+          target &&
+          (target instanceof HTMLButtonElement ||
+            target instanceof HTMLAnchorElement ||
+            target instanceof HTMLSelectElement ||
+            Boolean(target.closest('button, a, select')))
+        ) {
+          return;
+        }
         e.preventDefault();
         const audio = audioRef.current;
         const fallbackAudio = fallbackAudioRef.current;
@@ -258,6 +275,7 @@ export function RaceHighlightsRibbon({
       initWebAudio();
 
       if (playingId === highlight.id && initialSeekRatio === undefined) {
+        pendingFallbackSeekRef.current = null;
         if (!audio.paused) {
           audio.pause();
         }
@@ -266,6 +284,7 @@ export function RaceHighlightsRibbon({
         }
         setPlayingId(null);
       } else {
+        pendingFallbackSeekRef.current = null;
         // Pause any previous playback
         if (!audio.paused) audio.pause();
         if (fallbackAudio && !fallbackAudio.paused) fallbackAudio.pause();
@@ -315,9 +334,16 @@ export function RaceHighlightsRibbon({
                 fb.src = highlight.radioClip.recordingUrl;
                 fb.volume = isMuted ? 0 : volume / 100;
                 fb.playbackRate = playbackRate;
-                if (typeof initialSeekRatio === 'number' && fb.duration) {
-                  fb.currentTime = initialSeekRatio * fb.duration;
-                  setCurrentTime(fb.currentTime);
+                if (typeof initialSeekRatio === 'number') {
+                  if (fb.duration) {
+                    fb.currentTime = initialSeekRatio * fb.duration;
+                    setCurrentTime(fb.currentTime);
+                    pendingFallbackSeekRef.current = null;
+                  } else {
+                    pendingFallbackSeekRef.current = { requestId, ratio: initialSeekRatio };
+                  }
+                } else {
+                  pendingFallbackSeekRef.current = null;
                 }
                 fb
                   .play()
@@ -331,6 +357,7 @@ export function RaceHighlightsRibbon({
                   })
                   .catch(() => {
                     if (requestId === playRequestRef.current) {
+                      pendingFallbackSeekRef.current = null;
                       setPlayingId(null);
                     }
                   });
@@ -493,9 +520,25 @@ export function RaceHighlightsRibbon({
           if (fallbackAudioRef.current) setCurrentTime(fallbackAudioRef.current.currentTime);
         }}
         onLoadedMetadata={() => {
-          if (fallbackAudioRef.current) setDuration(fallbackAudioRef.current.duration || 0);
+          if (fallbackAudioRef.current) {
+            setDuration(fallbackAudioRef.current.duration || 0);
+            const pending = pendingFallbackSeekRef.current;
+            if (
+              pending &&
+              pending.requestId === playRequestRef.current &&
+              fallbackAudioRef.current.duration
+            ) {
+              const targetTime = pending.ratio * fallbackAudioRef.current.duration;
+              fallbackAudioRef.current.currentTime = targetTime;
+              setCurrentTime(targetTime);
+              pendingFallbackSeekRef.current = null;
+            }
+          }
         }}
-        onEnded={handleEnded}
+        onEnded={() => {
+          pendingFallbackSeekRef.current = null;
+          handleEnded();
+        }}
       />
 
       {/* ── Header: Title, Counts, Volume Slider, Category & Driver Filter Pills ── */}

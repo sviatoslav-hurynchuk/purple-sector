@@ -17,8 +17,8 @@ import { WAVE_BARS, getWaveformBarStyle } from '@/lib/f1-waveform';
 
 interface BestRaceRadioRibbonProps {
   highlights: RaceHighlight[];
-  season: number | string;
-  round: number | string;
+  season?: number | string;
+  round?: number | string;
   className?: string;
   seamless?: boolean;
 }
@@ -43,6 +43,7 @@ export function BestRaceRadioRibbon({
 
   const inFlightTranscriptsRef = useRef<Set<string>>(new Set());
   const playRequestRef = useRef<number>(0);
+  const pendingFallbackSeekRef = useRef<{ requestId: number; ratio: number } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fallbackAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -130,6 +131,7 @@ export function BestRaceRadioRibbon({
   useEffect(() => {
     if (playingId === null || bestHighlights.some((h) => h.id === playingId)) return;
     playRequestRef.current += 1;
+    pendingFallbackSeekRef.current = null;
     audioRef.current?.pause();
     fallbackAudioRef.current?.pause();
     const timer = setTimeout(() => {
@@ -217,10 +219,20 @@ export function BestRaceRadioRibbon({
 
       if (e.code === 'Escape') {
         e.preventDefault();
+        pendingFallbackSeekRef.current = null;
         if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
         if (fallbackAudioRef.current && !fallbackAudioRef.current.paused) fallbackAudioRef.current.pause();
         setPlayingId(null);
       } else if (e.code === 'Space') {
+        if (
+          target &&
+          (target instanceof HTMLButtonElement ||
+            target instanceof HTMLAnchorElement ||
+            target instanceof HTMLSelectElement ||
+            Boolean(target.closest('button, a, select')))
+        ) {
+          return;
+        }
         e.preventDefault();
         const audio = audioRef.current;
         const fallbackAudio = fallbackAudioRef.current;
@@ -255,10 +267,12 @@ export function BestRaceRadioRibbon({
 
       if (playingId === highlight.id && initialSeekRatio === undefined) {
         playRequestRef.current += 1;
+        pendingFallbackSeekRef.current = null;
         if (!audio.paused) audio.pause();
         if (fallbackAudio && !fallbackAudio.paused) fallbackAudio.pause();
         setPlayingId(null);
       } else {
+        pendingFallbackSeekRef.current = null;
         if (!audio.paused) audio.pause();
         if (fallbackAudio && !fallbackAudio.paused) fallbackAudio.pause();
 
@@ -302,9 +316,16 @@ export function BestRaceRadioRibbon({
               if (fb && requestId === playRequestRef.current) {
                 fb.src = highlight.radioClip.recordingUrl;
                 fb.volume = 0.85;
-                if (typeof initialSeekRatio === 'number' && fb.duration) {
-                  fb.currentTime = initialSeekRatio * fb.duration;
-                  setCurrentTime(fb.currentTime);
+                if (typeof initialSeekRatio === 'number') {
+                  if (fb.duration) {
+                    fb.currentTime = initialSeekRatio * fb.duration;
+                    setCurrentTime(fb.currentTime);
+                    pendingFallbackSeekRef.current = null;
+                  } else {
+                    pendingFallbackSeekRef.current = { requestId, ratio: initialSeekRatio };
+                  }
+                } else {
+                  pendingFallbackSeekRef.current = null;
                 }
                 fb
                   .play()
@@ -315,6 +336,7 @@ export function BestRaceRadioRibbon({
                   })
                   .catch(() => {
                     if (requestId === playRequestRef.current) {
+                      pendingFallbackSeekRef.current = null;
                       setPlayingId(null);
                     }
                   });
@@ -449,13 +471,28 @@ export function BestRaceRadioRibbon({
           if (fallbackAudioRef.current) setCurrentTime(fallbackAudioRef.current.currentTime);
         }}
         onLoadedMetadata={() => {
-          if (fallbackAudioRef.current) setDuration(fallbackAudioRef.current.duration || 0);
+          if (fallbackAudioRef.current) {
+            setDuration(fallbackAudioRef.current.duration || 0);
+            const pending = pendingFallbackSeekRef.current;
+            if (
+              pending &&
+              pending.requestId === playRequestRef.current &&
+              fallbackAudioRef.current.duration
+            ) {
+              const targetTime = pending.ratio * fallbackAudioRef.current.duration;
+              fallbackAudioRef.current.currentTime = targetTime;
+              setCurrentTime(targetTime);
+              pendingFallbackSeekRef.current = null;
+            }
+          }
         }}
         onEnded={() => {
+          pendingFallbackSeekRef.current = null;
           setPlayingId(null);
           setCurrentTime(0);
         }}
         onError={() => {
+          pendingFallbackSeekRef.current = null;
           setPlayingId(null);
           setCurrentTime(0);
         }}
@@ -684,13 +721,17 @@ export function BestRaceRadioRibbon({
 
                   <div className="pt-1 border-t border-white/5 flex items-center justify-between text-[10px] font-mono">
                     <span className="text-zinc-500">Lap trace:</span>
-                    <Link
-                      href={`/calendar/${round}/laps?season=${season}&lap=${hl.lap}`}
-                      className="text-zinc-300 hover:text-white flex items-center gap-1 font-bold transition-colors"
-                    >
-                      <span>Jump to Lap {hl.lap}</span>
-                      <ExternalLink className="size-2.5 text-zinc-400" />
-                    </Link>
+                    {season && round ? (
+                      <Link
+                        href={`/calendar/${round}/laps?season=${season}&lap=${hl.lap}`}
+                        className="text-zinc-300 hover:text-white flex items-center gap-1 font-bold transition-colors"
+                      >
+                        <span>Jump to Lap {hl.lap}</span>
+                        <ExternalLink className="size-2.5 text-zinc-400" />
+                      </Link>
+                    ) : (
+                      <span className="text-zinc-400 font-semibold">Lap {hl.lap}</span>
+                    )}
                   </div>
                 </div>
               </div>
