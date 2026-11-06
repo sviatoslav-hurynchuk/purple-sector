@@ -45,6 +45,7 @@ export function RaceHighlightsRibbon({
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolume] = useState<number>(85);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [graphReady, setGraphReady] = useState<boolean>(false);
   const [transcriptsMap, setTranscriptsMap] = useState<Record<string, string>>({});
@@ -146,6 +147,16 @@ export function RaceHighlightsRibbon({
       fallbackAudioRef.current.volume = userVolume;
     }
   }, [volume, isMuted, graphReady]);
+
+  // Sync playback rate with audio elements
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackRate;
+    }
+    if (fallbackAudioRef.current) {
+      fallbackAudioRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate, playingId]);
 
   // Filtered highlights based on category and driver
   const filteredHighlights = useMemo(() => {
@@ -282,6 +293,7 @@ export function RaceHighlightsRibbon({
           }
 
           // 2. Play driver team radio recording through Web Audio graph
+          audioRef.current.playbackRate = playbackRate;
           audioRef.current
             .play()
             .then(() => {
@@ -302,6 +314,7 @@ export function RaceHighlightsRibbon({
               if (fb && requestId === playRequestRef.current) {
                 fb.src = highlight.radioClip.recordingUrl;
                 fb.volume = isMuted ? 0 : volume / 100;
+                fb.playbackRate = playbackRate;
                 if (typeof initialSeekRatio === 'number' && fb.duration) {
                   fb.currentTime = initialSeekRatio * fb.duration;
                   setCurrentTime(fb.currentTime);
@@ -342,7 +355,7 @@ export function RaceHighlightsRibbon({
         }
       }
     },
-    [playingId, onLapChange, volume, isMuted, initWebAudio, transcriptsMap]
+    [playingId, onLapChange, volume, isMuted, initWebAudio, transcriptsMap, playbackRate]
   );
 
   // Waveform click seeking handler
@@ -616,6 +629,29 @@ export function RaceHighlightsRibbon({
             <span className="text-[10px] font-mono tabular-nums min-w-[28px] text-right text-zinc-300 font-semibold">
               {isMuted ? '0%' : `${volume}%`}
             </span>
+          </div>
+
+          {/* ── Playback Speed Selector (1x / 1.25x / 1.5x) ── */}
+          <div
+            className="flex items-center gap-0.5 bg-zinc-900/90 border border-white/10 rounded px-1 h-6 shrink-0"
+            title="Playback Speed"
+          >
+            {[1, 1.25, 1.5].map((rate) => (
+              <button
+                key={rate}
+                type="button"
+                onClick={() => setPlaybackRate(rate)}
+                className={cn(
+                  'px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all',
+                  playbackRate === rate
+                    ? 'bg-zinc-800 text-white shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                )}
+                aria-label={`Playback speed ${rate}x`}
+              >
+                {rate}x
+              </button>
+            ))}
           </div>
         </div>
       </div>
