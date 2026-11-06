@@ -327,21 +327,29 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
 
   // Radio highlights resolution (prefer live session state snapshot; fallback to on-demand fetch when opened)
   const stateHighlights = state?.highlights ?? null;
-  const [fetchedHighlights, setFetchedHighlights] = useState<RaceHighlight[] | null>(null);
+  const sessionKey = state?.sessionKey ?? null;
+  const stateSeason = state?.season;
+  const stateRound = state?.round;
 
-  const season = state?.season ?? nextRace?.season ?? new Date().getFullYear();
-  const round = state?.round ?? nextRace?.round ?? null;
+  const [fetchedHighlightsState, setFetchedHighlightsState] = useState<{
+    sessionKey: string | number | null;
+    highlights: RaceHighlight[];
+  } | null>(null);
+
+  // Clear / invalidate on-demand highlights when sessionKey changes by matching sessionKey
+  const fetchedHighlights =
+    fetchedHighlightsState?.sessionKey === sessionKey ? fetchedHighlightsState.highlights : null;
 
   useEffect(() => {
     if (!open) return;
     if (stateHighlights && stateHighlights.length > 0) return;
-    if (!round) return;
+    if (!stateSeason || !stateRound) return;
 
     let cancelled = false;
-    clientFetchNullable<RaceSessionData>(`/api/openf1/race/${season}/${round}`)
+    clientFetchNullable<RaceSessionData>(`/api/openf1/race/${stateSeason}/${stateRound}`)
       .then((data) => {
         if (!cancelled && data?.highlights && data.highlights.length > 0) {
-          setFetchedHighlights(data.highlights);
+          setFetchedHighlightsState({ sessionKey, highlights: data.highlights });
         }
       })
       .catch(() => {});
@@ -349,7 +357,7 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
     return () => {
       cancelled = true;
     };
-  }, [open, stateHighlights, season, round]);
+  }, [open, stateHighlights, stateSeason, stateRound, sessionKey]);
 
   const activeHighlights = useMemo(() => {
     if (stateHighlights && stateHighlights.length > 0) {
@@ -399,8 +407,8 @@ export function SessionRecapModal({ className, nextRace }: SessionRecapModalProp
             <div className="border-b border-zinc-800 bg-zinc-950 relative z-20">
               <BestRaceRadioRibbon
                 highlights={activeHighlights}
-                season={season}
-                round={round || 1}
+                season={stateSeason}
+                round={stateRound}
                 seamless
               />
             </div>
