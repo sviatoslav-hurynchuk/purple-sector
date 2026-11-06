@@ -508,12 +508,15 @@ export interface LiveSessionState {
   countryName?: string;
   dateStart?: string;
   dateEnd?: string;
+  season?: number | string;
+  round?: number | string;
   isActive: boolean;
   status?: 'LIVE' | 'COMPLETED' | 'UPCOMING' | 'OFFLINE';
   lastUpdated: string;
   drivers: LiveDriverState[];
   raceControlFeed: RaceEvent[];
   weather: WeatherSnapshot | null;
+  highlights?: RaceHighlight[];
   isRestricted?: boolean;
   restrictionMessage?: string;
   scheduleOverrides?: SessionScheduleOverride[];

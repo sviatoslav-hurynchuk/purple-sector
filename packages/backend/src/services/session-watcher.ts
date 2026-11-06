@@ -2,6 +2,7 @@ import type {
   LiveSessionState,
   LiveDriverState,
   Race,
+  RaceHighlight,
 } from '../types/f1';
 import type {
   OpenF1Session,
@@ -12,6 +13,8 @@ import type {
   OpenF1Stint,
   OpenF1Weather,
   OpenF1RaceControl,
+  OpenF1TeamRadio,
+  OpenF1Pit,
 } from '../types/openf1-types';
 import {
   openF1Fetch,
@@ -19,13 +22,19 @@ import {
   getOpenF1Stints,
   getOpenF1Weather,
   getOpenF1RaceControlEvents,
+  getOpenF1TeamRadio,
+  getOpenF1Pit,
   buildDriverMap,
 } from './openf1';
 import {
   mapRaceControlEvents,
   mapWeather,
+  mapTeamRadio,
+  mapPitStops,
+  mapLapSectorTimings,
   normalizeCompound,
 } from './openf1-mapper';
+import { correlateRaceHighlights } from './race-highlights';
 import { getRaceSchedule, getCurrentSeason } from './jolpica';
 import { livePollingEngine } from './live-polling';
 import { cache } from './cache';
@@ -38,6 +47,14 @@ interface ActiveCalendarSession {
   dateEnd: string;
 }
 
+/**
+ * Searches the official race calendar for any session currently within its active
+ * lifecycle window (including a 15-minute pre-session buffer and a 20-minute post-session buffer).
+ *
+ * @param races - Array of scheduled races for the season
+ * @param nowMs - Current epoch timestamp in milliseconds (defaults to Date.now())
+ * @returns Active session details if in progress, or null if idle
+ */
 function findActiveCalendarSession(races: Race[], nowMs = Date.now()): ActiveCalendarSession | null {
   for (const race of races) {
     const candidateSessions: Array<{ name: string; type: string; date?: string; time?: string; durationMinutes: number }> = [
@@ -256,12 +273,14 @@ export class SessionWatcher {
           countryName: session.country_name,
           dateStart: session.date_start,
           dateEnd: session.date_end,
+          season: session.year,
           isActive: false,
           status: 'UPCOMING',
           lastUpdated: new Date().toISOString(),
           drivers: [],
           raceControlFeed: [],
           weather: null,
+          highlights: [],
         };
 
         this.cachedSnapshot = upcomingState;
@@ -279,7 +298,7 @@ export class SessionWatcher {
    */
   public async hydrateCompletedSnapshot(session: OpenF1Session): Promise<LiveSessionState | null> {
     const sessionKey = session.session_key;
-    const cacheKey = `f1:openf1:completed_snapshot:v4:${sessionKey}`;
+    const cacheKey = `f1:openf1:completed_snapshot:v5:${sessionKey}`;
 
     // 1. Check Redis cache first
     const cached = await cache.get<LiveSessionState>(cacheKey);
@@ -291,6 +310,7 @@ export class SessionWatcher {
 
     try {
       // 2. Fetch session records in parallel
+      let isRadioUnavailable = false;
       const [
         drivers,
         canonicalMap,
@@ -300,6 +320,8 @@ export class SessionWatcher {
         stints,
         weather,
         raceControl,
+        rawRadio,
+        rawPits,
       ] = await Promise.all([
         getOpenF1Drivers(sessionKey).catch(() => [] as OpenF1Driver[]),
         buildDriverMap(sessionKey).catch(() => new Map<number, string>()),
@@ -309,6 +331,11 @@ export class SessionWatcher {
         getOpenF1Stints(sessionKey).catch(() => [] as OpenF1Stint[]),
         getOpenF1Weather(sessionKey).catch(() => [] as OpenF1Weather[]),
         getOpenF1RaceControlEvents(sessionKey).catch(() => [] as OpenF1RaceControl[]),
+        getOpenF1TeamRadio(sessionKey).catch(() => {
+          isRadioUnavailable = true;
+          return [] as OpenF1TeamRadio[];
+        }),
+        getOpenF1Pit(sessionKey).catch(() => [] as OpenF1Pit[]),
       ]);
 
       if (drivers.length === 0) {
@@ -397,6 +424,109 @@ export class SessionWatcher {
 
       const mappedWeather = mapWeather(weather);
       const mappedRaceControl = mapRaceControlEvents(raceControl);
+      const mappedRadio = mapTeamRadio(rawRadio, canonicalMap);
+      const mappedPits = mapPitStops(rawPits, canonicalMap);
+      const mappedLaps = mapLapSectorTimings(laps, canonicalMap);
+
+      // Correlate race radio broadcast highlights
+      const highlights = correlateRaceHighlights({
+        teamRadio: mappedRadio,
+        raceControlEvents: mappedRaceControl,
+        pitStops: mappedPits,
+        laps: mappedLaps,
+        openF1Drivers: drivers,
+        driverMap: canonicalMap,
+        results: classifiedDrivers.map((d) => {
+          const nameParts = (d.name || '').trim().split(' ');
+          const givenName = nameParts[0] || '';
+          const familyName = nameParts.slice(1).join(' ') || d.name || '';
+          const teamName = d.teamName || 'Unknown';
+          return {
+            number: String(d.driverNumber),
+            position: String(d.position),
+            positionText: String(d.position),
+            points: '0',
+            Driver: {
+              driverId: d.driverId,
+              permanentNumber: String(d.driverNumber),
+              code: d.code,
+              url: '',
+              givenName,
+              familyName,
+              dateOfBirth: '',
+              nationality: '',
+            },
+            Constructor: {
+              constructorId: teamName.toLowerCase().replace(/\s+/g, '-'),
+              url: '',
+              name: teamName,
+              nationality: '',
+            },
+            grid: '0',
+            laps: '0',
+            status: 'Finished',
+          };
+        }),
+      });
+
+      // Best-effort correlation of season round from Jolpica schedule
+      let round: number | undefined;
+      try {
+        const schedule = await getRaceSchedule(session.year);
+        const sDate = session.date_start ? session.date_start.slice(0, 10) : '';
+        const sCountry = (session.country_name || '').toLowerCase();
+        const sCircuit = (session.circuit_short_name || '').toLowerCase();
+
+        // 1. Session date / weekend match across all races in the schedule
+        let matchedRace = schedule.find((r) => {
+          if (!sDate) return false;
+          if (r.date === sDate) return true;
+          const sessionDates = [
+            r.FirstPractice?.date,
+            r.SecondPractice?.date,
+            r.ThirdPractice?.date,
+            r.Qualifying?.date,
+            r.Sprint?.date,
+            r.SprintQualifying?.date,
+          ];
+          if (sessionDates.includes(sDate)) return true;
+          // Weekend date proximity (within 4 days before the race date)
+          if (r.date) {
+            const raceTime = new Date(r.date).getTime();
+            const sessionTime = new Date(sDate).getTime();
+            const diffDays = (raceTime - sessionTime) / (1000 * 60 * 60 * 24);
+            if (diffDays >= 0 && diffDays <= 4) return true;
+          }
+          return false;
+        });
+
+        // 2. Circuit match across full schedule
+        if (!matchedRace && sCircuit) {
+          matchedRace = schedule.find((r) => {
+            const rCircuit = (r.Circuit?.circuitName || '').toLowerCase();
+            const rCircuitId = (r.Circuit?.circuitId || '').toLowerCase();
+            const rRaceName = (r.raceName || '').toLowerCase();
+            return rCircuit.includes(sCircuit) || rCircuitId.includes(sCircuit) || rRaceName.includes(sCircuit);
+          });
+        }
+
+        // 3. Fallback: country match ONLY if it uniquely identifies a single round
+        if (!matchedRace && sCountry) {
+          const countryMatches = schedule.filter((r) => {
+            const rCountry = (r.Circuit?.Location?.country || '').toLowerCase();
+            return rCountry && (rCountry === sCountry || rCountry.includes(sCountry) || sCountry.includes(rCountry));
+          });
+          if (countryMatches.length === 1) {
+            matchedRace = countryMatches[0];
+          }
+        }
+
+        if (matchedRace) {
+          round = parseInt(matchedRace.round, 10);
+        }
+      } catch {
+        // Round correlation is best effort
+      }
 
       const snapshot: LiveSessionState = {
         sessionKey: session.session_key,
@@ -407,17 +537,22 @@ export class SessionWatcher {
         countryName: session.country_name,
         dateStart: session.date_start,
         dateEnd: session.date_end,
+        season: session.year,
+        round,
         isActive: false,
         status: 'COMPLETED',
         lastUpdated: new Date().toISOString(),
         drivers: classifiedDrivers,
         raceControlFeed: mappedRaceControl,
         weather: mappedWeather.length > 0 ? mappedWeather[mappedWeather.length - 1] : null,
+        highlights,
       };
 
-      // Cache snapshot
-      await cache.set(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_SEC);
-      this.cachedSnapshot = snapshot;
+      // Cache snapshot only if critical radio hydration succeeded (avoid caching empty highlights due to transient failure)
+      if (!isRadioUnavailable) {
+        await cache.set(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_SEC);
+        this.cachedSnapshot = snapshot;
+      }
       livePollingEngine.setCompletedState(snapshot);
 
       console.log(
@@ -433,4 +568,8 @@ export class SessionWatcher {
 
 // Singleton export
 export const sessionWatcher = new SessionWatcher();
+
+/**
+ * Helper to start the global singleton session watcher background timer.
+ */
 export const startSessionWatcher = () => sessionWatcher.startWatcher();

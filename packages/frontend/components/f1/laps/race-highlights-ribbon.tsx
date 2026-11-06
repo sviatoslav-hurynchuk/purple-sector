@@ -32,6 +32,12 @@ interface RaceHighlightsRibbonProps {
 
 type FilterCategory = 'all' | 'safety_car' | 'pit_stop' | 'dnf' | 'victory';
 
+/**
+ * RaceHighlightsRibbon renders an interactive horizontal broadcast ribbon for race replay audio highlights.
+ *
+ * Provides real-time synchronization with race replay laps, waveform scrubbing, category and driver filters,
+ * playback speed adjustments (1x / 1.25x / 1.5x), and signature F1 radio chimes.
+ */
 export function RaceHighlightsRibbon({
   highlights = [],
   currentLap,
@@ -45,12 +51,14 @@ export function RaceHighlightsRibbon({
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolume] = useState<number>(85);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [graphReady, setGraphReady] = useState<boolean>(false);
   const [transcriptsMap, setTranscriptsMap] = useState<Record<string, string>>({});
 
   const inFlightTranscriptsRef = useRef<Set<string>>(new Set());
   const playRequestRef = useRef<number>(0);
+  const pendingFallbackSeekRef = useRef<{ requestId: number; ratio: number } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fallbackAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -147,6 +155,16 @@ export function RaceHighlightsRibbon({
     }
   }, [volume, isMuted, graphReady]);
 
+  // Sync playback rate with audio elements
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackRate;
+    }
+    if (fallbackAudioRef.current) {
+      fallbackAudioRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate, playingId]);
+
   // Filtered highlights based on category and driver
   const filteredHighlights = useMemo(() => {
     let list = highlights;
@@ -198,16 +216,66 @@ export function RaceHighlightsRibbon({
     }
   }, [currentLap, isReplayPlaying, filteredHighlights]);
 
+  // Keyboard accessibility shortcuts: Space to toggle pause/play, Esc to close/pause
+  useEffect(() => {
+    if (!playingId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        pendingFallbackSeekRef.current = null;
+        if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
+        if (fallbackAudioRef.current && !fallbackAudioRef.current.paused) fallbackAudioRef.current.pause();
+        setPlayingId(null);
+      } else if (e.code === 'Space') {
+        if (
+          target &&
+          (target instanceof HTMLButtonElement ||
+            target instanceof HTMLAnchorElement ||
+            target instanceof HTMLSelectElement ||
+            Boolean(target.closest('button, a, select')))
+        ) {
+          return;
+        }
+        e.preventDefault();
+        const audio = audioRef.current;
+        const fallbackAudio = fallbackAudioRef.current;
+        if (audio && audio.src) {
+          if (audio.paused) {
+            audio.play().catch(() => {});
+          } else {
+            audio.pause();
+          }
+        } else if (fallbackAudio && fallbackAudio.src) {
+          if (fallbackAudio.paused) {
+            fallbackAudio.play().catch(() => {});
+          } else {
+            fallbackAudio.pause();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [playingId]);
+
   // Audio Playback Controls with signature F1 TV radio intro chime & 200% Web Audio Gain
   const handlePlayToggle = useCallback(
-    (highlight: RaceHighlight) => {
+    (highlight: RaceHighlight, initialSeekRatio?: number) => {
       const audio = audioRef.current;
       const fallbackAudio = fallbackAudioRef.current;
       if (!audio) return;
 
       initWebAudio();
 
-      if (playingId === highlight.id) {
+      if (playingId === highlight.id && initialSeekRatio === undefined) {
+        pendingFallbackSeekRef.current = null;
         if (!audio.paused) {
           audio.pause();
         }
@@ -216,6 +284,7 @@ export function RaceHighlightsRibbon({
         }
         setPlayingId(null);
       } else {
+        pendingFallbackSeekRef.current = null;
         // Pause any previous playback
         if (!audio.paused) audio.pause();
         if (fallbackAudio && !fallbackAudio.paused) fallbackAudio.pause();
@@ -237,12 +306,22 @@ export function RaceHighlightsRibbon({
         playF1RadioChime(userVolume).finally(() => {
           if (!audioRef.current || requestId !== playRequestRef.current) return;
 
+          if (typeof initialSeekRatio === 'number' && audioRef.current.duration) {
+            audioRef.current.currentTime = initialSeekRatio * audioRef.current.duration;
+            setCurrentTime(audioRef.current.currentTime);
+          }
+
           // 2. Play driver team radio recording through Web Audio graph
+          audioRef.current.playbackRate = playbackRate;
           audioRef.current
             .play()
             .then(() => {
               if (requestId === playRequestRef.current) {
                 setPlayingId(highlight.id);
+                if (typeof initialSeekRatio === 'number' && audioRef.current?.duration) {
+                  audioRef.current.currentTime = initialSeekRatio * audioRef.current.duration;
+                  setCurrentTime(audioRef.current.currentTime);
+                }
                 if (onLapChange && highlight.lap > 0) {
                   onLapChange(highlight.lap);
                 }
@@ -254,6 +333,18 @@ export function RaceHighlightsRibbon({
               if (fb && requestId === playRequestRef.current) {
                 fb.src = highlight.radioClip.recordingUrl;
                 fb.volume = isMuted ? 0 : volume / 100;
+                fb.playbackRate = playbackRate;
+                if (typeof initialSeekRatio === 'number') {
+                  if (fb.duration) {
+                    fb.currentTime = initialSeekRatio * fb.duration;
+                    setCurrentTime(fb.currentTime);
+                    pendingFallbackSeekRef.current = null;
+                  } else {
+                    pendingFallbackSeekRef.current = { requestId, ratio: initialSeekRatio };
+                  }
+                } else {
+                  pendingFallbackSeekRef.current = null;
+                }
                 fb
                   .play()
                   .then(() => {
@@ -266,6 +357,7 @@ export function RaceHighlightsRibbon({
                   })
                   .catch(() => {
                     if (requestId === playRequestRef.current) {
+                      pendingFallbackSeekRef.current = null;
                       setPlayingId(null);
                     }
                   });
@@ -290,7 +382,35 @@ export function RaceHighlightsRibbon({
         }
       }
     },
-    [playingId, onLapChange, volume, isMuted, initWebAudio, transcriptsMap]
+    [playingId, onLapChange, volume, isMuted, initWebAudio, transcriptsMap, playbackRate]
+  );
+
+  // Waveform click seeking handler
+  const handleWaveformSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, highlight: RaceHighlight) => {
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const ratio = clickX / rect.width;
+
+      const audio = audioRef.current;
+      const fallbackAudio = fallbackAudioRef.current;
+
+      if (playingId === highlight.id && duration > 0) {
+        const targetTime = ratio * duration;
+        if (audio && !isNaN(targetTime)) {
+          audio.currentTime = targetTime;
+          setCurrentTime(targetTime);
+        }
+        if (fallbackAudio && !isNaN(targetTime)) {
+          fallbackAudio.currentTime = targetTime;
+        }
+      } else {
+        handlePlayToggle(highlight, ratio);
+      }
+    },
+    [playingId, duration, handlePlayToggle]
   );
 
   const handleTimeUpdate = useCallback(() => {
@@ -400,9 +520,25 @@ export function RaceHighlightsRibbon({
           if (fallbackAudioRef.current) setCurrentTime(fallbackAudioRef.current.currentTime);
         }}
         onLoadedMetadata={() => {
-          if (fallbackAudioRef.current) setDuration(fallbackAudioRef.current.duration || 0);
+          if (fallbackAudioRef.current) {
+            setDuration(fallbackAudioRef.current.duration || 0);
+            const pending = pendingFallbackSeekRef.current;
+            if (
+              pending &&
+              pending.requestId === playRequestRef.current &&
+              fallbackAudioRef.current.duration
+            ) {
+              const targetTime = pending.ratio * fallbackAudioRef.current.duration;
+              fallbackAudioRef.current.currentTime = targetTime;
+              setCurrentTime(targetTime);
+              pendingFallbackSeekRef.current = null;
+            }
+          }
         }}
-        onEnded={handleEnded}
+        onEnded={() => {
+          pendingFallbackSeekRef.current = null;
+          handleEnded();
+        }}
       />
 
       {/* ── Header: Title, Counts, Volume Slider, Category & Driver Filter Pills ── */}
@@ -537,6 +673,29 @@ export function RaceHighlightsRibbon({
               {isMuted ? '0%' : `${volume}%`}
             </span>
           </div>
+
+          {/* ── Playback Speed Selector (1x / 1.25x / 1.5x) ── */}
+          <div
+            className="flex items-center gap-0.5 bg-zinc-900/90 border border-white/10 rounded px-1 h-6 shrink-0"
+            title="Playback Speed"
+          >
+            {[1, 1.25, 1.5].map((rate) => (
+              <button
+                key={rate}
+                type="button"
+                onClick={() => setPlaybackRate(rate)}
+                className={cn(
+                  'px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all',
+                  playbackRate === rate
+                    ? 'bg-zinc-800 text-white shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                )}
+                aria-label={`Playback speed ${rate}x`}
+              >
+                {rate}x
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -655,8 +814,12 @@ export function RaceHighlightsRibbon({
                     )}
                   </button>
 
-                  {/* 28 Animated Soundwave Frequency Bars (buttery smooth 60/120fps) */}
-                  <div className="flex-1 flex items-center justify-center gap-[2.5px] h-7 overflow-hidden px-1">
+                  {/* 28 Animated Soundwave Frequency Bars (buttery smooth 60/120fps with click seeking) */}
+                  <div
+                    onClick={(e) => handleWaveformSeek(e, hl)}
+                    className="flex-1 flex items-center justify-center gap-[2.5px] h-7 overflow-hidden px-1 cursor-pointer hover:opacity-85 transition-opacity"
+                    title="Click to seek"
+                  >
                     {WAVE_BARS.map((heightPct, idx) => {
                       const isPlayed = isPlayingThis && idx <= playedBarsCount;
 

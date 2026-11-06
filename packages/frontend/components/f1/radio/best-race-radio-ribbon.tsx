@@ -17,9 +17,10 @@ import { WAVE_BARS, getWaveformBarStyle } from '@/lib/f1-waveform';
 
 interface BestRaceRadioRibbonProps {
   highlights: RaceHighlight[];
-  season: number | string;
-  round: number | string;
+  season?: number | string;
+  round?: number | string;
   className?: string;
+  seamless?: boolean;
 }
 
 /**
@@ -33,6 +34,7 @@ export function BestRaceRadioRibbon({
   season,
   round,
   className,
+  seamless = false,
 }: BestRaceRadioRibbonProps) {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -41,6 +43,7 @@ export function BestRaceRadioRibbon({
 
   const inFlightTranscriptsRef = useRef<Set<string>>(new Set());
   const playRequestRef = useRef<number>(0);
+  const pendingFallbackSeekRef = useRef<{ requestId: number; ratio: number } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fallbackAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -128,6 +131,7 @@ export function BestRaceRadioRibbon({
   useEffect(() => {
     if (playingId === null || bestHighlights.some((h) => h.id === playingId)) return;
     playRequestRef.current += 1;
+    pendingFallbackSeekRef.current = null;
     audioRef.current?.pause();
     fallbackAudioRef.current?.pause();
     const timer = setTimeout(() => {
@@ -203,21 +207,72 @@ export function BestRaceRadioRibbon({
     };
   }, []);
 
+  // Keyboard accessibility shortcuts: Space to toggle pause/play, Esc to close
+  useEffect(() => {
+    if (!playingId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        pendingFallbackSeekRef.current = null;
+        if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
+        if (fallbackAudioRef.current && !fallbackAudioRef.current.paused) fallbackAudioRef.current.pause();
+        setPlayingId(null);
+      } else if (e.code === 'Space') {
+        if (
+          target &&
+          (target instanceof HTMLButtonElement ||
+            target instanceof HTMLAnchorElement ||
+            target instanceof HTMLSelectElement ||
+            Boolean(target.closest('button, a, select')))
+        ) {
+          return;
+        }
+        e.preventDefault();
+        const audio = audioRef.current;
+        const fallbackAudio = fallbackAudioRef.current;
+        if (audio && audio.src) {
+          if (audio.paused) {
+            audio.play().catch(() => {});
+          } else {
+            audio.pause();
+          }
+        } else if (fallbackAudio && fallbackAudio.src) {
+          if (fallbackAudio.paused) {
+            fallbackAudio.play().catch(() => {});
+          } else {
+            fallbackAudio.pause();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [playingId]);
+
   // Playback control
   const handlePlayToggle = useCallback(
-    (highlight: RaceHighlight) => {
+    (highlight: RaceHighlight, initialSeekRatio?: number) => {
       const audio = audioRef.current;
       const fallbackAudio = fallbackAudioRef.current;
       if (!audio) return;
 
       initWebAudio();
 
-      if (playingId === highlight.id) {
+      if (playingId === highlight.id && initialSeekRatio === undefined) {
         playRequestRef.current += 1;
+        pendingFallbackSeekRef.current = null;
         if (!audio.paused) audio.pause();
         if (fallbackAudio && !fallbackAudio.paused) fallbackAudio.pause();
         setPlayingId(null);
       } else {
+        pendingFallbackSeekRef.current = null;
         if (!audio.paused) audio.pause();
         if (fallbackAudio && !fallbackAudio.paused) fallbackAudio.pause();
 
@@ -240,11 +295,20 @@ export function BestRaceRadioRibbon({
         playF1RadioChime(0.85).finally(() => {
           if (!audioRef.current || requestId !== playRequestRef.current) return;
 
+          if (typeof initialSeekRatio === 'number' && audioRef.current.duration) {
+            audioRef.current.currentTime = initialSeekRatio * audioRef.current.duration;
+            setCurrentTime(audioRef.current.currentTime);
+          }
+
           audioRef.current
             .play()
             .then(() => {
               if (requestId === playRequestRef.current) {
                 setPlayingId(highlight.id);
+                if (typeof initialSeekRatio === 'number' && audioRef.current?.duration) {
+                  audioRef.current.currentTime = initialSeekRatio * audioRef.current.duration;
+                  setCurrentTime(audioRef.current.currentTime);
+                }
               }
             })
             .catch(() => {
@@ -252,6 +316,17 @@ export function BestRaceRadioRibbon({
               if (fb && requestId === playRequestRef.current) {
                 fb.src = highlight.radioClip.recordingUrl;
                 fb.volume = 0.85;
+                if (typeof initialSeekRatio === 'number') {
+                  if (fb.duration) {
+                    fb.currentTime = initialSeekRatio * fb.duration;
+                    setCurrentTime(fb.currentTime);
+                    pendingFallbackSeekRef.current = null;
+                  } else {
+                    pendingFallbackSeekRef.current = { requestId, ratio: initialSeekRatio };
+                  }
+                } else {
+                  pendingFallbackSeekRef.current = null;
+                }
                 fb
                   .play()
                   .then(() => {
@@ -261,6 +336,7 @@ export function BestRaceRadioRibbon({
                   })
                   .catch(() => {
                     if (requestId === playRequestRef.current) {
+                      pendingFallbackSeekRef.current = null;
                       setPlayingId(null);
                     }
                   });
@@ -286,6 +362,34 @@ export function BestRaceRadioRibbon({
       }
     },
     [playingId, initWebAudio, transcriptsMap]
+  );
+
+  // Waveform click seeking handler
+  const handleWaveformSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, highlight: RaceHighlight) => {
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const ratio = clickX / rect.width;
+
+      const audio = audioRef.current;
+      const fallbackAudio = fallbackAudioRef.current;
+
+      if (playingId === highlight.id && duration > 0) {
+        const targetTime = ratio * duration;
+        if (audio && !isNaN(targetTime)) {
+          audio.currentTime = targetTime;
+          setCurrentTime(targetTime);
+        }
+        if (fallbackAudio && !isNaN(targetTime)) {
+          fallbackAudio.currentTime = targetTime;
+        }
+      } else {
+        handlePlayToggle(highlight, ratio);
+      }
+    },
+    [playingId, duration, handlePlayToggle]
   );
 
   const formatSecs = (secs: number) => {
@@ -334,11 +438,10 @@ export function BestRaceRadioRibbon({
   return (
     <div
       className={cn(
-        'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 shadow-xl backdrop-blur-sm relative transition-all',
+        seamless
+          ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[120px_1fr_1fr_1fr] bg-zinc-950 relative transition-all w-full divide-y sm:divide-y-0 divide-zinc-800/80 sm:[&>*:not(:last-child)]:border-r sm:[&>*:not(:last-child)]:border-zinc-800/80'
+          : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 rounded-2xl border border-white/10 bg-zinc-950/90 shadow-xl backdrop-blur-sm relative transition-all max-lg:[&>*:nth-child(-n+2)]:border-b max-lg:[&>*:nth-child(-n+2)]:border-white/10 max-lg:[&>*:nth-child(odd)]:border-r max-lg:[&>*:nth-child(odd)]:border-white/10 lg:[&>*:not(:last-child)]:border-r lg:[&>*:not(:last-child)]:border-white/10',
         playingId ? 'z-40' : 'z-20',
-        'max-lg:[&>*:nth-child(-n+2)]:border-b max-lg:[&>*:nth-child(-n+2)]:border-white/10',
-        'max-lg:[&>*:nth-child(odd)]:border-r max-lg:[&>*:nth-child(odd)]:border-white/10',
-        'lg:[&>*:not(:last-child)]:border-r lg:[&>*:not(:last-child)]:border-white/10',
         className
       )}
     >
@@ -368,23 +471,46 @@ export function BestRaceRadioRibbon({
           if (fallbackAudioRef.current) setCurrentTime(fallbackAudioRef.current.currentTime);
         }}
         onLoadedMetadata={() => {
-          if (fallbackAudioRef.current) setDuration(fallbackAudioRef.current.duration || 0);
+          if (fallbackAudioRef.current) {
+            setDuration(fallbackAudioRef.current.duration || 0);
+            const pending = pendingFallbackSeekRef.current;
+            if (
+              pending &&
+              pending.requestId === playRequestRef.current &&
+              fallbackAudioRef.current.duration
+            ) {
+              const targetTime = pending.ratio * fallbackAudioRef.current.duration;
+              fallbackAudioRef.current.currentTime = targetTime;
+              setCurrentTime(targetTime);
+              pendingFallbackSeekRef.current = null;
+            }
+          }
         }}
         onEnded={() => {
+          pendingFallbackSeekRef.current = null;
           setPlayingId(null);
           setCurrentTime(0);
         }}
         onError={() => {
+          pendingFallbackSeekRef.current = null;
           setPlayingId(null);
           setCurrentTime(0);
         }}
       />
 
       {/* ── Tile 1: BEST RACE RADIO Title Cell (clean, static without pulsing) ── */}
-      <div className="py-2.5 sm:py-3 px-4 sm:px-5 flex items-center justify-center transition-colors">
-        <div className="text-base sm:text-lg font-black font-mono text-white leading-tight flex items-center gap-2">
-          <Radio className="size-4 text-red-500 shrink-0" />
-          <span>BEST RACE RADIO</span>
+      <div className={cn(
+        'py-2.5 sm:py-3 flex items-center justify-center transition-colors bg-zinc-950 select-none shrink-0',
+        seamless ? 'px-2 sm:px-2.5' : 'px-4 sm:px-5'
+      )}>
+        <div className="font-black font-mono text-white leading-tight flex items-center gap-1.5 sm:gap-2">
+          <Radio className="size-3.5 sm:size-4 text-red-500 shrink-0" />
+          <span className={cn(
+            'font-black font-mono uppercase tracking-wider',
+            seamless ? 'text-[11px] sm:text-xs leading-tight' : 'text-sm sm:text-base'
+          )}>
+            BEST RACE<br className="block" />RADIO
+          </span>
         </div>
       </div>
 
@@ -392,7 +518,7 @@ export function BestRaceRadioRibbon({
       {bestHighlights.map((hl) => {
         const isPlaying = playingId === hl.id;
         const livery = hl.teamColour || '#e10600';
-        const surname = hl.title.replace(/\s*RADIO$/i, '') || hl.driverName.split(' ').pop();
+        const surname = hl.title.replace(/\s*RADIO$/i, '') || hl.driverName.split(' ').pop() || '';
         const displayQuote = transcriptsMap[hl.id] || hl.transcript;
 
         return (
@@ -401,7 +527,7 @@ export function BestRaceRadioRibbon({
             data-highlight-id={hl.id}
             onClick={() => handlePlayToggle(hl)}
             className={cn(
-              'relative py-2 sm:py-2.5 px-3 sm:px-3.5 flex items-center justify-between gap-2.5 transition-colors cursor-pointer select-none group min-h-[64px]',
+              'relative py-2 sm:py-2.5 px-2.5 sm:px-3 flex items-center justify-between gap-2 transition-colors cursor-pointer select-none group min-h-[60px] min-w-0',
               isPlaying ? 'bg-white/[0.04] z-50' : 'hover:bg-white/[0.02] z-10'
             )}
           >
@@ -412,44 +538,44 @@ export function BestRaceRadioRibbon({
               style={{ backgroundColor: livery }}
             />
 
-            {/* Center Info Block: Row 1 (Identity & Category), Row 2 (RADIO label & Waveform) */}
-            <div className="flex-1 min-w-0 flex flex-col justify-between gap-1">
-              {/* Row 1: SURNAME #NUM LLAP ... CATEGORY */}
-              <div className="flex items-center justify-between gap-1.5">
-                <div className="flex items-center gap-1.5 truncate">
-                  <span
-                    className="text-xs font-black font-mono tracking-wider uppercase truncate"
-                    style={{ color: livery }}
-                  >
-                    {surname} #{hl.driverNumber}
-                  </span>
-                  <span className="text-[10px] font-mono font-bold px-1 py-0.2 rounded border border-white/10 text-zinc-400 bg-zinc-900/80 shrink-0">
-                    L{hl.lap}
-                  </span>
-                </div>
+            {/* Center Info Block: Row 1 (Identity & Category), Row 2 (#num · Llap & Waveform) */}
+            <div className="flex-1 min-w-0 flex flex-col justify-between gap-1 py-0.5">
+              {/* Row 1: SURNAME ... CATEGORY */}
+              <div className="flex items-center justify-between gap-1.5 min-w-0">
+                <span
+                  className="text-xs font-black font-mono tracking-tight uppercase truncate"
+                  style={{ color: livery }}
+                  title={`${surname} #${hl.driverNumber}`}
+                >
+                  {surname}
+                </span>
 
                 <div className="shrink-0">
                   {renderCategoryLabel(hl.category)}
                 </div>
               </div>
 
-              {/* Row 2: "RADIO" text + Waveform black box */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold text-zinc-400 tracking-wider shrink-0">
-                  RADIO
+              {/* Row 2: #NUM · LLAP + Waveform visualizer */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[10px] font-mono font-bold text-zinc-400 shrink-0">
+                  #{hl.driverNumber} · L{hl.lap}
                 </span>
 
                 {/* Waveform visualizer in team color (frameless & borderless, buttery smooth 60/120fps) */}
-                <div className="flex items-center gap-[2px] h-5 overflow-hidden flex-1 max-w-[120px]">
-                  {WAVE_BARS.slice(0, 14).map((heightPct, idx) => {
+                <div
+                  onClick={(e) => handleWaveformSeek(e, hl)}
+                  className="flex items-center gap-[2px] h-4 overflow-hidden flex-1 max-w-[70px] sm:max-w-[85px] cursor-pointer hover:opacity-85 transition-opacity"
+                  title="Click to seek"
+                >
+                  {WAVE_BARS.slice(0, 12).map((heightPct, idx) => {
                     const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
-                    const playedBarsCount = Math.floor(progressRatio * 14);
+                    const playedBarsCount = Math.floor(progressRatio * 12);
                     const isPlayed = isPlaying && idx <= playedBarsCount;
 
                     return (
                       <span
                         key={idx}
-                        className="w-[2px] rounded-full"
+                        className="w-[2px] rounded-full shrink-0"
                         style={getWaveformBarStyle({
                           idx,
                           isPlaying,
@@ -472,7 +598,7 @@ export function BestRaceRadioRibbon({
                 handlePlayToggle(hl);
               }}
               className={cn(
-                'size-8 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-95 shadow-md ml-1',
+                'size-7 sm:size-7.5 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-95 shadow-md',
                 isPlaying
                   ? 'bg-white text-black ring-2 ring-white/30'
                   : 'bg-zinc-800 text-white hover:bg-zinc-700'
@@ -480,9 +606,9 @@ export function BestRaceRadioRibbon({
               aria-label={isPlaying ? 'Pause radio' : 'Play radio'}
             >
               {isPlaying ? (
-                <Pause className="size-3.5 fill-black" />
+                <Pause className="size-3 fill-black" />
               ) : (
-                <Play className="size-3.5 fill-white ml-0.5" />
+                <Play className="size-3 fill-white ml-0.5" />
               )}
             </button>
 
@@ -491,8 +617,11 @@ export function BestRaceRadioRibbon({
               <div
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  'absolute z-50 top-0 left-0 right-0 sm:-top-2 sm:-left-2 sm:-right-2',
-                  'rounded-2xl border border-white/20 bg-zinc-950 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.95)] p-3 sm:p-3.5 space-y-2 select-none animate-in fade-in zoom-in-95 duration-150'
+                  'absolute z-50 top-0 left-0 right-0',
+                  seamless
+                    ? 'rounded-b-xl border-x border-b border-white/20'
+                    : 'sm:-top-2 sm:-left-2 sm:-right-2 rounded-2xl border border-white/20',
+                  'bg-zinc-950 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.95)] p-3 sm:p-3.5 space-y-2 select-none animate-in fade-in zoom-in-95 duration-150'
                 )}
               >
                 {/* Top team livery accent stripe */}
@@ -549,7 +678,11 @@ export function BestRaceRadioRibbon({
                     <Pause className="size-3 fill-black" />
                   </button>
 
-                  <div className="flex-1 flex items-center justify-center gap-[2px] h-6 overflow-hidden px-1">
+                  <div
+                    onClick={(e) => handleWaveformSeek(e, hl)}
+                    className="flex-1 flex items-center justify-center gap-[2px] h-6 overflow-hidden px-1 cursor-pointer hover:opacity-85 transition-opacity"
+                    title="Click to seek"
+                  >
                     {WAVE_BARS.map((heightPct, idx) => {
                       const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
                       const playedBarsCount = Math.floor(progressRatio * WAVE_BARS.length);
@@ -588,13 +721,17 @@ export function BestRaceRadioRibbon({
 
                   <div className="pt-1 border-t border-white/5 flex items-center justify-between text-[10px] font-mono">
                     <span className="text-zinc-500">Lap trace:</span>
-                    <Link
-                      href={`/calendar/${round}/laps?season=${season}&lap=${hl.lap}`}
-                      className="text-zinc-300 hover:text-white flex items-center gap-1 font-bold transition-colors"
-                    >
-                      <span>Jump to Lap {hl.lap}</span>
-                      <ExternalLink className="size-2.5 text-zinc-400" />
-                    </Link>
+                    {season && round ? (
+                      <Link
+                        href={`/calendar/${round}/laps?season=${season}&lap=${hl.lap}`}
+                        className="text-zinc-300 hover:text-white flex items-center gap-1 font-bold transition-colors"
+                      >
+                        <span>Jump to Lap {hl.lap}</span>
+                        <ExternalLink className="size-2.5 text-zinc-400" />
+                      </Link>
+                    ) : (
+                      <span className="text-zinc-400 font-semibold">Lap {hl.lap}</span>
+                    )}
                   </div>
                 </div>
               </div>
