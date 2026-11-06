@@ -205,6 +205,45 @@ export function BestRaceRadioRibbon({
     };
   }, []);
 
+  // Keyboard accessibility shortcuts: Space to toggle pause/play, Esc to close
+  useEffect(() => {
+    if (!playingId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
+        if (fallbackAudioRef.current && !fallbackAudioRef.current.paused) fallbackAudioRef.current.pause();
+        setPlayingId(null);
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        const audio = audioRef.current;
+        const fallbackAudio = fallbackAudioRef.current;
+        if (audio && audio.src) {
+          if (audio.paused) {
+            audio.play().catch(() => {});
+          } else {
+            audio.pause();
+          }
+        } else if (fallbackAudio && fallbackAudio.src) {
+          if (fallbackAudio.paused) {
+            fallbackAudio.play().catch(() => {});
+          } else {
+            fallbackAudio.pause();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [playingId]);
+
   // Playback control
   const handlePlayToggle = useCallback(
     (highlight: RaceHighlight, initialSeekRatio?: number) => {
