@@ -26,8 +26,10 @@ export function getWaveformBarStyle(params: {
 
   if (!isPlaying) {
     return {
+      display: 'inline-block',
       height: baseHeight,
       minHeight: '4px',
+      minWidth: '2px',
       backgroundColor: livery,
       opacity: 0.8,
       transform: 'scaleY(1)',
@@ -41,8 +43,10 @@ export function getWaveformBarStyle(params: {
   const delay = -((idx * 0.17) % 0.85).toFixed(2);
 
   return {
+    display: 'inline-block',
     height: baseHeight,
     minHeight: '4px',
+    minWidth: '2px',
     backgroundColor: isPlayed ? '#ffffff' : livery,
     opacity: isPlayed ? 1 : 0.85,
     transformOrigin: 'center',
