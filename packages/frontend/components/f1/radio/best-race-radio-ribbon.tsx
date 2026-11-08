@@ -683,15 +683,15 @@ export function BestRaceRadioRibbon({
                     className="flex-1 flex items-center justify-center gap-[2px] h-6 overflow-hidden px-1 cursor-pointer hover:opacity-85 transition-opacity"
                     title="Click to seek"
                   >
-                    {WAVE_BARS.map((heightPct, idx) => {
+                    {WAVE_BARS.slice(0, 16).map((heightPct, idx) => {
                       const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
-                      const playedBarsCount = Math.floor(progressRatio * WAVE_BARS.length);
-                      const isPlayed = idx <= playedBarsCount;
+                      const playedBarsCount = Math.floor(progressRatio * 16);
+                      const isPlayed = progressRatio > 0 && idx <= playedBarsCount;
 
                       return (
                         <span
                           key={idx}
-                          className="w-[2.5px] rounded-full"
+                          className="w-[2px] sm:w-[2.5px] min-w-[2px] rounded-full shrink-0"
                           style={getWaveformBarStyle({
                             idx,
                             isPlaying: true,

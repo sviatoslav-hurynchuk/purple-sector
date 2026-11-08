@@ -264,7 +264,7 @@ export function RadioHighlightTile({
             return (
               <span
                 key={idx}
-                className="w-[3px] rounded-full"
+                className="w-[3px] min-w-[2px] rounded-full shrink-0"
                 style={getWaveformBarStyle({
                   idx,
                   isPlaying,
