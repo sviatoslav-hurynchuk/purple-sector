@@ -1,8 +1,17 @@
 import { Router, Request, Response } from 'express';
-import { getRaceSchedule, getRaceResult, getNextRace, isRaceWeekend, getRacePitStops, getRaceLaps } from '../services/jolpica';
+import { cache } from '../services/cache';
+import {
+  getRaceSchedule,
+  getRaceResult,
+  getNextRace,
+  isRaceWeekend,
+  getRacePitStops,
+  getRaceLaps,
+} from '../services/jolpica';
 import { enrichRaceWithScheduleOverrides } from '../services/schedule-detector';
 
 const router: Router = Router();
+
 function getCurrentSeason(): string {
   return new Date().getFullYear().toString();
 }
@@ -23,14 +32,41 @@ function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
 router.get('/next', async (req: Request, res: Response) => {
   try {
     const mockParam = (req.query.mockScheduleChange as string) || (req.query.mock as string);
-    const race = await getNextRace();
-    if (!race) {
+    if (mockParam) {
+      const race = await getNextRace();
+      if (!race) {
+        res.status(404).json({ error: 'No upcoming races found' });
+        return;
+      }
+      const enrichedRace = await enrichRaceWithScheduleOverrides(race, mockParam);
+      res.setHeader('X-Cache-Status', 'MISS');
+      setCacheHeaders(res, isRaceWeekend() ? 20 : 60);
+      res.json(enrichedRace);
+      return;
+    }
+
+    const swrKey = 'f1:swr:races:next';
+    const softTtl = isRaceWeekend() ? 20 : 60;
+    const hardTtl = 12 * 3600; // 12 hours retention
+
+    const result = await cache.swr(
+      swrKey,
+      async () => {
+        const race = await getNextRace();
+        if (!race) return null;
+        return enrichRaceWithScheduleOverrides(race);
+      },
+      { softTtlSeconds: softTtl, hardTtlSeconds: hardTtl }
+    );
+
+    if (!result.data) {
       res.status(404).json({ error: 'No upcoming races found' });
       return;
     }
-    const enrichedRace = await enrichRaceWithScheduleOverrides(race, mockParam);
-    setCacheHeaders(res, isRaceWeekend() ? 20 : 60);
-    res.json(enrichedRace);
+
+    res.setHeader('X-Cache-Status', result.status);
+    setCacheHeaders(res, softTtl);
+    res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -44,10 +80,20 @@ router.get('/next', async (req: Request, res: Response) => {
 router.get('/:season', async (req: Request, res: Response) => {
   try {
     const { season } = req.params;
-    const races = await getRaceSchedule(season);
-    const maxAge = season === getCurrentSeason() ? 21600 : 86400; // 6h vs 24h
-    setCacheHeaders(res, maxAge);
-    res.json({ season, races });
+    const isCurrent = season === getCurrentSeason();
+    const softTtl = isCurrent ? 21600 : 86400; // 6h vs 24h
+    const hardTtl = isCurrent ? 86400 : 604800; // 24h vs 7d
+    const swrKey = `f1:swr:races:schedule:${season}`;
+
+    const result = await cache.swr(
+      swrKey,
+      () => getRaceSchedule(season),
+      { softTtlSeconds: softTtl, hardTtlSeconds: hardTtl }
+    );
+
+    res.setHeader('X-Cache-Status', result.status);
+    setCacheHeaders(res, softTtl);
+    res.json({ season, races: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -62,18 +108,41 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
     const mockParam = (req.query.mockScheduleChange as string) || (req.query.mock as string);
-    const race = await getRaceResult(season, round);
 
-    if (!race) {
+    if (mockParam) {
+      const race = await getRaceResult(season, round);
+      if (!race) {
+        res.status(404).json({ error: `Race not found: season ${season}, round ${round}` });
+        return;
+      }
+      const enriched = await enrichRaceWithScheduleOverrides(race, mockParam);
+      res.setHeader('X-Cache-Status', 'MISS');
+      res.json(enriched);
+      return;
+    }
+
+    const swrKey = `f1:swr:races:round:${season}:${round}`;
+    const result = await cache.swr(
+      swrKey,
+      async () => {
+        const race = await getRaceResult(season, round);
+        if (!race) return null;
+        const hasResults = 'Results' in race && Array.isArray(race.Results) && race.Results.length > 0;
+        return hasResults ? race : await enrichRaceWithScheduleOverrides(race);
+      },
+      { softTtlSeconds: 120, hardTtlSeconds: 86400 }
+    );
+
+    if (!result.data) {
       res.status(404).json({ error: `Race not found: season ${season}, round ${round}` });
       return;
     }
 
-    const hasResults = 'Results' in race && Array.isArray(race.Results) && race.Results.length > 0;
-    const enriched = hasResults && !mockParam ? race : await enrichRaceWithScheduleOverrides(race, mockParam);
-
-    setCacheHeaders(res, hasResults ? 86400 : (isRaceWeekend() ? 60 : 300));
-    res.json(enriched);
+    const hasResults =
+      'Results' in result.data && Array.isArray(result.data.Results) && result.data.Results.length > 0;
+    res.setHeader('X-Cache-Status', result.status);
+    setCacheHeaders(res, hasResults ? 86400 : isRaceWeekend() ? 60 : 300);
+    res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -91,9 +160,15 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
 router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
-    const pitStops = await getRacePitStops(season, round);
+    const swrKey = `f1:swr:races:pitstops:${season}:${round}`;
 
-    if (!pitStops) {
+    const result = await cache.swr(
+      swrKey,
+      () => getRacePitStops(season, round),
+      { softTtlSeconds: 300, hardTtlSeconds: 86400 }
+    );
+
+    if (!result.data) {
       res.status(404).json({
         error: `Pit stop data not available for season ${season}, round ${round}. Data is available from 2012 onwards for completed races.`,
       });
@@ -101,8 +176,9 @@ router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
     }
 
     // Pit stop records are immutable after a race ends — cache aggressively
+    res.setHeader('X-Cache-Status', result.status);
     setCacheHeaders(res, 86400);
-    res.json({ season, round, pitStops });
+    res.json({ season, round, pitStops: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -118,9 +194,15 @@ router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
 router.get('/:season/:round/laps', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
-    const lapsData = await getRaceLaps(season, round);
+    const swrKey = `f1:swr:races:laps:${season}:${round}`;
 
-    if (!lapsData) {
+    const result = await cache.swr(
+      swrKey,
+      () => getRaceLaps(season, round),
+      { softTtlSeconds: 300, hardTtlSeconds: 604800 }
+    );
+
+    if (!result.data) {
       res.status(404).json({
         error: `Lap data not available for season ${season}, round ${round}. Data is available for completed races.`,
       });
@@ -128,8 +210,9 @@ router.get('/:season/:round/laps', async (req: Request, res: Response) => {
     }
 
     // Lap records are immutable after a race ends — cache aggressively
+    res.setHeader('X-Cache-Status', result.status);
     setCacheHeaders(res, 86400);
-    res.json(lapsData);
+    res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });

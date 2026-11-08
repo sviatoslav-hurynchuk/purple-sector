@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { cache } from '../services/cache';
 import type { DriverStanding, ConstructorStanding } from '../types/f1';
 import {
   getDriverStandings,
@@ -49,20 +50,34 @@ router.get('/drivers', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Invalid round parameter. Must be a positive integer.' });
       return;
     }
-    const standings = await getDriverStandings(season, roundResult.value);
-    let championshipStatus: ChampionshipClinchStatus | null = null;
-    if (!roundResult.value && standings.length > 0) {
-      championshipStatus = await getDriverChampionshipStatus(season).catch(() => null);
-      if (championshipStatus?.isClinched && championshipStatus.championId) {
-        const leader = standings.find((s) => s.Driver.driverId === championshipStatus?.championId);
-        if (leader) {
-          (leader as DriverStanding & { isClinchedChampion?: boolean }).isClinchedChampion = true;
+
+    const isCurrent = season === currentSeason;
+    const softTtl = isCurrent ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
+    const hardTtl = isCurrent ? 86400 : 604800; // 7d for past seasons
+    const swrKey = `f1:swr:standings:drivers:${season}:${roundResult.value ?? 'latest'}`;
+
+    const result = await cache.swr(
+      swrKey,
+      async () => {
+        const standings = await getDriverStandings(season, roundResult.value);
+        let championshipStatus: ChampionshipClinchStatus | null = null;
+        if (!roundResult.value && standings.length > 0) {
+          championshipStatus = await getDriverChampionshipStatus(season).catch(() => null);
+          if (championshipStatus?.isClinched && championshipStatus.championId) {
+            const leader = standings.find((s) => s.Driver.driverId === championshipStatus?.championId);
+            if (leader) {
+              (leader as DriverStanding & { isClinchedChampion?: boolean }).isClinchedChampion = true;
+            }
+          }
         }
-      }
-    }
-    const maxAge = season === currentSeason ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
-    setCacheHeaders(res, maxAge);
-    res.json({ season, round: roundResult.value, standings, championship: championshipStatus });
+        return { season, round: roundResult.value, standings, championship: championshipStatus };
+      },
+      { softTtlSeconds: softTtl, hardTtlSeconds: hardTtl }
+    );
+
+    res.setHeader('X-Cache-Status', result.status);
+    setCacheHeaders(res, softTtl);
+    res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -83,20 +98,34 @@ router.get('/constructors', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Invalid round parameter. Must be a positive integer.' });
       return;
     }
-    const standings = await getConstructorStandings(season, roundResult.value);
-    let championshipStatus: ChampionshipClinchStatus | null = null;
-    if (!roundResult.value && standings.length > 0) {
-      championshipStatus = await getConstructorChampionshipStatus(season).catch(() => null);
-      if (championshipStatus?.isClinched && championshipStatus.championId) {
-        const leader = standings.find((s) => s.Constructor.constructorId === championshipStatus?.championId);
-        if (leader) {
-          (leader as ConstructorStanding & { isClinchedChampion?: boolean }).isClinchedChampion = true;
+
+    const isCurrent = season === currentSeason;
+    const softTtl = isCurrent ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
+    const hardTtl = isCurrent ? 86400 : 604800; // 7d for past seasons
+    const swrKey = `f1:swr:standings:constructors:${season}:${roundResult.value ?? 'latest'}`;
+
+    const result = await cache.swr(
+      swrKey,
+      async () => {
+        const standings = await getConstructorStandings(season, roundResult.value);
+        let championshipStatus: ChampionshipClinchStatus | null = null;
+        if (!roundResult.value && standings.length > 0) {
+          championshipStatus = await getConstructorChampionshipStatus(season).catch(() => null);
+          if (championshipStatus?.isClinched && championshipStatus.championId) {
+            const leader = standings.find((s) => s.Constructor.constructorId === championshipStatus?.championId);
+            if (leader) {
+              (leader as ConstructorStanding & { isClinchedChampion?: boolean }).isClinchedChampion = true;
+            }
+          }
         }
-      }
-    }
-    const maxAge = season === currentSeason ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
-    setCacheHeaders(res, maxAge);
-    res.json({ season, round: roundResult.value, standings, championship: championshipStatus });
+        return { season, round: roundResult.value, standings, championship: championshipStatus };
+      },
+      { softTtlSeconds: softTtl, hardTtlSeconds: hardTtl }
+    );
+
+    res.setHeader('X-Cache-Status', result.status);
+    setCacheHeaders(res, softTtl);
+    res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });

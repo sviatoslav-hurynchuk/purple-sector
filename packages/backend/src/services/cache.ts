@@ -21,6 +21,8 @@ export interface SwrOptions {
   hardTtlSeconds: number;
   /** Mutex lock duration for background revalidation to prevent thundering herd (defaults to 30s). */
   lockTtlSeconds?: number;
+  /** Whether to cache null or undefined results (defaults to false to prevent caching 404s/transient errors). */
+  cacheNull?: boolean;
 }
 
 /** Cache lookup outcome status. */
@@ -146,7 +148,9 @@ abstract class BaseCacheService implements ICacheService {
     this.misses++;
     const { result, coalesced } = await this.singleflight.do<T>(key, async () => {
       const freshData = await fetcher();
-      await this.setSwr(key, freshData, options);
+      if ((freshData !== null && freshData !== undefined) || options.cacheNull) {
+        await this.setSwr(key, freshData, options);
+      }
       return freshData;
     });
 
@@ -176,7 +180,9 @@ abstract class BaseCacheService implements ICacheService {
       this.revalidationsTriggered++;
       try {
         const freshData = await fetcher();
-        await this.setSwr(key, freshData, options);
+        if ((freshData !== null && freshData !== undefined) || options.cacheNull) {
+          await this.setSwr(key, freshData, options);
+        }
       } catch (err) {
         console.warn(
           `[Cache:SWR] Background revalidation failed for "${key}":`,
