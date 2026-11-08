@@ -14,15 +14,19 @@ interface CacheEntry<T = unknown> {
 /**
  * SWR caching options defining fresh duration and stale grace period.
  */
-export interface SwrOptions {
-  /** Duration in seconds that data is considered 100% fresh (e.g. 60s). */
-  softTtlSeconds: number;
-  /** Maximum retention duration in seconds before hard eviction in Redis/Memory (e.g. 86400s). */
-  hardTtlSeconds: number;
+export interface SwrOptions<T = unknown> {
+  /** Duration in seconds that data is considered 100% fresh (e.g. 60s), or dynamic resolver. */
+  softTtlSeconds: number | ((data: T) => number);
+  /** Maximum retention duration in seconds before hard eviction in Redis/Memory (e.g. 86400s), or dynamic resolver. */
+  hardTtlSeconds: number | ((data: T) => number);
   /** Mutex lock duration for background revalidation to prevent thundering herd (defaults to 30s). */
   lockTtlSeconds?: number;
   /** Whether to cache null or undefined results (defaults to false to prevent caching 404s/transient errors). */
   cacheNull?: boolean;
+  /** Optional predicate to determine whether the returned data is complete and suitable for SWR caching. */
+  shouldCache?: (data: T) => boolean;
+  /** When true, an authoritative null result retires (deletes) the stale cache entry instead of preserving it. */
+  retireOnNull?: boolean;
 }
 
 /** Cache lookup outcome status. */
@@ -62,9 +66,9 @@ export interface ICacheService {
   /**
    * Stale-While-Revalidate (SWR) executor with background revalidation and singleflight deduplication.
    */
-  swr<T>(key: string, fetcher: () => Promise<T>, options: SwrOptions): Promise<SwrResult<T>>;
-  acquireLock(key: string, ttlSeconds: number): Promise<boolean>;
-  releaseLock(key: string): Promise<void>;
+  swr<T>(key: string, fetcher: () => Promise<T>, options: SwrOptions<T>): Promise<SwrResult<T>>;
+  acquireLock(key: string, ttlSeconds: number, ownerToken?: string): Promise<string | null>;
+  releaseLock(key: string, ownerToken?: string): Promise<boolean>;
 }
 
 /**
@@ -103,13 +107,38 @@ abstract class BaseCacheService implements ICacheService {
 
   abstract get<T>(key: string): Promise<T | null>;
   abstract set(key: string, value: unknown, ttlSeconds: number): Promise<void>;
-  abstract del(key: string): Promise<void>;
-  abstract flush(pattern?: string): Promise<number>;
   abstract isConnected(): boolean;
-  abstract acquireLock(key: string, ttlSeconds: number): Promise<boolean>;
-  abstract releaseLock(key: string): Promise<void>;
+  abstract acquireLock(key: string, ttlSeconds: number, ownerToken?: string): Promise<string | null>;
+  abstract releaseLock(key: string, ownerToken?: string): Promise<boolean>;
   abstract getEntry<T>(key: string): Promise<CacheEntry<T> | null>;
-  abstract setSwr(key: string, value: unknown, options: SwrOptions): Promise<void>;
+  abstract setSwr<T>(key: string, value: T, options: SwrOptions<T>): Promise<void>;
+
+  protected abstract delDirect(key: string): Promise<void>;
+  protected abstract flushDirect(pattern?: string): Promise<number>;
+
+  /**
+   * Coordinated cache deletion: when invalidating a core service key, also invalidate its SWR route counterpart.
+   */
+  async del(key: string): Promise<void> {
+    if (key === 'f1:next-race') {
+      await this.delDirect('f1:swr:races:next').catch(() => {});
+    } else if (key.startsWith('f1:schedule:')) {
+      const season = key.replace('f1:schedule:', '');
+      await this.delDirect(`f1:swr:races:schedule:${season}`).catch(() => {});
+    }
+    await this.delDirect(key);
+  }
+
+  /**
+   * Coordinated pattern flush: also cleans corresponding SWR counterpart namespaces.
+   */
+  async flush(pattern?: string): Promise<number> {
+    let count = await this.flushDirect(pattern);
+    if (pattern === 'f1:schedule:*' || pattern === 'f1:schedule*') {
+      count += await this.flushDirect('f1:swr:races:schedule:*');
+    }
+    return count;
+  }
 
   /**
    * Stale-While-Revalidate pattern implementation.
@@ -119,14 +148,23 @@ abstract class BaseCacheService implements ICacheService {
   async swr<T>(
     key: string,
     fetcher: () => Promise<T>,
-    options: SwrOptions
+    options: SwrOptions<T>
   ): Promise<SwrResult<T>> {
     const entry = await this.getEntry<T>(key);
     const now = Date.now();
 
     if (entry) {
-      const softTtl = (entry.softTtl ?? entry.ttl) * 1000;
-      const hardTtl = (entry.hardTtl ?? entry.ttl) * 1000;
+      const softTtlSec =
+        typeof options.softTtlSeconds === 'function'
+          ? options.softTtlSeconds(entry.data)
+          : (entry.softTtl ?? entry.ttl);
+      const hardTtlSec =
+        typeof options.hardTtlSeconds === 'function'
+          ? options.hardTtlSeconds(entry.data)
+          : (entry.hardTtl ?? entry.ttl);
+
+      const softTtl = softTtlSec * 1000;
+      const hardTtl = hardTtlSec * 1000;
       const ageMs = Math.max(0, now - entry.cachedAt);
       const ageSeconds = Math.floor(ageMs / 1000);
 
@@ -147,11 +185,35 @@ abstract class BaseCacheService implements ICacheService {
     // Case 3: Cache MISS (un-cached or expired past hard TTL)
     this.misses++;
     const { result, coalesced } = await this.singleflight.do<T>(key, async () => {
-      const freshData = await fetcher();
-      if ((freshData !== null && freshData !== undefined) || options.cacheNull) {
-        await this.setSwr(key, freshData, options);
+      // Coordinate across distributed instances via lock
+      const lockKey = `miss:${key}`;
+      const lockToken = await this.acquireLock(lockKey, 15);
+      if (!lockToken) {
+        // Another instance is fetching this key right now; wait briefly and check cache
+        for (let attempt = 0; attempt < 5; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          const existing = await this.getEntry<T>(key);
+          if (existing) {
+            return existing.data;
+          }
+        }
       }
-      return freshData;
+
+      try {
+        const freshData = await fetcher();
+        const canCache =
+          (options.shouldCache ? options.shouldCache(freshData) : true) &&
+          ((freshData !== null && freshData !== undefined) || options.cacheNull);
+
+        if (canCache) {
+          await this.setSwr(key, freshData, options);
+        }
+        return freshData;
+      } finally {
+        if (lockToken) {
+          await this.releaseLock(lockKey, lockToken).catch(() => {});
+        }
+      }
     });
 
     if (coalesced) {
@@ -167,29 +229,44 @@ abstract class BaseCacheService implements ICacheService {
   protected triggerBackgroundRevalidation<T>(
     key: string,
     fetcher: () => Promise<T>,
-    options: SwrOptions
+    options: SwrOptions<T>
   ): void {
     const lockTtl = options.lockTtlSeconds ?? 30;
 
     (async () => {
-      const acquired = await this.acquireLock(key, lockTtl);
-      if (!acquired) {
+      const lockToken = await this.acquireLock(key, lockTtl);
+      if (!lockToken) {
         return; // Another worker or request is actively revalidating this key
       }
 
       this.revalidationsTriggered++;
       try {
-        const freshData = await fetcher();
-        if ((freshData !== null && freshData !== undefined) || options.cacheNull) {
-          await this.setSwr(key, freshData, options);
-        }
+        // Coordinate revalidation with foreground fetches using the shared Singleflight map
+        await this.singleflight.do(key, async () => {
+          const freshData = await fetcher();
+
+          // If authoritative null returned for next-race or retireOnNull, delete stale entry
+          if (freshData === null && (options.retireOnNull || key === 'f1:swr:races:next')) {
+            await this.del(key);
+            return freshData;
+          }
+
+          const canCache =
+            (options.shouldCache ? options.shouldCache(freshData) : true) &&
+            ((freshData !== null && freshData !== undefined) || options.cacheNull);
+
+          if (canCache) {
+            await this.setSwr(key, freshData, options);
+          }
+          return freshData;
+        });
       } catch (err) {
         console.warn(
           `[Cache:SWR] Background revalidation failed for "${key}":`,
           err instanceof Error ? err.message : err
         );
       } finally {
-        await this.releaseLock(key).catch(() => {});
+        await this.releaseLock(key, lockToken).catch(() => {});
       }
     })().catch((err) => {
       console.error(`[Cache:SWR] Unhandled background revalidation error for "${key}":`, err);
@@ -216,11 +293,14 @@ abstract class BaseCacheService implements ICacheService {
 
 class MemoryCacheService extends BaseCacheService {
   private store = new Map<string, { json: string; expiresAt: number }>();
-  private locks = new Map<string, number>();
+  private locks = new Map<string, { token: string; expiresAt: number }>();
 
   async get<T>(key: string): Promise<T | null> {
     const entry = await this.getEntry<T>(key);
-    if (!entry) return null;
+    if (!entry) {
+      this.misses++;
+      return null;
+    }
     this.hits++;
     return entry.data;
   }
@@ -256,40 +336,56 @@ class MemoryCacheService extends BaseCacheService {
     });
   }
 
-  async setSwr(key: string, value: unknown, options: SwrOptions): Promise<void> {
-    const entry: CacheEntry = {
+  async setSwr<T>(key: string, value: T, options: SwrOptions<T>): Promise<void> {
+    const softTtl =
+      typeof options.softTtlSeconds === 'function'
+        ? options.softTtlSeconds(value)
+        : options.softTtlSeconds;
+    const hardTtl =
+      typeof options.hardTtlSeconds === 'function'
+        ? options.hardTtlSeconds(value)
+        : options.hardTtlSeconds;
+
+    const entry: CacheEntry<T> = {
       data: value,
       cachedAt: Date.now(),
-      ttl: options.hardTtlSeconds,
-      softTtl: options.softTtlSeconds,
-      hardTtl: options.hardTtlSeconds,
+      ttl: hardTtl,
+      softTtl,
+      hardTtl,
     };
     this.store.set(key, {
       json: JSON.stringify(entry),
-      expiresAt: Date.now() + options.hardTtlSeconds * 1000,
+      expiresAt: Date.now() + hardTtl * 1000,
     });
   }
 
-  async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+  async acquireLock(key: string, ttlSeconds: number, ownerToken?: string): Promise<string | null> {
     const now = Date.now();
+    const token = ownerToken ?? `${Date.now()}:${Math.random().toString(36).slice(2)}`;
     const existing = this.locks.get(key);
-    if (existing && existing > now) {
-      return false;
+    if (existing && existing.expiresAt > now) {
+      return null;
     }
-    this.locks.set(key, now + ttlSeconds * 1000);
-    return true;
+    this.locks.set(key, { token, expiresAt: now + ttlSeconds * 1000 });
+    return token;
   }
 
-  async releaseLock(key: string): Promise<void> {
-    this.locks.delete(key);
+  async releaseLock(key: string, ownerToken?: string): Promise<boolean> {
+    const existing = this.locks.get(key);
+    if (!existing) return true;
+    if (!ownerToken || existing.token === ownerToken) {
+      this.locks.delete(key);
+      return true;
+    }
+    return false;
   }
 
-  async del(key: string): Promise<void> {
+  protected async delDirect(key: string): Promise<void> {
     this.store.delete(key);
     this.locks.delete(key);
   }
 
-  async flush(pattern?: string): Promise<number> {
+  protected async flushDirect(pattern?: string): Promise<number> {
     if (!pattern || pattern === '*') {
       const count = this.store.size;
       this.store.clear();
@@ -329,14 +425,12 @@ class RedisCacheService extends BaseCacheService {
   async ping(timeoutMs = 3000): Promise<boolean> {
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Redis ping timed out after ${timeoutMs}ms`)), timeoutMs)
+        setTimeout(() => reject(new Error('Redis ping timeout')), timeoutMs)
       );
-
-      const result = await Promise.race([this.client.ping(), timeoutPromise]);
-      this.connected = result === 'PONG';
+      const res = await Promise.race([this.client.ping(), timeoutPromise]);
+      this.connected = res === 'PONG';
       return this.connected;
-    } catch (err) {
-      console.warn('[Cache] Redis ping failed:', err instanceof Error ? err.message : err);
+    } catch {
       this.connected = false;
       return false;
     }
@@ -344,7 +438,10 @@ class RedisCacheService extends BaseCacheService {
 
   async get<T>(key: string): Promise<T | null> {
     const entry = await this.getEntry<T>(key);
-    if (!entry) return null;
+    if (!entry) {
+      this.misses++;
+      return null;
+    }
     this.hits++;
     return entry.data;
   }
@@ -375,42 +472,65 @@ class RedisCacheService extends BaseCacheService {
     }
   }
 
-  async setSwr(key: string, value: unknown, options: SwrOptions): Promise<void> {
+  async setSwr<T>(key: string, value: T, options: SwrOptions<T>): Promise<void> {
     try {
-      const entry: CacheEntry = {
+      const softTtl =
+        typeof options.softTtlSeconds === 'function'
+          ? options.softTtlSeconds(value)
+          : options.softTtlSeconds;
+      const hardTtl =
+        typeof options.hardTtlSeconds === 'function'
+          ? options.hardTtlSeconds(value)
+          : options.hardTtlSeconds;
+
+      const entry: CacheEntry<T> = {
         data: value,
         cachedAt: Date.now(),
-        ttl: options.hardTtlSeconds,
-        softTtl: options.softTtlSeconds,
-        hardTtl: options.hardTtlSeconds,
+        ttl: hardTtl,
+        softTtl,
+        hardTtl,
       };
-      await this.client.set(key, entry, { ex: options.hardTtlSeconds });
+      await this.client.set(key, entry, { ex: hardTtl });
     } catch (err) {
       console.warn('[Cache] Redis SET SWR failed:', err instanceof Error ? err.message : err);
     }
   }
 
-  async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+  async acquireLock(key: string, ttlSeconds: number, ownerToken?: string): Promise<string | null> {
+    const token = ownerToken ?? `${Date.now()}:${Math.random().toString(36).slice(2)}`;
     try {
       const lockKey = `f1:lock:revalidate:${key}`;
-      const res = await this.client.set(lockKey, '1', { nx: true, ex: ttlSeconds });
-      return res === 'OK';
+      const res = await this.client.set(lockKey, token, { nx: true, ex: ttlSeconds });
+      return res === 'OK' ? token : null;
     } catch (err) {
       console.warn('[Cache] Redis lock acquire failed:', err instanceof Error ? err.message : err);
+      return null;
+    }
+  }
+
+  async releaseLock(key: string, ownerToken?: string): Promise<boolean> {
+    try {
+      const lockKey = `f1:lock:revalidate:${key}`;
+      if (!ownerToken) {
+        await this.client.del(lockKey);
+        return true;
+      }
+      const lua = `
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+          return redis.call("del", KEYS[1])
+        else
+          return 0
+        end
+      `;
+      const res = await this.client.eval(lua, [lockKey], [ownerToken]);
+      return res === 1;
+    } catch (err) {
+      console.warn('[Cache] Redis lock release failed:', err instanceof Error ? err.message : err);
       return false;
     }
   }
 
-  async releaseLock(key: string): Promise<void> {
-    try {
-      const lockKey = `f1:lock:revalidate:${key}`;
-      await this.client.del(lockKey);
-    } catch (err) {
-      console.warn('[Cache] Redis lock release failed:', err instanceof Error ? err.message : err);
-    }
-  }
-
-  async del(key: string): Promise<void> {
+  protected async delDirect(key: string): Promise<void> {
     try {
       await this.client.del(key);
     } catch (err) {
@@ -418,7 +538,7 @@ class RedisCacheService extends BaseCacheService {
     }
   }
 
-  async flush(pattern?: string): Promise<number> {
+  protected async flushDirect(pattern?: string): Promise<number> {
     try {
       const queryPattern = pattern ?? 'f1:*';
       const keys = await this.client.keys(queryPattern);
@@ -449,47 +569,42 @@ export async function connectRedis(): Promise<void> {
   const token = process.env['UPSTASH_REDIS_REST_TOKEN'];
 
   if (!url || !token) {
-    console.log('[Cache] No Upstash credentials found — using in-memory fallback');
+    console.log('[Cache] No Redis credentials found. Running in-memory cache.');
+    cacheInstance = new MemoryCacheService();
     return;
   }
 
-  const redisService = new RedisCacheService(url, token);
-  const ok = await redisService.ping();
+  try {
+    const redisService = new RedisCacheService(url, token);
+    const ok = await redisService.ping();
 
-  if (ok) {
-    cacheInstance = redisService;
-    console.log('[Cache] Connected to Upstash Redis');
-  } else {
-    console.warn('[Cache] Failed to connect to Upstash Redis — using in-memory fallback');
+    if (ok) {
+      console.log('[Cache] Upstash Redis connected successfully.');
+      cacheInstance = redisService;
+    } else {
+      console.warn('[Cache] Upstash Redis ping failed. Falling back to in-memory cache.');
+      cacheInstance = new MemoryCacheService();
+    }
+  } catch (err) {
+    console.warn(
+      '[Cache] Failed to connect to Redis. Falling back to in-memory cache:',
+      err instanceof Error ? err.message : err
+    );
+    cacheInstance = new MemoryCacheService();
   }
 }
 
+/** Proxy object delegating calls dynamically to active cacheInstance */
 export const cache: ICacheService = {
-  get<T>(key: string) {
-    return cacheInstance.get<T>(key);
-  },
-  set(key: string, value: unknown, ttlSeconds: number) {
-    return cacheInstance.set(key, value, ttlSeconds);
-  },
-  del(key: string) {
-    return cacheInstance.del(key);
-  },
-  flush(pattern?: string) {
-    return cacheInstance.flush(pattern);
-  },
-  isConnected() {
-    return cacheInstance.isConnected();
-  },
-  getStats() {
-    return cacheInstance.getStats();
-  },
-  swr<T>(key: string, fetcher: () => Promise<T>, options: SwrOptions) {
-    return cacheInstance.swr<T>(key, fetcher, options);
-  },
-  acquireLock(key: string, ttlSeconds: number) {
-    return cacheInstance.acquireLock(key, ttlSeconds);
-  },
-  releaseLock(key: string) {
-    return cacheInstance.releaseLock(key);
-  },
+  get: <T>(key: string) => cacheInstance.get<T>(key),
+  set: (key: string, value: unknown, ttlSeconds: number) => cacheInstance.set(key, value, ttlSeconds),
+  del: (key: string) => cacheInstance.del(key),
+  flush: (pattern?: string) => cacheInstance.flush(pattern),
+  isConnected: () => cacheInstance.isConnected(),
+  getStats: () => cacheInstance.getStats(),
+  swr: <T>(key: string, fetcher: () => Promise<T>, options: SwrOptions<T>) =>
+    cacheInstance.swr(key, fetcher, options),
+  acquireLock: (key: string, ttlSeconds: number, ownerToken?: string) =>
+    cacheInstance.acquireLock(key, ttlSeconds, ownerToken),
+  releaseLock: (key: string, ownerToken?: string) => cacheInstance.releaseLock(key, ownerToken),
 };
