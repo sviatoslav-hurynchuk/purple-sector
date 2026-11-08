@@ -15,6 +15,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { connectRedis, cache } from './services/cache';
 import { warmCache } from './services/jolpica';
 import { startSessionWatcher } from './services/session-watcher';
+import { startCacheRefresher, stopCacheRefresher } from './services/cache-refresher';
 
 dotenv.config();
 
@@ -110,9 +111,24 @@ async function start(): Promise<void> {
   // Start background OpenF1 session lifecycle watcher
   startSessionWatcher();
 
-  app.listen(PORT, () => {
+  // Start autonomous proactive background cache refresher
+  startCacheRefresher();
+
+  const server = app.listen(PORT, () => {
     console.log(`-> F1 Backend running on http://localhost:${PORT}`);
   });
+
+  // Graceful shutdown handling
+  const shutdown = () => {
+    console.log('Shutting down backend gracefully...');
+    stopCacheRefresher();
+    server.close(() => {
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 start();
