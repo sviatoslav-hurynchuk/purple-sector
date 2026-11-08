@@ -43,7 +43,7 @@ const handleRaceSession = async (req: Request, res: Response): Promise<void> => 
     const result = await cache.swr(
       swrKey,
       () => getRaceSessionData(season, round),
-      { softTtlSeconds: 60, hardTtlSeconds: 86400 }
+      { softTtlSeconds: 60, hardTtlSeconds: 86400, shouldCache: (data) => Boolean(data?.isComplete) }
     );
 
     if (!result.data) {

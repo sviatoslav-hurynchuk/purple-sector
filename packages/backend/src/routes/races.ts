@@ -56,7 +56,7 @@ router.get('/next', async (req: Request, res: Response) => {
         if (!race) return null;
         return enrichRaceWithScheduleOverrides(race);
       },
-      { softTtlSeconds: softTtl, hardTtlSeconds: hardTtl }
+      { softTtlSeconds: softTtl, hardTtlSeconds: hardTtl, retireOnNull: true }
     );
 
     if (!result.data) {
@@ -80,14 +80,15 @@ router.get('/next', async (req: Request, res: Response) => {
 router.get('/:season', async (req: Request, res: Response) => {
   try {
     const { season } = req.params;
-    const isCurrent = season === getCurrentSeason();
+    const resolvedSeason = season === 'current' ? getCurrentSeason() : season;
+    const isCurrent = resolvedSeason === getCurrentSeason();
     const softTtl = isCurrent ? 21600 : 86400; // 6h vs 24h
     const hardTtl = isCurrent ? 86400 : 604800; // 24h vs 7d
-    const swrKey = `f1:swr:races:schedule:${season}`;
+    const swrKey = `f1:swr:races:schedule:${resolvedSeason}`;
 
     const result = await cache.swr(
       swrKey,
-      () => getRaceSchedule(season),
+      () => getRaceSchedule(resolvedSeason),
       { softTtlSeconds: softTtl, hardTtlSeconds: hardTtl }
     );
 
@@ -107,10 +108,11 @@ router.get('/:season', async (req: Request, res: Response) => {
 router.get('/:season/:round', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
+    const resolvedSeason = season === 'current' ? getCurrentSeason() : season;
     const mockParam = (req.query.mockScheduleChange as string) || (req.query.mock as string);
 
     if (mockParam) {
-      const race = await getRaceResult(season, round);
+      const race = await getRaceResult(resolvedSeason, round);
       if (!race) {
         res.status(404).json({ error: `Race not found: season ${season}, round ${round}` });
         return;
@@ -121,11 +123,11 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
       return;
     }
 
-    const swrKey = `f1:swr:races:round:${season}:${round}`;
+    const swrKey = `f1:swr:races:round:${resolvedSeason}:${round}`;
     const result = await cache.swr(
       swrKey,
       async () => {
-        const race = await getRaceResult(season, round);
+        const race = await getRaceResult(resolvedSeason, round);
         if (!race) return null;
         const hasResults = 'Results' in race && Array.isArray(race.Results) && race.Results.length > 0;
         return hasResults ? race : await enrichRaceWithScheduleOverrides(race);
@@ -160,11 +162,12 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
 router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
-    const swrKey = `f1:swr:races:pitstops:${season}:${round}`;
+    const resolvedSeason = season === 'current' ? getCurrentSeason() : season;
+    const swrKey = `f1:swr:races:pitstops:${resolvedSeason}:${round}`;
 
     const result = await cache.swr(
       swrKey,
-      () => getRacePitStops(season, round),
+      () => getRacePitStops(resolvedSeason, round),
       { softTtlSeconds: 300, hardTtlSeconds: 86400 }
     );
 
@@ -194,11 +197,12 @@ router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
 router.get('/:season/:round/laps', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
-    const swrKey = `f1:swr:races:laps:${season}:${round}`;
+    const resolvedSeason = season === 'current' ? getCurrentSeason() : season;
+    const swrKey = `f1:swr:races:laps:${resolvedSeason}:${round}`;
 
     const result = await cache.swr(
       swrKey,
-      () => getRaceLaps(season, round),
+      () => getRaceLaps(resolvedSeason, round),
       { softTtlSeconds: 300, hardTtlSeconds: 604800 }
     );
 

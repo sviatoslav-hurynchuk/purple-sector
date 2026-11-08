@@ -119,10 +119,25 @@ async function start(): Promise<void> {
   });
 
   // Graceful shutdown handling
+  let isShuttingDown = false;
   const shutdown = () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
     console.log('Shutting down backend gracefully...');
     stopCacheRefresher();
+
+    // Bounded 5s grace period: force-close connections if audio-proxy or SSE lingers
+    const forceTimer = setTimeout(() => {
+      console.warn('[Shutdown] Deadline reached, force-closing connections...');
+      if ('closeAllConnections' in server && typeof (server as any).closeAllConnections === 'function') {
+        (server as any).closeAllConnections();
+      }
+      process.exit(0);
+    }, 5000);
+    forceTimer.unref();
+
     server.close(() => {
+      clearTimeout(forceTimer);
       process.exit(0);
     });
   };

@@ -695,6 +695,7 @@ export async function getRaceSessionData(
       pitStops,
       teamRadio,
       highlights,
+      isComplete: hasResults,
     };
 
     // 5. Only cache long-term when results are successfully populated

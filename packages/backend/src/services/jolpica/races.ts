@@ -4,6 +4,7 @@ import type {
   Constructor,
   QualifyingResultEntry,
 } from '../../types/f1';
+import { cache } from '../cache';
 import {
   TTL,
   getCurrentSeason,
@@ -65,7 +66,7 @@ export type JolpicaRaceResultsResponse = JolpicaResponse<'RaceTable', RaceResult
 // ── Race Schedule ────────────────────────────────────────────────────────────
 
 export async function getRaceSchedule(season: string | number): Promise<Race[]> {
-  const s = String(season);
+  const s = String(season) === 'current' ? getCurrentSeason() : String(season);
   const ttl = s === getCurrentSeason() ? TTL.SCHEDULE_CURRENT : TTL.SCHEDULE_PAST;
 
   return cachedFetch(`f1:schedule:${s}`, ttl, async () => {
@@ -135,7 +136,10 @@ export async function getRaceResult(
 
 // ── Next Race ────────────────────────────────────────────────────────────────
 
-export async function getNextRace(): Promise<Race | null> {
+export async function getNextRace(bypassCache = false): Promise<Race | null> {
+  if (bypassCache) {
+    await cache.del('f1:next-race').catch(() => {});
+  }
   return cachedFetch('f1:next-race', getNextRaceTTL(), async () => {
     const data = await jolpicaFetch<JolpicaRacesResponse>('/current/next');
     return data.MRData.RaceTable.Races[0] ?? null;

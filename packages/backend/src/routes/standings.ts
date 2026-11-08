@@ -36,6 +36,64 @@ function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
   );
 }
 
+const EMPTY_STANDINGS_TTL = 300; // 5 minutes fallback for empty/unpopulated standings
+
+export interface EnrichedDriverStandingsResponse {
+  season: string;
+  round?: string;
+  standings: DriverStanding[];
+  championship: ChampionshipClinchStatus | null;
+}
+
+export interface EnrichedConstructorStandingsResponse {
+  season: string;
+  round?: string;
+  standings: ConstructorStanding[];
+  championship: ChampionshipClinchStatus | null;
+}
+
+/**
+ * Reusable fetcher for driver standings enriched with mathematical championship clinch detection.
+ */
+export async function getEnrichedDriverStandings(
+  season: string,
+  round?: string
+): Promise<EnrichedDriverStandingsResponse> {
+  const standings = await getDriverStandings(season, round);
+  let championshipStatus: ChampionshipClinchStatus | null = null;
+  if (!round && standings.length > 0) {
+    championshipStatus = await getDriverChampionshipStatus(season).catch(() => null);
+    if (championshipStatus?.isClinched && championshipStatus.championId) {
+      const leader = standings.find((s) => s.Driver.driverId === championshipStatus?.championId);
+      if (leader) {
+        (leader as DriverStanding & { isClinchedChampion?: boolean }).isClinchedChampion = true;
+      }
+    }
+  }
+  return { season, round, standings, championship: championshipStatus };
+}
+
+/**
+ * Reusable fetcher for constructor standings enriched with mathematical championship clinch detection.
+ */
+export async function getEnrichedConstructorStandings(
+  season: string,
+  round?: string
+): Promise<EnrichedConstructorStandingsResponse> {
+  const standings = await getConstructorStandings(season, round);
+  let championshipStatus: ChampionshipClinchStatus | null = null;
+  if (!round && standings.length > 0) {
+    championshipStatus = await getConstructorChampionshipStatus(season).catch(() => null);
+    if (championshipStatus?.isClinched && championshipStatus.championId) {
+      const leader = standings.find((s) => s.Constructor.constructorId === championshipStatus?.championId);
+      if (leader) {
+        (leader as ConstructorStanding & { isClinchedChampion?: boolean }).isClinchedChampion = true;
+      }
+    }
+  }
+  return { season, round, standings, championship: championshipStatus };
+}
+
 /**
  * GET /api/standings/drivers?season=2025
  * Returns the drivers championship standings for a given season.
@@ -44,7 +102,9 @@ function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
 router.get('/drivers', async (req: Request, res: Response) => {
   try {
     const currentSeason = getCurrentSeason();
-    const season = (req.query['season'] as string) ?? currentSeason;
+    const rawSeason = (req.query['season'] as string) ?? currentSeason;
+    const season = rawSeason === 'current' ? currentSeason : rawSeason;
+
     const roundResult = parseRound(req.query['round']);
     if (!roundResult.isValid) {
       res.status(400).json({ error: 'Invalid round parameter. Must be a positive integer.' });
@@ -52,31 +112,22 @@ router.get('/drivers', async (req: Request, res: Response) => {
     }
 
     const isCurrent = season === currentSeason;
-    const softTtl = isCurrent ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
-    const hardTtl = isCurrent ? 86400 : 604800; // 7d for past seasons
+    const standardSoftTtl = isCurrent ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
+    const standardHardTtl = isCurrent ? 86400 : 604800; // 7d for past seasons
     const swrKey = `f1:swr:standings:drivers:${season}:${roundResult.value ?? 'latest'}`;
 
-    const result = await cache.swr(
+    const result = await cache.swr<EnrichedDriverStandingsResponse>(
       swrKey,
-      async () => {
-        const standings = await getDriverStandings(season, roundResult.value);
-        let championshipStatus: ChampionshipClinchStatus | null = null;
-        if (!roundResult.value && standings.length > 0) {
-          championshipStatus = await getDriverChampionshipStatus(season).catch(() => null);
-          if (championshipStatus?.isClinched && championshipStatus.championId) {
-            const leader = standings.find((s) => s.Driver.driverId === championshipStatus?.championId);
-            if (leader) {
-              (leader as DriverStanding & { isClinchedChampion?: boolean }).isClinchedChampion = true;
-            }
-          }
-        }
-        return { season, round: roundResult.value, standings, championship: championshipStatus };
-      },
-      { softTtlSeconds: softTtl, hardTtlSeconds: hardTtl }
+      () => getEnrichedDriverStandings(season, roundResult.value),
+      {
+        softTtlSeconds: (data) => (data.standings.length > 0 ? standardSoftTtl : EMPTY_STANDINGS_TTL),
+        hardTtlSeconds: (data) => (data.standings.length > 0 ? standardHardTtl : 600),
+      }
     );
 
+    const hasData = result.data.standings.length > 0;
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, softTtl);
+    setCacheHeaders(res, hasData ? standardSoftTtl : EMPTY_STANDINGS_TTL);
     res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -92,7 +143,9 @@ router.get('/drivers', async (req: Request, res: Response) => {
 router.get('/constructors', async (req: Request, res: Response) => {
   try {
     const currentSeason = getCurrentSeason();
-    const season = (req.query['season'] as string) ?? currentSeason;
+    const rawSeason = (req.query['season'] as string) ?? currentSeason;
+    const season = rawSeason === 'current' ? currentSeason : rawSeason;
+
     const roundResult = parseRound(req.query['round']);
     if (!roundResult.isValid) {
       res.status(400).json({ error: 'Invalid round parameter. Must be a positive integer.' });
@@ -100,31 +153,22 @@ router.get('/constructors', async (req: Request, res: Response) => {
     }
 
     const isCurrent = season === currentSeason;
-    const softTtl = isCurrent ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
-    const hardTtl = isCurrent ? 86400 : 604800; // 7d for past seasons
+    const standardSoftTtl = isCurrent ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
+    const standardHardTtl = isCurrent ? 86400 : 604800; // 7d for past seasons
     const swrKey = `f1:swr:standings:constructors:${season}:${roundResult.value ?? 'latest'}`;
 
-    const result = await cache.swr(
+    const result = await cache.swr<EnrichedConstructorStandingsResponse>(
       swrKey,
-      async () => {
-        const standings = await getConstructorStandings(season, roundResult.value);
-        let championshipStatus: ChampionshipClinchStatus | null = null;
-        if (!roundResult.value && standings.length > 0) {
-          championshipStatus = await getConstructorChampionshipStatus(season).catch(() => null);
-          if (championshipStatus?.isClinched && championshipStatus.championId) {
-            const leader = standings.find((s) => s.Constructor.constructorId === championshipStatus?.championId);
-            if (leader) {
-              (leader as ConstructorStanding & { isClinchedChampion?: boolean }).isClinchedChampion = true;
-            }
-          }
-        }
-        return { season, round: roundResult.value, standings, championship: championshipStatus };
-      },
-      { softTtlSeconds: softTtl, hardTtlSeconds: hardTtl }
+      () => getEnrichedConstructorStandings(season, roundResult.value),
+      {
+        softTtlSeconds: (data) => (data.standings.length > 0 ? standardSoftTtl : EMPTY_STANDINGS_TTL),
+        hardTtlSeconds: (data) => (data.standings.length > 0 ? standardHardTtl : 600),
+      }
     );
 
+    const hasData = result.data.standings.length > 0;
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, softTtl);
+    setCacheHeaders(res, hasData ? standardSoftTtl : EMPTY_STANDINGS_TTL);
     res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
