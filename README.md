@@ -340,7 +340,7 @@ The backend implements an asynchronous **Stale-While-Revalidate (SWR)** caching 
   - **Soft TTL**: Duration data is considered strictly fresh (e.g. 60s). Handled with immediate `<3ms` cache return.
   - **Hard TTL**: Maximum retention window in Redis (up to 7 days). Requests hitting stale data (`softTtl <= age < hardTtl`) receive cached data **instantly** without waiting, while an asynchronous revalidation task is dispatched in the background.
 - **Singleflight Promise Coalescing**: Concurrent requests for the exact same uncached key share a single in-flight Promise (`Map<string, Promise<unknown>>`), preventing cache stampedes when keys expire.
-- **Distributed Mutex Lock (`acquireLock`)**: Background revalidation executes under an atomic Redis lock (`SET revalidate:lock:<key> 1 NX EX <ttl>`). Only one worker refreshes upstream, preventing duplicate upstream fetches across backend instances.
+- **Distributed Mutex Lock (`acquireLock`)**: Background revalidation executes under an atomic Redis lock (`SET f1:lock:revalidate:<key> 1 NX EX <ttl>`). Only one worker refreshes upstream, preventing duplicate upstream fetches across backend instances.
 - **Zero Cold-Start Latency**: First-time dashboard and modal loads avoid upstream network roundtrips entirely when warm.
 - **Upstream Rate Limit Shield**: Guarantees OpenF1's strict 3 req/sec threshold is never breached even under spikes of 500+ concurrent users.
 - **Diagnostic Response Headers**:

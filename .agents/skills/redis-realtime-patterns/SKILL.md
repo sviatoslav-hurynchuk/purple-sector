@@ -111,9 +111,9 @@ class Singleflight {
 
 ### C. Distributed Mutex Lock for Background Revalidation
 When hundreds of concurrent requests hit stale data, only **one** background worker should query upstream:
-- Atomic lock acquisition: `SET revalidate:lock:<key> 1 NX EX <ttlSeconds>`.
+- Atomic lock acquisition: `SET f1:lock:revalidate:<key> 1 NX EX <ttlSeconds>`.
 - If lock is denied, the duplicate revalidation is dropped cleanly while the user still receives valid stale data.
-- Lock is released upon completion (`DEL revalidate:lock:<key>`).
+- Lock is released upon completion (`DEL f1:lock:revalidate:<key>`).
 
 ### D. Autonomous Background Cache Refresher (`CacheRefresherService`)
 Continuously warms top-tier routes (`/next`, standings, schedule, active race) in an autonomous timer loop:
