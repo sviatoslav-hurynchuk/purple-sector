@@ -80,3 +80,44 @@ Always structure Redis keys using hierarchical delimiters (`:`) to enable granul
 
 - **Ingestion Worker**: Runs at a fixed rate (e.g. 1 poll every 3–4 seconds).
 - **Graceful Fallback**: If Redis is unreachable, fallback to `MemoryCacheService` + Node.js `EventEmitter`.
+
+---
+
+## 4. Stale-While-Revalidate (SWR) & Thundering Herd Shielding
+
+High-concurrency sports telemetry applications cannot afford cold-start latency or cache stampedes that overwhelm rate-limited upstream providers (OpenF1 3 req/sec limit). The platform deploys an enterprise-grade SWR layer:
+
+### A. Dual TTL Model (`softTtl` vs `hardTtl`)
+- **Soft TTL**: Period during which cached data is fresh (e.g. 60s). Returned immediately (`<3ms`) with `X-Cache-Status: HIT`.
+- **Hard TTL**: Retention window in Redis (e.g. 24h to 7 days). Stale data (`softTtl <= age < hardTtl`) is served **instantly** (`<3ms`) with `X-Cache-Status: STALE`, while asynchronous revalidation fires in the background.
+- **Eviction**: Expired beyond `hardTtl` triggers synchronous fetch with `X-Cache-Status: MISS`.
+
+### B. In-Memory Singleflight Promise Coalescing
+Prevents cache stampedes when a key is missing or hard-expired:
+```typescript
+class Singleflight {
+  private inFlight = new Map<string, Promise<unknown>>();
+
+  async do<T>(key: string, fn: () => Promise<T>): Promise<{ result: T; coalesced: boolean }> {
+    const existing = this.inFlight.get(key) as Promise<T> | undefined;
+    if (existing) return { result: await existing, coalesced: true };
+
+    const promise = fn().finally(() => this.inFlight.delete(key));
+    this.inFlight.set(key, promise);
+    return { result: await promise, coalesced: false };
+  }
+}
+```
+
+### C. Distributed Mutex Lock for Background Revalidation
+When hundreds of concurrent requests hit stale data, only **one** background worker should query upstream:
+- Atomic lock acquisition: `SET revalidate:lock:<key> 1 NX EX <ttlSeconds>`.
+- If lock is denied, the duplicate revalidation is dropped cleanly while the user still receives valid stale data.
+- Lock is released upon completion (`DEL revalidate:lock:<key>`).
+
+### D. Autonomous Background Cache Refresher (`CacheRefresherService`)
+Continuously warms top-tier routes (`/next`, standings, schedule, active race) in an autonomous timer loop:
+- **Race Weekend Interval**: 35 seconds (matches dynamic session rhythm).
+- **Mid-week Interval**: 180 seconds.
+- Multi-instance deduplication via `service:cache-refresher:lock`.
+- Ensures zero cold starts for frontend users visiting the homepage or opening the race recap modal.
