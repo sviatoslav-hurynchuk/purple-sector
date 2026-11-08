@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { cache } from '../services/cache';
 import {
   getRaceSessionData,
   getOpenF1Sessions,
@@ -38,18 +39,23 @@ const handleRaceSession = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const data = await getRaceSessionData(season, round);
+    const swrKey = `f1:swr:openf1:race:${season}:${round}`;
+    const result = await cache.swr(
+      swrKey,
+      () => getRaceSessionData(season, round),
+      { softTtlSeconds: 60, hardTtlSeconds: 86400, shouldCache: (data) => Boolean(data?.isComplete) }
+    );
 
-    if (!data) {
+    if (!result.data) {
       res.status(404).json({
         error: `OpenF1 session data not available for season ${season}, round ${round}.`,
       });
       return;
     }
 
-    // Historical race data is immutable — cache aggressively
+    res.setHeader('X-Cache-Status', result.status);
     setCacheHeaders(res, 86400);
-    res.json(data);
+    res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -84,7 +90,6 @@ router.get('/radio/transcript', async (req: Request, res: Response) => {
   }
 });
 
-
 /**
  * GET /api/openf1/sessions/:year
  * Returns all OpenF1 sessions recorded for a given calendar year.
@@ -99,10 +104,17 @@ router.get('/sessions/:year', async (req: Request, res: Response) => {
       return;
     }
 
-    const sessions = await getOpenF1Sessions(yNum);
     const isCurrent = yNum === new Date().getFullYear();
+    const swrKey = `f1:swr:openf1:sessions:${yNum}`;
+    const result = await cache.swr(
+      swrKey,
+      () => getOpenF1Sessions(yNum),
+      { softTtlSeconds: isCurrent ? 300 : 86400, hardTtlSeconds: isCurrent ? 21600 : 604800 }
+    );
+
+    res.setHeader('X-Cache-Status', result.status);
     setCacheHeaders(res, isCurrent ? 21600 : 86400); // 6h vs 24h
-    res.json({ year: yNum, sessions });
+    res.json({ year: yNum, sessions: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -123,9 +135,16 @@ router.get('/drivers/:sessionKey', async (req: Request, res: Response) => {
       return;
     }
 
-    const drivers = await getOpenF1Drivers(sKey);
+    const swrKey = `f1:swr:openf1:drivers:${sKey}`;
+    const result = await cache.swr(
+      swrKey,
+      () => getOpenF1Drivers(sKey),
+      { softTtlSeconds: 300, hardTtlSeconds: 86400 }
+    );
+
+    res.setHeader('X-Cache-Status', result.status);
     setCacheHeaders(res, 86400);
-    res.json({ sessionKey: sKey, drivers });
+    res.json({ sessionKey: sKey, drivers: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -146,9 +165,16 @@ router.get('/stints/:sessionKey', async (req: Request, res: Response) => {
       return;
     }
 
-    const stints = await getOpenF1Stints(sKey);
+    const swrKey = `f1:swr:openf1:stints:${sKey}`;
+    const result = await cache.swr(
+      swrKey,
+      () => getOpenF1Stints(sKey),
+      { softTtlSeconds: 300, hardTtlSeconds: 86400 }
+    );
+
+    res.setHeader('X-Cache-Status', result.status);
     setCacheHeaders(res, 86400);
-    res.json({ sessionKey: sKey, stints });
+    res.json({ sessionKey: sKey, stints: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -169,9 +195,16 @@ router.get('/weather/:sessionKey', async (req: Request, res: Response) => {
       return;
     }
 
-    const weather = await getOpenF1Weather(sKey);
+    const swrKey = `f1:swr:openf1:weather:${sKey}`;
+    const result = await cache.swr(
+      swrKey,
+      () => getOpenF1Weather(sKey),
+      { softTtlSeconds: 120, hardTtlSeconds: 86400 }
+    );
+
+    res.setHeader('X-Cache-Status', result.status);
     setCacheHeaders(res, 86400);
-    res.json({ sessionKey: sKey, weather });
+    res.json({ sessionKey: sKey, weather: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });
@@ -192,9 +225,16 @@ router.get('/race_control/:sessionKey', async (req: Request, res: Response) => {
       return;
     }
 
-    const events = await getOpenF1RaceControlEvents(sKey);
+    const swrKey = `f1:swr:openf1:race_control:${sKey}`;
+    const result = await cache.swr(
+      swrKey,
+      () => getOpenF1RaceControlEvents(sKey),
+      { softTtlSeconds: 120, hardTtlSeconds: 86400 }
+    );
+
+    res.setHeader('X-Cache-Status', result.status);
     setCacheHeaders(res, 86400);
-    res.json({ sessionKey: sKey, events });
+    res.json({ sessionKey: sKey, events: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: message });

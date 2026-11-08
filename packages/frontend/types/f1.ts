@@ -489,6 +489,8 @@ export interface RaceSessionData {
     pitStops: PitStopDetail[];
     teamRadio: TeamRadioClip[];
     highlights?: RaceHighlight[];
+    /** Indicates whether official Jolpica race results were successfully populated. */
+    isComplete?: boolean;
 }
 
 // ── Live Realtime Session State ──────────────────────────────────────────────

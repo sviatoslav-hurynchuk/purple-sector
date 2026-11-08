@@ -15,6 +15,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { connectRedis, cache } from './services/cache';
 import { warmCache } from './services/jolpica';
 import { startSessionWatcher } from './services/session-watcher';
+import { startCacheRefresher, stopCacheRefresher } from './services/cache-refresher';
 
 dotenv.config();
 
@@ -110,9 +111,39 @@ async function start(): Promise<void> {
   // Start background OpenF1 session lifecycle watcher
   startSessionWatcher();
 
-  app.listen(PORT, () => {
+  // Start autonomous proactive background cache refresher
+  startCacheRefresher();
+
+  const server = app.listen(PORT, () => {
     console.log(`-> F1 Backend running on http://localhost:${PORT}`);
   });
+
+  // Graceful shutdown handling
+  let isShuttingDown = false;
+  const shutdown = () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log('Shutting down backend gracefully...');
+    stopCacheRefresher();
+
+    // Bounded 5s grace period: force-close connections if audio-proxy or SSE lingers
+    const forceTimer = setTimeout(() => {
+      console.warn('[Shutdown] Deadline reached, force-closing connections...');
+      if ('closeAllConnections' in server && typeof (server as any).closeAllConnections === 'function') {
+        (server as any).closeAllConnections();
+      }
+      process.exit(0);
+    }, 5000);
+    forceTimer.unref();
+
+    server.close(() => {
+      clearTimeout(forceTimer);
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 start();
