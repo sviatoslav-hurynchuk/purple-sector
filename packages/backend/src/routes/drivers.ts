@@ -1,18 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { getSeasonDrivers, getDriverProfile, isRaceWeekend } from '../services/jolpica';
+import { getSeasonDrivers, getDriverProfile } from '../services/jolpica';
+import { CACHE_TTL, F1_HISTORICAL_BOUNDS } from '../constants';
+import { getCurrentSeason, resolveCurrentSeason, getMaxSupportedSeason, isRaceWeekend } from '../utils/season';
+import { setCacheHeaders } from '../utils/http';
+import { isValidSeason } from '../utils/validation';
 
 const router: Router = Router();
-
-function getCurrentSeason(): string {
-  return new Date().getFullYear().toString();
-}
-
-function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
-  res.setHeader(
-    'Cache-Control',
-    `public, max-age=${maxAgeSeconds}, s-maxage=${maxAgeSeconds}, stale-while-revalidate=30`
-  );
-}
 
 /**
  * GET /api/drivers?season=YYYY
@@ -22,17 +15,22 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const currentSeason = getCurrentSeason();
     const seasonQuery = req.query['season'];
-    const season = typeof seasonQuery === 'string' ? seasonQuery.trim() : currentSeason;
+    const season = resolveCurrentSeason(typeof seasonQuery === 'string' ? seasonQuery : undefined);
 
-    const seasonNum = parseInt(season, 10);
-    const maxSupportedYear = new Date().getFullYear() + 1;
-    if (!/^\d{4}$/.test(season) || seasonNum < 1950 || seasonNum > maxSupportedYear) {
-      res.status(400).json({ error: `Invalid season parameter. Must be a 4-digit year between 1950 and ${maxSupportedYear}.` });
+    if (!isValidSeason(season)) {
+      res.status(400).json({
+        error: `Invalid season parameter. Must be a 4-digit year between ${F1_HISTORICAL_BOUNDS.FIRST_SEASON} and ${getMaxSupportedSeason()}.`,
+      });
       return;
     }
 
     const drivers = await getSeasonDrivers(season);
-    const maxAge = season === currentSeason ? (isRaceWeekend() ? 300 : 3600) : 86400;
+    const maxAge =
+      season === currentSeason
+        ? isRaceWeekend()
+          ? CACHE_TTL.FIVE_MINUTES
+          : CACHE_TTL.ONE_HOUR
+        : CACHE_TTL.ONE_DAY;
     setCacheHeaders(res, maxAge);
     res.json({ season, drivers });
   } catch (err) {
@@ -60,7 +58,7 @@ router.get('/:driverId', async (req: Request, res: Response) => {
       return;
     }
 
-    setCacheHeaders(res, 86400); // 24h cache for driver profiles
+    setCacheHeaders(res, CACHE_TTL.ONE_DAY);
     res.json(profile);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

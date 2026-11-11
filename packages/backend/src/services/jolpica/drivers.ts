@@ -5,6 +5,7 @@ import type {
   DriverCareerStats,
 } from '../../types/f1';
 import { getOfficialF1DriverStats, invalidateOfficialDriverCache } from '../f1-official';
+import { DEFAULT_URLS } from '../../constants/urls';
 import { cache } from '../cache';
 import { getDriverStandings } from './standings';
 import { getDriverChampionshipStatus } from './championship';
@@ -130,7 +131,7 @@ export async function getDriverProfile(driverId: string): Promise<DriverProfile 
             driverId: id,
             permanentNumber: fallbackMeta.permanentNumber,
             code: fallbackMeta.code,
-            url: `https://www.formula1.com/en/drivers/${id.replace(/_/g, '-')}`,
+            url: `${DEFAULT_URLS.F1_OFFICIAL_BASE}/en/drivers/${id.replace(/_/g, '-')}`,
             givenName: fallbackMeta.givenName,
             familyName: fallbackMeta.familyName,
             dateOfBirth: '',

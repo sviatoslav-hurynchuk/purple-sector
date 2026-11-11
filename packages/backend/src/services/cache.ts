@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis';
+import { CACHE_LOCK } from '../constants/cache';
 
 /**
  * Cache entry with optional Soft and Hard TTL for Stale-While-Revalidate (SWR) support.
@@ -187,11 +188,11 @@ abstract class BaseCacheService implements ICacheService {
     const { result, coalesced } = await this.singleflight.do<T>(key, async () => {
       // Coordinate across distributed instances via lock
       const lockKey = `miss:${key}`;
-      const lockToken = await this.acquireLock(lockKey, 15);
+      const lockToken = await this.acquireLock(lockKey, CACHE_LOCK.MISS_LOCK_TTL_SECONDS);
       if (!lockToken) {
         // Another instance is fetching this key right now; wait briefly and check cache
-        for (let attempt = 0; attempt < 5; attempt++) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
+        for (let attempt = 0; attempt < CACHE_LOCK.MISS_RETRIES; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, CACHE_LOCK.MISS_BACKOFF_MS));
           const existing = await this.getEntry<T>(key);
           if (existing) {
             return existing.data;
@@ -231,7 +232,7 @@ abstract class BaseCacheService implements ICacheService {
     fetcher: () => Promise<T>,
     options: SwrOptions<T>
   ): void {
-    const lockTtl = options.lockTtlSeconds ?? 30;
+    const lockTtl = options.lockTtlSeconds ?? CACHE_LOCK.DEFAULT_TTL_SECONDS;
 
     (async () => {
       const lockToken = await this.acquireLock(key, lockTtl);
@@ -422,7 +423,7 @@ class RedisCacheService extends BaseCacheService {
     this.client = new Redis({ url, token });
   }
 
-  async ping(timeoutMs = 3000): Promise<boolean> {
+  async ping(timeoutMs = CACHE_LOCK.REDIS_PING_TIMEOUT_MS): Promise<boolean> {
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Redis ping timeout')), timeoutMs)

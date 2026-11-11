@@ -4,22 +4,12 @@ import {
   getTeammateBattle,
   getConstructorBattles,
 } from '../services/head-to-head';
-import { isRaceWeekend, getCurrentSeason } from '../services/jolpica';
+import { CACHE_TTL, F1_HISTORICAL_BOUNDS } from '../constants';
+import { getCurrentSeason, getMaxSupportedSeason, isRaceWeekend } from '../utils/season';
+import { setCacheHeaders } from '../utils/http';
+import { isValidSeason } from '../utils/validation';
 
 const router: Router = Router();
-
-function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
-  res.setHeader(
-    'Cache-Control',
-    `public, max-age=${maxAgeSeconds}, s-maxage=${maxAgeSeconds}, stale-while-revalidate=30`
-  );
-}
-
-function isValidSeason(season: string): boolean {
-  if (!/^\d{4}$/.test(season)) return false;
-  const year = Number(season);
-  return year >= 1950 && year <= Number(getCurrentSeason()) + 1;
-}
 
 /**
  * GET /api/head-to-head/:season/battle/:driver1/:driver2
@@ -30,7 +20,7 @@ router.get('/:season/battle/:driver1/:driver2', async (req: Request, res: Respon
   const { season, driver1, driver2 } = req.params;
   if (!isValidSeason(season)) {
     res.status(400).json({
-      error: `Invalid season: ${season}. Season must be a 4-digit year between 1950 and ${Number(getCurrentSeason()) + 1}.`,
+      error: `Invalid season: ${season}. Season must be a 4-digit year between ${F1_HISTORICAL_BOUNDS.FIRST_SEASON} and ${getMaxSupportedSeason()}.`,
     });
     return;
   }
@@ -46,7 +36,11 @@ router.get('/:season/battle/:driver1/:driver2', async (req: Request, res: Respon
     }
 
     const maxAge =
-      season === getCurrentSeason() ? (isRaceWeekend() ? 60 : 900) : 86400;
+      season === getCurrentSeason()
+        ? isRaceWeekend()
+          ? CACHE_TTL.ONE_MINUTE
+          : CACHE_TTL.FIFTEEN_MINUTES
+        : CACHE_TTL.ONE_DAY;
     setCacheHeaders(res, maxAge);
     res.json(battle);
   } catch (err) {
@@ -63,7 +57,7 @@ router.get('/:season/constructor/:constructorId', async (req: Request, res: Resp
   const { season, constructorId } = req.params;
   if (!isValidSeason(season)) {
     res.status(400).json({
-      error: `Invalid season: ${season}. Season must be a 4-digit year between 1950 and ${Number(getCurrentSeason()) + 1}.`,
+      error: `Invalid season: ${season}. Season must be a 4-digit year between ${F1_HISTORICAL_BOUNDS.FIRST_SEASON} and ${getMaxSupportedSeason()}.`,
     });
     return;
   }
@@ -79,7 +73,11 @@ router.get('/:season/constructor/:constructorId', async (req: Request, res: Resp
     }
 
     const maxAge =
-      season === getCurrentSeason() ? (isRaceWeekend() ? 60 : 900) : 86400;
+      season === getCurrentSeason()
+        ? isRaceWeekend()
+          ? CACHE_TTL.ONE_MINUTE
+          : CACHE_TTL.FIFTEEN_MINUTES
+        : CACHE_TTL.ONE_DAY;
     setCacheHeaders(res, maxAge);
     res.json(battles);
   } catch (err) {
@@ -96,7 +94,7 @@ router.get('/:season', async (req: Request, res: Response) => {
   const { season } = req.params;
   if (!isValidSeason(season)) {
     res.status(400).json({
-      error: `Invalid season: ${season}. Season must be a 4-digit year between 1950 and ${Number(getCurrentSeason()) + 1}.`,
+      error: `Invalid season: ${season}. Season must be a 4-digit year between ${F1_HISTORICAL_BOUNDS.FIRST_SEASON} and ${getMaxSupportedSeason()}.`,
     });
     return;
   }
@@ -105,7 +103,11 @@ router.get('/:season', async (req: Request, res: Response) => {
     const data = await getSeasonHeadToHead(season);
 
     const maxAge =
-      season === getCurrentSeason() ? (isRaceWeekend() ? 60 : 900) : 86400;
+      season === getCurrentSeason()
+        ? isRaceWeekend()
+          ? CACHE_TTL.ONE_MINUTE
+          : CACHE_TTL.FIFTEEN_MINUTES
+        : CACHE_TTL.ONE_DAY;
     setCacheHeaders(res, maxAge);
     res.json(data);
   } catch (err) {

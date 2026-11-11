@@ -4,24 +4,15 @@ import {
   getRaceSchedule,
   getRaceResult,
   getNextRace,
-  isRaceWeekend,
   getRacePitStops,
   getRaceLaps,
 } from '../services/jolpica';
 import { enrichRaceWithScheduleOverrides } from '../services/schedule-detector';
+import { CACHE_TTL } from '../constants';
+import { getCurrentSeason, resolveCurrentSeason, isRaceWeekend } from '../utils/season';
+import { setCacheHeaders } from '../utils/http';
 
 const router: Router = Router();
-
-function getCurrentSeason(): string {
-  return new Date().getFullYear().toString();
-}
-
-function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
-  res.setHeader(
-    'Cache-Control',
-    `public, max-age=${maxAgeSeconds}, s-maxage=${maxAgeSeconds}, stale-while-revalidate=30`
-  );
-}
 
 /**
  * GET /api/races/next
@@ -40,14 +31,14 @@ router.get('/next', async (req: Request, res: Response) => {
       }
       const enrichedRace = await enrichRaceWithScheduleOverrides(race, mockParam);
       res.setHeader('X-Cache-Status', 'MISS');
-      setCacheHeaders(res, isRaceWeekend() ? 20 : 60);
+      setCacheHeaders(res, isRaceWeekend() ? CACHE_TTL.TWENTY_SECONDS : CACHE_TTL.ONE_MINUTE);
       res.json(enrichedRace);
       return;
     }
 
     const swrKey = 'f1:swr:races:next';
-    const softTtl = isRaceWeekend() ? 20 : 60;
-    const hardTtl = 12 * 3600; // 12 hours retention
+    const softTtl = isRaceWeekend() ? CACHE_TTL.TWENTY_SECONDS : CACHE_TTL.ONE_MINUTE;
+    const hardTtl = CACHE_TTL.TWELVE_HOURS;
 
     const result = await cache.swr(
       swrKey,
@@ -80,10 +71,10 @@ router.get('/next', async (req: Request, res: Response) => {
 router.get('/:season', async (req: Request, res: Response) => {
   try {
     const { season } = req.params;
-    const resolvedSeason = season === 'current' ? getCurrentSeason() : season;
+    const resolvedSeason = resolveCurrentSeason(season);
     const isCurrent = resolvedSeason === getCurrentSeason();
-    const softTtl = isCurrent ? 21600 : 86400; // 6h vs 24h
-    const hardTtl = isCurrent ? 86400 : 604800; // 24h vs 7d
+    const softTtl = isCurrent ? CACHE_TTL.SIX_HOURS : CACHE_TTL.ONE_DAY;
+    const hardTtl = isCurrent ? CACHE_TTL.ONE_DAY : CACHE_TTL.ONE_WEEK;
     const swrKey = `f1:swr:races:schedule:${resolvedSeason}`;
 
     const result = await cache.swr(
@@ -108,7 +99,7 @@ router.get('/:season', async (req: Request, res: Response) => {
 router.get('/:season/:round', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
-    const resolvedSeason = season === 'current' ? getCurrentSeason() : season;
+    const resolvedSeason = resolveCurrentSeason(season);
     const mockParam = (req.query.mockScheduleChange as string) || (req.query.mock as string);
 
     if (mockParam) {
@@ -132,7 +123,7 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
         const hasResults = 'Results' in race && Array.isArray(race.Results) && race.Results.length > 0;
         return hasResults ? race : await enrichRaceWithScheduleOverrides(race);
       },
-      { softTtlSeconds: 120, hardTtlSeconds: 86400 }
+      { softTtlSeconds: CACHE_TTL.TWO_MINUTES, hardTtlSeconds: CACHE_TTL.ONE_DAY }
     );
 
     if (!result.data) {
@@ -143,7 +134,10 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
     const hasResults =
       'Results' in result.data && Array.isArray(result.data.Results) && result.data.Results.length > 0;
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, hasResults ? 86400 : isRaceWeekend() ? 60 : 300);
+    setCacheHeaders(
+      res,
+      hasResults ? CACHE_TTL.ONE_DAY : isRaceWeekend() ? CACHE_TTL.ONE_MINUTE : CACHE_TTL.FIVE_MINUTES
+    );
     res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -162,13 +156,13 @@ router.get('/:season/:round', async (req: Request, res: Response) => {
 router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
-    const resolvedSeason = season === 'current' ? getCurrentSeason() : season;
+    const resolvedSeason = resolveCurrentSeason(season);
     const swrKey = `f1:swr:races:pitstops:${resolvedSeason}:${round}`;
 
     const result = await cache.swr(
       swrKey,
       () => getRacePitStops(resolvedSeason, round),
-      { softTtlSeconds: 300, hardTtlSeconds: 86400 }
+      { softTtlSeconds: CACHE_TTL.FIVE_MINUTES, hardTtlSeconds: CACHE_TTL.ONE_DAY }
     );
 
     if (!result.data) {
@@ -180,7 +174,7 @@ router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
 
     // Pit stop records are immutable after a race ends — cache aggressively
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, 86400);
+    setCacheHeaders(res, CACHE_TTL.ONE_DAY);
     res.json({ season, round, pitStops: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -197,13 +191,13 @@ router.get('/:season/:round/pitstops', async (req: Request, res: Response) => {
 router.get('/:season/:round/laps', async (req: Request, res: Response) => {
   try {
     const { season, round } = req.params;
-    const resolvedSeason = season === 'current' ? getCurrentSeason() : season;
+    const resolvedSeason = resolveCurrentSeason(season);
     const swrKey = `f1:swr:races:laps:${resolvedSeason}:${round}`;
 
     const result = await cache.swr(
       swrKey,
       () => getRaceLaps(resolvedSeason, round),
-      { softTtlSeconds: 300, hardTtlSeconds: 604800 }
+      { softTtlSeconds: CACHE_TTL.FIVE_MINUTES, hardTtlSeconds: CACHE_TTL.ONE_WEEK }
     );
 
     if (!result.data) {
@@ -215,7 +209,7 @@ router.get('/:season/:round/laps', async (req: Request, res: Response) => {
 
     // Lap records are immutable after a race ends — cache aggressively
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, 86400);
+    setCacheHeaders(res, CACHE_TTL.ONE_DAY);
     res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

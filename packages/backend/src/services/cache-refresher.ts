@@ -1,5 +1,6 @@
 import { cache } from './cache';
-import { getCurrentSeason, isRaceWeekend } from './jolpica/client';
+import { CACHE_TTL, CACHE_LOCK } from '../constants';
+import { getCurrentSeason, isRaceWeekend } from '../utils/season';
 import { getNextRace, getRaceSchedule } from './jolpica/races';
 import { getEnrichedDriverStandings, getEnrichedConstructorStandings } from '../routes/standings';
 import { getRaceSessionData } from './openf1';
@@ -76,7 +77,7 @@ class CacheRefresherService {
     if (this.isRefreshing) return;
 
     // Acquire distributed lock to ensure only one instance refreshes across clustered workers
-    const lockToken = await cache.acquireLock('service:cache-refresher:lock', 60);
+    const lockToken = await cache.acquireLock('service:cache-refresher:lock', CACHE_LOCK.REFRESHER_LOCK_TTL_SECONDS);
     if (!lockToken) {
       return;
     }
@@ -94,7 +95,11 @@ class CacheRefresherService {
             if (!race) return null;
             return enrichRaceWithScheduleOverrides(race);
           },
-          { softTtlSeconds: isRaceWeekend() ? 20 : 60, hardTtlSeconds: 12 * 3600, retireOnNull: true }
+          {
+            softTtlSeconds: isRaceWeekend() ? CACHE_TTL.TWENTY_SECONDS : CACHE_TTL.ONE_MINUTE,
+            hardTtlSeconds: CACHE_TTL.TWELVE_HOURS,
+            retireOnNull: true,
+          }
         );
       } catch (err) {
         console.warn(
@@ -109,8 +114,14 @@ class CacheRefresherService {
           `f1:swr:standings:drivers:${currentSeason}:latest`,
           () => getEnrichedDriverStandings(currentSeason),
           {
-            softTtlSeconds: (data) => (data.standings.length > 0 ? (isRaceWeekend() ? 60 : 300) : 300),
-            hardTtlSeconds: (data) => (data.standings.length > 0 ? 86400 : 600),
+            softTtlSeconds: (data) =>
+              data.standings.length > 0
+                ? isRaceWeekend()
+                  ? CACHE_TTL.ONE_MINUTE
+                  : CACHE_TTL.FIVE_MINUTES
+                : CACHE_TTL.FIVE_MINUTES,
+            hardTtlSeconds: (data) =>
+              data.standings.length > 0 ? CACHE_TTL.ONE_DAY : CACHE_TTL.TEN_MINUTES,
           }
         );
       } catch (err) {
@@ -126,8 +137,14 @@ class CacheRefresherService {
           `f1:swr:standings:constructors:${currentSeason}:latest`,
           () => getEnrichedConstructorStandings(currentSeason),
           {
-            softTtlSeconds: (data) => (data.standings.length > 0 ? (isRaceWeekend() ? 60 : 300) : 300),
-            hardTtlSeconds: (data) => (data.standings.length > 0 ? 86400 : 600),
+            softTtlSeconds: (data) =>
+              data.standings.length > 0
+                ? isRaceWeekend()
+                  ? CACHE_TTL.ONE_MINUTE
+                  : CACHE_TTL.FIVE_MINUTES
+                : CACHE_TTL.FIVE_MINUTES,
+            hardTtlSeconds: (data) =>
+              data.standings.length > 0 ? CACHE_TTL.ONE_DAY : CACHE_TTL.TEN_MINUTES,
           }
         );
       } catch (err) {
@@ -142,7 +159,7 @@ class CacheRefresherService {
         await cache.swr(
           `f1:swr:races:schedule:${currentSeason}`,
           () => getRaceSchedule(currentSeason),
-          { softTtlSeconds: 21600, hardTtlSeconds: 86400 }
+          { softTtlSeconds: CACHE_TTL.SIX_HOURS, hardTtlSeconds: CACHE_TTL.ONE_DAY }
         );
       } catch (err) {
         console.warn(
@@ -164,8 +181,8 @@ class CacheRefresherService {
               `f1:swr:openf1:race:${upcomingSeason}:${upcomingRound}`,
               () => getRaceSessionData(upcomingSeason, upcomingRound),
               {
-                softTtlSeconds: 60,
-                hardTtlSeconds: 86400,
+                softTtlSeconds: CACHE_TTL.ONE_MINUTE,
+                hardTtlSeconds: CACHE_TTL.ONE_DAY,
                 shouldCache: (data) => Boolean(data?.isComplete),
               }
             ).catch(() => {});
@@ -186,8 +203,8 @@ class CacheRefresherService {
               `f1:swr:openf1:race:${completedSeason}:${lastCompleted.round}`,
               () => getRaceSessionData(completedSeason, lastCompleted.round),
               {
-                softTtlSeconds: 60,
-                hardTtlSeconds: 86400,
+                softTtlSeconds: CACHE_TTL.ONE_MINUTE,
+                hardTtlSeconds: CACHE_TTL.ONE_DAY,
                 shouldCache: (data) => Boolean(data?.isComplete),
               }
             ).catch(() => {});

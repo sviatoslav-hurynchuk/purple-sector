@@ -7,6 +7,7 @@ import type {
 } from '../../types/f1';
 import { cache } from '../cache';
 import { getOfficialF1TeamDetails } from '../f1-official';
+import { DEFAULT_URLS } from '../../constants/urls';
 import {
   TTL,
   getCurrentSeason,
@@ -837,7 +838,7 @@ export async function getSeasonConstructors(season?: string | number): Promise<C
             : meta.base.includes('Switzerland')
             ? 'Swiss'
             : 'British',
-          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(meta.fullName)}`,
+          url: `${DEFAULT_URLS.WIKIPEDIA_BASE}/${encodeURIComponent(meta.fullName)}`,
         });
       }
     }
@@ -937,7 +938,7 @@ export async function getConstructorProfile(constructorId: string): Promise<Cons
               : registryEntry.base.includes('Switzerland')
               ? 'Swiss'
               : 'British',
-            url: `https://en.wikipedia.org/wiki/${encodeURIComponent(registryEntry.fullName)}`,
+            url: `${DEFAULT_URLS.WIKIPEDIA_BASE}/${encodeURIComponent(registryEntry.fullName)}`,
           };
         } else {
           const sentinel: NegativeCacheSentinel = { __negativeCache: true };

@@ -16,6 +16,7 @@ import { connectRedis, cache } from './services/cache';
 import { warmCache } from './services/jolpica';
 import { startSessionWatcher } from './services/session-watcher';
 import { startCacheRefresher, stopCacheRefresher } from './services/cache-refresher';
+import { CACHE_LOCK } from './constants';
 
 dotenv.config();
 
@@ -126,14 +127,14 @@ async function start(): Promise<void> {
     console.log('Shutting down backend gracefully...');
     stopCacheRefresher();
 
-    // Bounded 5s grace period: force-close connections if audio-proxy or SSE lingers
+    // Bounded grace period: force-close connections if audio-proxy or SSE lingers
     const forceTimer = setTimeout(() => {
       console.warn('[Shutdown] Deadline reached, force-closing connections...');
       if ('closeAllConnections' in server && typeof (server as any).closeAllConnections === 'function') {
         (server as any).closeAllConnections();
       }
       process.exit(0);
-    }, 5000);
+    }, CACHE_LOCK.SHUTDOWN_TIMEOUT_MS);
     forceTimer.unref();
 
     server.close(() => {
