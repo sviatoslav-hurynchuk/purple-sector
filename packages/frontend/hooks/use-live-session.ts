@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { LiveSessionState, RaceEvent, WeatherSnapshot } from '@/types/f1';
 import { clientFetchNullable } from '@/lib/api-client';
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+import { BACKEND_URL } from '@/lib/constants/urls';
 
 interface UseLiveSessionOptions {
   /** Enable/disable connection (default: true) */

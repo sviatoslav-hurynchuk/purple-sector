@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { cache } from './cache';
+import { isAllowedF1OfficialHost } from '../constants/urls';
 
 const TRANSCRIPT_TTL_SECONDS = 365 * 24 * 60 * 60; // 1 year (audio broadcasts are permanent)
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10 MB maximum audio payload limit
@@ -31,8 +32,7 @@ export async function getAudioTranscript(
   }
 
   const host = parsedUrl.hostname;
-  const isAllowedHost = host === 'formula1.com' || host.endsWith('.formula1.com');
-  if (parsedUrl.protocol !== 'https:' || !isAllowedHost) {
+  if (parsedUrl.protocol !== 'https:' || !isAllowedF1OfficialHost(host)) {
     return { transcript: null, requiresApiKey: false };
   }
 

@@ -4,39 +4,18 @@ import type { DriverStanding, ConstructorStanding } from '../types/f1';
 import {
   getDriverStandings,
   getConstructorStandings,
-  isRaceWeekend,
   getDriverChampionshipStatus,
   getConstructorChampionshipStatus,
   type ChampionshipClinchStatus,
 } from '../services/jolpica';
+import { CACHE_TTL } from '../constants';
+import { getCurrentSeason, resolveCurrentSeason, isRaceWeekend } from '../utils/season';
+import { setCacheHeaders } from '../utils/http';
+import { parseRound } from '../utils/validation';
 
 const router: Router = Router();
 
-function getCurrentSeason(): string {
-  return new Date().getFullYear().toString();
-}
-
-function parseRound(raw: unknown): { isValid: boolean; value?: string } {
-  if (raw === undefined) {
-    return { isValid: true, value: undefined };
-  }
-  if (typeof raw !== 'string') {
-    return { isValid: false };
-  }
-  if (!/^[1-9]\d*$/.test(raw)) {
-    return { isValid: false };
-  }
-  return { isValid: true, value: raw };
-}
-
-function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
-  res.setHeader(
-    'Cache-Control',
-    `public, max-age=${maxAgeSeconds}, s-maxage=${maxAgeSeconds}, stale-while-revalidate=30`
-  );
-}
-
-const EMPTY_STANDINGS_TTL = 300; // 5 minutes fallback for empty/unpopulated standings
+const EMPTY_STANDINGS_TTL = CACHE_TTL.FIVE_MINUTES;
 
 export interface EnrichedDriverStandingsResponse {
   season: string;
@@ -102,8 +81,7 @@ export async function getEnrichedConstructorStandings(
 router.get('/drivers', async (req: Request, res: Response) => {
   try {
     const currentSeason = getCurrentSeason();
-    const rawSeason = (req.query['season'] as string) ?? currentSeason;
-    const season = rawSeason === 'current' ? currentSeason : rawSeason;
+    const season = resolveCurrentSeason(req.query['season'] as string | undefined);
 
     const roundResult = parseRound(req.query['round']);
     if (!roundResult.isValid) {
@@ -112,8 +90,10 @@ router.get('/drivers', async (req: Request, res: Response) => {
     }
 
     const isCurrent = season === currentSeason;
-    const standardSoftTtl = isCurrent ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
-    const standardHardTtl = isCurrent ? 86400 : 604800; // 7d for past seasons
+    const standardSoftTtl = isCurrent
+      ? (isRaceWeekend() ? CACHE_TTL.ONE_MINUTE : CACHE_TTL.FIVE_MINUTES)
+      : CACHE_TTL.ONE_DAY;
+    const standardHardTtl = isCurrent ? CACHE_TTL.ONE_DAY : CACHE_TTL.ONE_WEEK;
     const swrKey = `f1:swr:standings:drivers:${season}:${roundResult.value ?? 'latest'}`;
 
     const result = await cache.swr<EnrichedDriverStandingsResponse>(
@@ -121,7 +101,7 @@ router.get('/drivers', async (req: Request, res: Response) => {
       () => getEnrichedDriverStandings(season, roundResult.value),
       {
         softTtlSeconds: (data) => (data.standings.length > 0 ? standardSoftTtl : EMPTY_STANDINGS_TTL),
-        hardTtlSeconds: (data) => (data.standings.length > 0 ? standardHardTtl : 600),
+        hardTtlSeconds: (data) => (data.standings.length > 0 ? standardHardTtl : CACHE_TTL.TEN_MINUTES),
       }
     );
 
@@ -143,8 +123,7 @@ router.get('/drivers', async (req: Request, res: Response) => {
 router.get('/constructors', async (req: Request, res: Response) => {
   try {
     const currentSeason = getCurrentSeason();
-    const rawSeason = (req.query['season'] as string) ?? currentSeason;
-    const season = rawSeason === 'current' ? currentSeason : rawSeason;
+    const season = resolveCurrentSeason(req.query['season'] as string | undefined);
 
     const roundResult = parseRound(req.query['round']);
     if (!roundResult.isValid) {
@@ -153,8 +132,10 @@ router.get('/constructors', async (req: Request, res: Response) => {
     }
 
     const isCurrent = season === currentSeason;
-    const standardSoftTtl = isCurrent ? (isRaceWeekend() ? 60 : 300) : 86400; // 24h for past seasons
-    const standardHardTtl = isCurrent ? 86400 : 604800; // 7d for past seasons
+    const standardSoftTtl = isCurrent
+      ? (isRaceWeekend() ? CACHE_TTL.ONE_MINUTE : CACHE_TTL.FIVE_MINUTES)
+      : CACHE_TTL.ONE_DAY;
+    const standardHardTtl = isCurrent ? CACHE_TTL.ONE_DAY : CACHE_TTL.ONE_WEEK;
     const swrKey = `f1:swr:standings:constructors:${season}:${roundResult.value ?? 'latest'}`;
 
     const result = await cache.swr<EnrichedConstructorStandingsResponse>(
@@ -162,7 +143,7 @@ router.get('/constructors', async (req: Request, res: Response) => {
       () => getEnrichedConstructorStandings(season, roundResult.value),
       {
         softTtlSeconds: (data) => (data.standings.length > 0 ? standardSoftTtl : EMPTY_STANDINGS_TTL),
-        hardTtlSeconds: (data) => (data.standings.length > 0 ? standardHardTtl : 600),
+        hardTtlSeconds: (data) => (data.standings.length > 0 ? standardHardTtl : CACHE_TTL.TEN_MINUTES),
       }
     );
 

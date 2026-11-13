@@ -4,8 +4,7 @@ import type {
     SeasonHeadToHeadResponse,
     TeammatePairBattle,
 } from '@/types/f1';
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+import { BACKEND_URL } from '@/lib/constants/urls';
 
 /** Fetches a resource and throws on any non-2xx response. */
 export async function clientFetch<T>(path: string): Promise<T> {

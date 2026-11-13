@@ -1,5 +1,6 @@
 import { cache } from './cache';
 import type { OfficialDriverStats } from '../types/f1';
+import { DEFAULT_URLS } from '../constants/urls';
 
 const DRIVER_SLUG_MAP: Record<string, string> = {
   antonelli: 'kimi-antonelli',
@@ -125,7 +126,7 @@ export async function getOfficialF1DriverStats(driverId: string, givenName?: str
   if (cached !== null && cached !== undefined) return cached;
 
   try {
-    const res = await fetchWithRetry(`https://www.formula1.com/en/drivers/${slug}`, {
+    const res = await fetchWithRetry(`${DEFAULT_URLS.F1_OFFICIAL_BASE}/en/drivers/${slug}`, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -233,7 +234,7 @@ export async function getOfficialF1TeamDetails(constructorId: string): Promise<i
   if (cached !== null && cached !== undefined) return cached;
 
   try {
-    const res = await fetchWithRetry(`https://www.formula1.com/en/teams/${slug}`, {
+    const res = await fetchWithRetry(`${DEFAULT_URLS.F1_OFFICIAL_BASE}/en/teams/${slug}`, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

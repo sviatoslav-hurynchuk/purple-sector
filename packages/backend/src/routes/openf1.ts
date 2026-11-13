@@ -10,15 +10,10 @@ import {
   resolveSessionKey,
 } from '../services/openf1';
 import { getAudioTranscript } from '../services/transcription';
+import { CACHE_TTL, F1_HISTORICAL_BOUNDS, isAllowedF1OfficialHost } from '../constants';
+import { setCacheHeaders } from '../utils/http';
 
 const router: Router = Router();
-
-function setCacheHeaders(res: Response, maxAgeSeconds: number): void {
-  res.setHeader(
-    'Cache-Control',
-    `public, max-age=${maxAgeSeconds}, s-maxage=${maxAgeSeconds}, stale-while-revalidate=60`
-  );
-}
 
 /**
  * GET /api/openf1/race/:season/:round
@@ -32,9 +27,9 @@ const handleRaceSession = async (req: Request, res: Response): Promise<void> => 
     const { season, round } = req.params;
     const year = parseInt(season, 10);
 
-    if (isNaN(year) || year < 2023) {
+    if (isNaN(year) || year < F1_HISTORICAL_BOUNDS.OPENF1_FIRST_SEASON) {
       res.status(404).json({
-        error: `OpenF1 telemetry is only available for 2023+ seasons (requested season: ${season}).`,
+        error: `OpenF1 telemetry is only available for ${F1_HISTORICAL_BOUNDS.OPENF1_FIRST_SEASON}+ seasons (requested season: ${season}).`,
       });
       return;
     }
@@ -43,7 +38,11 @@ const handleRaceSession = async (req: Request, res: Response): Promise<void> => 
     const result = await cache.swr(
       swrKey,
       () => getRaceSessionData(season, round),
-      { softTtlSeconds: 60, hardTtlSeconds: 86400, shouldCache: (data) => Boolean(data?.isComplete) }
+      {
+        softTtlSeconds: CACHE_TTL.ONE_MINUTE,
+        hardTtlSeconds: CACHE_TTL.ONE_DAY,
+        shouldCache: (data) => Boolean(data?.isComplete),
+      }
     );
 
     if (!result.data) {
@@ -54,7 +53,7 @@ const handleRaceSession = async (req: Request, res: Response): Promise<void> => 
     }
 
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, 86400);
+    setCacheHeaders(res, CACHE_TTL.ONE_DAY);
     res.json(result.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -79,7 +78,7 @@ router.get('/radio/transcript', async (req: Request, res: Response) => {
     const driverNumber = req.query.driverNumber ? parseInt(String(req.query.driverNumber), 10) : undefined;
     const result = await getAudioTranscript(url, driverNumber);
     if (result.transcript) {
-      setCacheHeaders(res, 86400 * 30); // 30 days cache header for successful transcripts
+      setCacheHeaders(res, CACHE_TTL.THIRTY_DAYS);
     } else {
       res.setHeader('Cache-Control', 'no-store');
     }
@@ -99,8 +98,10 @@ router.get('/sessions/:year', async (req: Request, res: Response) => {
     const { year } = req.params;
     const yNum = parseInt(year, 10);
 
-    if (isNaN(yNum) || yNum < 2023) {
-      res.status(404).json({ error: `OpenF1 sessions are only available from 2023 onwards.` });
+    if (isNaN(yNum) || yNum < F1_HISTORICAL_BOUNDS.OPENF1_FIRST_SEASON) {
+      res.status(404).json({
+        error: `OpenF1 sessions are only available from ${F1_HISTORICAL_BOUNDS.OPENF1_FIRST_SEASON} onwards.`,
+      });
       return;
     }
 
@@ -109,11 +110,14 @@ router.get('/sessions/:year', async (req: Request, res: Response) => {
     const result = await cache.swr(
       swrKey,
       () => getOpenF1Sessions(yNum),
-      { softTtlSeconds: isCurrent ? 300 : 86400, hardTtlSeconds: isCurrent ? 21600 : 604800 }
+      {
+        softTtlSeconds: isCurrent ? CACHE_TTL.FIVE_MINUTES : CACHE_TTL.ONE_DAY,
+        hardTtlSeconds: isCurrent ? CACHE_TTL.SIX_HOURS : CACHE_TTL.ONE_WEEK,
+      }
     );
 
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, isCurrent ? 21600 : 86400); // 6h vs 24h
+    setCacheHeaders(res, isCurrent ? CACHE_TTL.SIX_HOURS : CACHE_TTL.ONE_DAY);
     res.json({ year: yNum, sessions: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -139,11 +143,11 @@ router.get('/drivers/:sessionKey', async (req: Request, res: Response) => {
     const result = await cache.swr(
       swrKey,
       () => getOpenF1Drivers(sKey),
-      { softTtlSeconds: 300, hardTtlSeconds: 86400 }
+      { softTtlSeconds: CACHE_TTL.FIVE_MINUTES, hardTtlSeconds: CACHE_TTL.ONE_DAY }
     );
 
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, 86400);
+    setCacheHeaders(res, CACHE_TTL.ONE_DAY);
     res.json({ sessionKey: sKey, drivers: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -169,11 +173,11 @@ router.get('/stints/:sessionKey', async (req: Request, res: Response) => {
     const result = await cache.swr(
       swrKey,
       () => getOpenF1Stints(sKey),
-      { softTtlSeconds: 300, hardTtlSeconds: 86400 }
+      { softTtlSeconds: CACHE_TTL.FIVE_MINUTES, hardTtlSeconds: CACHE_TTL.ONE_DAY }
     );
 
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, 86400);
+    setCacheHeaders(res, CACHE_TTL.ONE_DAY);
     res.json({ sessionKey: sKey, stints: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -199,11 +203,11 @@ router.get('/weather/:sessionKey', async (req: Request, res: Response) => {
     const result = await cache.swr(
       swrKey,
       () => getOpenF1Weather(sKey),
-      { softTtlSeconds: 120, hardTtlSeconds: 86400 }
+      { softTtlSeconds: CACHE_TTL.TWO_MINUTES, hardTtlSeconds: CACHE_TTL.ONE_DAY }
     );
 
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, 86400);
+    setCacheHeaders(res, CACHE_TTL.ONE_DAY);
     res.json({ sessionKey: sKey, weather: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -229,11 +233,11 @@ router.get('/race_control/:sessionKey', async (req: Request, res: Response) => {
     const result = await cache.swr(
       swrKey,
       () => getOpenF1RaceControlEvents(sKey),
-      { softTtlSeconds: 120, hardTtlSeconds: 86400 }
+      { softTtlSeconds: CACHE_TTL.TWO_MINUTES, hardTtlSeconds: CACHE_TTL.ONE_DAY }
     );
 
     res.setHeader('X-Cache-Status', result.status);
-    setCacheHeaders(res, 86400);
+    setCacheHeaders(res, CACHE_TTL.ONE_DAY);
     res.json({ sessionKey: sKey, events: result.data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -264,8 +268,7 @@ router.get('/audio-proxy', async (req: Request, res: Response) => {
 
     // Security check: only proxy official Formula 1 timing audio CDN over HTTPS
     const host = parsed.hostname;
-    const isAllowedHost = host === 'formula1.com' || host.endsWith('.formula1.com');
-    if (parsed.protocol !== 'https:' || !isAllowedHost) {
+    if (parsed.protocol !== 'https:' || !isAllowedF1OfficialHost(host)) {
       res.status(403).json({ error: 'Origin not allowed for audio proxying' });
       return;
     }
@@ -277,7 +280,7 @@ router.get('/audio-proxy', async (req: Request, res: Response) => {
     }
 
     res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    res.setHeader('Cache-Control', `public, max-age=${CACHE_TTL.ONE_DAY}, immutable`);
     const length = upstream.headers.get('content-length');
     if (length) res.setHeader('Content-Length', length);
 

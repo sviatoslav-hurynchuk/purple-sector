@@ -1,39 +1,24 @@
 import { cache } from '../cache';
+import { CACHE_TTL, JOLPICA_LIMITS, DEFAULT_URLS } from '../../constants';
+export {
+  getCurrentSeason,
+  isRaceWeekend,
+  getNextRaceTTL,
+  getStandingsTTL,
+  getUpcomingRaceTTL,
+} from '../../utils/season';
 
-export const BASE_URL = process.env.JOLPICA_BASE_URL ?? 'https://api.jolpi.ca/ergast/f1';
-
-export function getCurrentSeason(): string {
-  return new Date().getFullYear().toString();
-}
-
-// ── Dynamic Race Weekend TTL Helpers ─────────────────────────────────────────
-
-export function isRaceWeekend(now = new Date()): boolean {
-  const day = now.getUTCDay(); // 0 = Sunday, 5 = Friday, 6 = Saturday
-  return day === 0 || day === 5 || day === 6;
-}
-
-export function getNextRaceTTL(): number {
-  return isRaceWeekend() ? 20 : 60; // 20s during race weekend vs 60s mid-week
-}
-
-export function getStandingsTTL(): number {
-  return isRaceWeekend() ? 60 : 5 * 60; // 60s during race weekend vs 5min mid-week
-}
-
-export function getUpcomingRaceTTL(): number {
-  return isRaceWeekend() ? 60 : 5 * 60; // 60s during race weekend vs 5min mid-week
-}
+export const BASE_URL = DEFAULT_URLS.JOLPICA_BASE;
 
 export const TTL = {
-  SCHEDULE_CURRENT: 6 * 60 * 60,   // 6 hours
-  SCHEDULE_PAST: 24 * 60 * 60,     // 24 hours
-  RACE_WITH_RESULTS: 24 * 60 * 60, // 24 hours (immutable data)
-  PIT_STOPS: 24 * 60 * 60,         // 24 hours (immutable once race finishes)
-  LAPS: 24 * 60 * 60,              // 24 hours (immutable once race finishes)
-  H2H: 24 * 60 * 60,               // 24 hours for completed season H2H
-  NEGATIVE_CACHE: 5 * 60,          // 5 minutes for non-existent races
-  CONSTRUCTOR_PROFILE: 5 * 60,     // 5 minutes for constructor profiles
+  SCHEDULE_CURRENT: CACHE_TTL.SIX_HOURS,
+  SCHEDULE_PAST: CACHE_TTL.ONE_DAY,
+  RACE_WITH_RESULTS: CACHE_TTL.ONE_DAY,
+  PIT_STOPS: CACHE_TTL.ONE_DAY,
+  LAPS: CACHE_TTL.ONE_DAY,
+  H2H: CACHE_TTL.ONE_DAY,
+  NEGATIVE_CACHE: CACHE_TTL.FIVE_MINUTES,
+  CONSTRUCTOR_PROFILE: CACHE_TTL.FIVE_MINUTES,
 } as const;
 
 // ── Jolpica API Response Schema Definitions ──────────────────────────────────
@@ -64,9 +49,9 @@ interface JolpicaQueueItem {
 
 const JOLPICA_QUEUE: JolpicaQueueItem[] = [];
 let activeJolpicaCount = 0;
-const MAX_JOLPICA_CONCURRENCY = 2;
-const MIN_JOLPICA_INTERVAL_MS = 120;
-const MAX_JOLPICA_QUEUE_CAPACITY = 200;
+const MAX_JOLPICA_CONCURRENCY = JOLPICA_LIMITS.MAX_CONCURRENCY;
+const MIN_JOLPICA_INTERVAL_MS = JOLPICA_LIMITS.MIN_INTERVAL_MS;
+const MAX_JOLPICA_QUEUE_CAPACITY = JOLPICA_LIMITS.MAX_QUEUE_CAPACITY;
 let nextScheduledJolpicaTime = 0;
 
 function enqueueJolpicaRequest(

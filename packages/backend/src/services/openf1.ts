@@ -28,14 +28,15 @@ import {
   mapPitStops,
   mapTeamRadio,
 } from './openf1-mapper';
+import { CACHE_TTL, DEFAULT_URLS } from '../constants';
 
-const BASE_URL = process.env.OPENF1_BASE_URL ?? 'https://api.openf1.org/v1';
+const BASE_URL = DEFAULT_URLS.OPENF1_BASE;
 
 const TTL = {
-  SESSIONS_CURRENT: 6 * 60 * 60,   // 6 hours
-  SESSIONS_PAST: 24 * 60 * 60,     // 24 hours
-  ENRICHED_RACE: 24 * 60 * 60,     // 24 hours (immutable once race is done)
-  NEGATIVE_CACHE: 5 * 60,          // 5 minutes
+  SESSIONS_CURRENT: CACHE_TTL.SIX_HOURS,
+  SESSIONS_PAST: CACHE_TTL.ONE_DAY,
+  ENRICHED_RACE: CACHE_TTL.ONE_DAY,
+  NEGATIVE_CACHE: CACHE_TTL.FIVE_MINUTES,
 } as const;
 
 // ── OpenF1 Throttled Request Queue (3 req/sec limit) ─────────────────────────

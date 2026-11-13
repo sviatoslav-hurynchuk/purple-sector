@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image, { type ImageProps } from 'next/image';
+import { F1_MEDIA_CDN_URL } from '@/lib/constants/urls';
 
 interface DriverImageProps extends Omit<ImageProps, 'src'> {
   src: string;
@@ -10,7 +11,7 @@ interface DriverImageProps extends Omit<ImageProps, 'src'> {
 }
 
 const DEFAULT_FALLBACK =
-  'https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/2026/fallback/driver/2026fallbackdriverright.webp';
+  `${F1_MEDIA_CDN_URL}/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/2026/fallback/driver/2026fallbackdriverright.webp`;
 
 export function DriverImage({
   src,

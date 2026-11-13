@@ -23,8 +23,7 @@ import type {
   ConstructorReliability,
   ConstructorMultiSeasonReliabilityResponse,
 } from '@/types/f1';
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+import { BACKEND_URL } from '@/lib/constants/urls';
 
 /**
  * Checks if the backend API server is reachable.
@@ -413,8 +412,7 @@ export async function fetchRadioTranscript(
 export function getProxiedRadioAudioUrl(rawUrl: string): string {
   if (!rawUrl) return '';
   if (typeof window !== 'undefined') {
-    const backendBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    return `${backendBase}/api/openf1/audio-proxy?url=${encodeURIComponent(rawUrl)}`;
+    return `${BACKEND_URL}/api/openf1/audio-proxy?url=${encodeURIComponent(rawUrl)}`;
   }
   return rawUrl;
 }
