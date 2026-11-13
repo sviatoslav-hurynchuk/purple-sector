@@ -4,6 +4,8 @@ import React from 'react';
 import type { LiveDriverState, TireCompound } from '@/types/f1';
 import type { VisibleColumns } from './timing-tower-column-selector';
 import { cn } from '@/lib/utils';
+import { formatGap, formatInterval, formatDuration } from '@/lib/formatters';
+import { TIRE_COMPOUND_CONFIG } from '@/lib/constants/tyres';
 
 interface DriverRowProps {
   driver: LiveDriverState;
@@ -12,65 +14,18 @@ interface DriverRowProps {
   onSelect?: (driverNumber: number) => void;
 }
 
-function formatGap(val: number | string | null | undefined): string {
-  if (val === null || val === undefined) return '—';
-  if (typeof val === 'number') {
-    return val === 0 ? 'LEADER' : `+${val.toFixed(3)}`;
-  }
-  return String(val);
-}
-
-function formatInterval(val: number | string | null | undefined): string {
-  if (val === null || val === undefined) return '—';
-  if (typeof val === 'number') {
-    return val === 0 ? '—' : `+${val.toFixed(3)}`;
-  }
-  return String(val);
-}
-
-function formatDuration(seconds: number | null | undefined): string {
-  if (!seconds || seconds <= 0) return '—';
-  const mins = Math.floor(seconds / 60);
-  const remSecs = (seconds % 60).toFixed(3);
-  return `${mins}:${remSecs.padStart(6, '0')}`;
-}
-
 function getCompoundBadge(compound: TireCompound, stintLaps?: number) {
-  let badgeColor = 'bg-zinc-800 text-zinc-300 border-zinc-700';
-  let label = 'U';
-
-  switch (compound) {
-    case 'SOFT':
-      badgeColor = 'bg-red-500/20 text-red-400 border-red-500/40';
-      label = 'S';
-      break;
-    case 'MEDIUM':
-      badgeColor = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40';
-      label = 'M';
-      break;
-    case 'HARD':
-      badgeColor = 'bg-white/20 text-zinc-100 border-white/40';
-      label = 'H';
-      break;
-    case 'INTERMEDIATE':
-      badgeColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
-      label = 'I';
-      break;
-    case 'WET':
-      badgeColor = 'bg-blue-500/20 text-blue-400 border-blue-500/40';
-      label = 'W';
-      break;
-  }
+  const config = TIRE_COMPOUND_CONFIG[compound] ?? TIRE_COMPOUND_CONFIG.UNKNOWN;
 
   return (
     <div className="inline-flex items-center gap-1">
       <span
         className={cn(
           'flex items-center justify-center h-4 w-4 rounded-full font-black text-[9px] border',
-          badgeColor
+          config.badgeClass
         )}
       >
-        {label}
+        {config.shortLabel}
       </span>
       {typeof stintLaps === 'number' && stintLaps > 0 && (
         <span className="text-[10px] font-mono text-zinc-400">L{stintLaps}</span>

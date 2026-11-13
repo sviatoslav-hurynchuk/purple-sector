@@ -15,6 +15,8 @@
  *    https://media.formula1.com/content/dam/fom-website/drivers/{FOLDER}/{CODE}.png.transform/2col/image.png
  */
 
+import { F1_MEDIA_CDN_URL } from '@/lib/constants/urls';
+
 interface DriverRegistryEntry {
   code: string;
   defaultTeam: string;
@@ -298,7 +300,7 @@ export function buildF1WebpUrl(
   const cleanCode = code.toLowerCase().replace(/[^a-z0-9]/g, '');
   const dir = orientation === 'left' ? 'left' : 'right';
 
-  return `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/d_common:f1:${seasonYear}:fallback:driver:${seasonYear}fallbackdriver${dir}.webp/v1740000001/common/f1/${seasonYear}/${cleanTeam}/${cleanCode}/${seasonYear}${cleanTeam}${cleanCode}${dir}.webp`;
+  return `${F1_MEDIA_CDN_URL}/image/upload/c_lfill,w_700/q_auto/d_common:f1:${seasonYear}:fallback:driver:${seasonYear}fallbackdriver${dir}.webp/v1740000001/common/f1/${seasonYear}/${cleanTeam}/${cleanCode}/${seasonYear}${cleanTeam}${cleanCode}${dir}.webp`;
 }
 
 /**
@@ -320,7 +322,7 @@ export function getDriverPhotoUrl(
   const seasonNum = parseInt(s, 10);
   const fallbackYear = !isNaN(seasonNum) && seasonNum >= 2024 ? String(seasonNum) : '2026';
   const dir = orientation === 'left' ? 'left' : 'right';
-  const silhouetteUrl = `https://media.formula1.com/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/${fallbackYear}/fallback/driver/${fallbackYear}fallbackdriver${dir}.webp`;
+  const silhouetteUrl = `${F1_MEDIA_CDN_URL}/image/upload/c_lfill,w_700/q_auto/v1740000001/common/f1/${fallbackYear}/fallback/driver/${fallbackYear}fallbackdriver${dir}.webp`;
 
   // 0. Disambiguation for shared surnames (fathers/sons/brothers across F1 eras)
   const first = (givenName ?? '').trim().toLowerCase();
@@ -370,17 +372,17 @@ export function getDriverPhotoUrl(
 
   // 2. Season 2023: Official F1 2023 Season Cutouts (fixed DAM bust cutout)
   if (seasonNum === 2023) {
-    return `https://media.formula1.com/content/dam/fom-website/drivers/2023drivers/${driverSlug}.jpg.transform/2col/image.jpg`;
+    return `${F1_MEDIA_CDN_URL}/content/dam/fom-website/drivers/2023drivers/${driverSlug}.jpg.transform/2col/image.jpg`;
   }
 
   // 3. Seasons 2019–2022: Official F1 Season Cutouts (fixed DAM bust cutout)
   if (seasonNum >= 2019 && seasonNum <= 2022) {
-    return `https://media.formula1.com/content/dam/fom-website/drivers/${seasonNum}drivers/${driverSlug}.png.transform/2col/image.png`;
+    return `${F1_MEDIA_CDN_URL}/content/dam/fom-website/drivers/${seasonNum}drivers/${driverSlug}.png.transform/2col/image.png`;
   }
 
   // 4. Dedicated F1 Studio Cutout (for 2018 and historical drivers)
   if (meta?.damPath) {
-    return `https://media.formula1.com/content/dam/fom-website/drivers/${meta.damPath}.transform/2col/image.png`;
+    return `${F1_MEDIA_CDN_URL}/content/dam/fom-website/drivers/${meta.damPath}.transform/2col/image.png`;
   }
 
   // 5. Dynamic generation for unmapped drivers in modern seasons

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { LapData, DriverLapSummary, PitStopEntry, TireStint } from '@/types/f1';
 import { getTeamTheme } from '@/lib/team-colors';
 import { formatRaceOutcome } from '@/lib/f1-status';
+import { parseLapTimeToSeconds, formatLapTime as formatSecondsToLapTime } from '@/lib/formatters';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Swords, X, TrendingUp, Disc } from 'lucide-react';
@@ -21,27 +22,6 @@ interface PaceComparisonProps {
   onRemoveDriver: (driverId: string) => void;
   onAddDriver?: (driverId: string) => void;
   onClearAll: () => void;
-}
-
-/** Parses "M:SS.mmm" or "SS.mmm" into seconds */
-function parseLapTimeToSeconds(timeStr: string): number {
-  if (!timeStr) return Number.NaN;
-  const parts = timeStr.split(':');
-  if (parts.length === 2) {
-    const minutes = parseFloat(parts[0]);
-    const seconds = parseFloat(parts[1]);
-    return minutes * 60 + seconds;
-  }
-  const seconds = parseFloat(parts[0]);
-  return Number.isNaN(seconds) ? Number.NaN : seconds;
-}
-
-/** Formats seconds into "M:SS.mmm" */
-function formatSecondsToLapTime(sec: number): string {
-  if (Number.isNaN(sec) || !Number.isFinite(sec) || sec <= 0) return '—';
-  const minutes = Math.floor(sec / 60);
-  const remainder = sec % 60;
-  return `${minutes}:${remainder.toFixed(3).padStart(6, '0')}`;
 }
 
 export function PaceComparison({

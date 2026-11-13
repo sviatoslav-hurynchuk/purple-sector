@@ -4,24 +4,13 @@ import React, { useState } from 'react';
 import type { TireStint, TireCompound } from '@/types/f1';
 import { Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TIRE_COMPOUND_CONFIG as COMPOUND_CONFIG } from '@/lib/constants/tyres';
 
 interface TyreStrategyChartProps {
   stints: TireStint[];
   totalLaps?: number;
   className?: string;
 }
-
-const COMPOUND_CONFIG: Record<
-  TireCompound,
-  { label: string; bg: string; text: string; border: string; circle: string }
-> = {
-  SOFT: { label: 'Soft', bg: 'bg-red-500/80', text: 'text-red-400', border: 'border-red-500', circle: '#ef4444' },
-  MEDIUM: { label: 'Medium', bg: 'bg-yellow-500/80', text: 'text-yellow-400', border: 'border-yellow-500', circle: '#eab308' },
-  HARD: { label: 'Hard', bg: 'bg-zinc-100/90', text: 'text-zinc-100', border: 'border-zinc-300', circle: '#f4f4f5' },
-  INTERMEDIATE: { label: 'Intermediate', bg: 'bg-emerald-500/80', text: 'text-emerald-400', border: 'border-emerald-500', circle: '#10b981' },
-  WET: { label: 'Wet', bg: 'bg-blue-500/80', text: 'text-blue-400', border: 'border-blue-500', circle: '#3b82f6' },
-  UNKNOWN: { label: 'Unknown', bg: 'bg-zinc-700', text: 'text-zinc-400', border: 'border-zinc-600', circle: '#71717a' },
-};
 
 export function TyreStrategyChart({
   stints,

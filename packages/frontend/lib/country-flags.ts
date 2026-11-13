@@ -2,6 +2,7 @@
  * Utility mapping F1 countries, nationalities, and localities to their 2-letter ISO country codes.
  * Used for rendering high-res SVG/PNG flags from FlagCDN.
  */
+import { FLAG_CDN_BASE_URL } from '@/lib/constants/urls';
 const COUNTRY_CODES: Record<string, string> = {
   // Current & Recent F1 Host Countries
   australia: 'au',
@@ -92,7 +93,7 @@ export function getCountryCode(countryName?: string): string | null {
 export function getCountryFlagUrl(countryName?: string): string | null {
   const code = getCountryCode(countryName);
   if (!code) return null;
-  return `https://flagcdn.com/w40/${code}.png`;
+  return `${FLAG_CDN_BASE_URL}/w40/${code}.png`;
 }
 
 /**
@@ -102,5 +103,5 @@ export function getCountryFlagUrl(countryName?: string): string | null {
 export function getCountryFlagHighResUrl(countryName?: string): string | null {
   const code = getCountryCode(countryName);
   if (!code) return null;
-  return `https://flagcdn.com/${code}.svg`;
+  return `${FLAG_CDN_BASE_URL}/${code}.svg`;
 }

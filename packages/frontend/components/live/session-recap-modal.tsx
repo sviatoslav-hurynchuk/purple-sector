@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clientFetchNullable } from '@/lib/api-client';
+import { formatLapTime } from '@/lib/formatters';
 import { BestRaceRadioRibbon } from '@/components/f1/radio/best-race-radio-ribbon';
 import type { LiveDriverState, RaceEvent, Race, RaceHighlight, RaceSessionData } from '@/types/f1';
 
@@ -111,17 +112,6 @@ function findBestLapDriver(drivers: LiveDriverState[]): {
     (d.lastLapDuration ?? Infinity) < (prev.lastLapDuration ?? Infinity) ? d : prev
   );
   return { driver: best, lapDuration: best.lastLapDuration! };
-}
-
-/** Format lap time in seconds to M:SS.mmm display format. */
-function formatLapTime(seconds: number | null): string {
-  if (!seconds || seconds <= 0) return '—';
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  if (mins > 0) {
-    return `${mins}:${secs.toFixed(3).padStart(6, '0')}`;
-  }
-  return secs.toFixed(3);
 }
 
 // ── Trigger button ────────────────────────────────────────────────────────────
