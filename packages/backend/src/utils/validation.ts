@@ -2,10 +2,11 @@ import { F1_HISTORICAL_BOUNDS } from '../constants/f1';
 import { getMaxSupportedSeason } from './season';
 
 /**
- * Validates whether a season string is a valid 4-digit F1 championship year (1950 to current year + 1).
+ * Validates whether a season value is a valid 4-digit F1 championship year string (1950 to current year + 1).
+ * Accepts unknown to guard against malformed or array query parameters (e.g. ?season=2025&season=2026).
  */
-export function isValidSeason(season: string): boolean {
-  if (!/^\d{4}$/.test(season.trim())) {
+export function isValidSeason(season: unknown): season is string {
+  if (typeof season !== 'string' || !/^\d{4}$/.test(season.trim())) {
     return false;
   }
   const year = parseInt(season, 10);

@@ -8,10 +8,10 @@ export function getCurrentSeason(): string {
 }
 
 /**
- * Resolves a season parameter, replacing undefined or 'current' with the actual year.
+ * Resolves a season parameter, replacing undefined, non-strings, or 'current' with the actual year.
  */
-export function resolveCurrentSeason(season?: string): string {
-  if (!season || season === 'current') {
+export function resolveCurrentSeason(season?: unknown): string {
+  if (typeof season !== 'string' || !season.trim() || season.trim() === 'current') {
     return getCurrentSeason();
   }
   return season.trim();
