@@ -29,6 +29,16 @@ f1-data-demo/
 │   ├── backend/                        # Express API server (port 3001)
 │   │   ├── src/
 │   │   │   ├── index.ts                # Server entry point, CORS config, Redis init, cache warming
+│   │   │   ├── constants/              # Centralized domain, caching, lock, and URL constants
+│   │   │   │   ├── cache.ts            # Caching TTL durations and distributed lock parameters
+│   │   │   │   ├── f1.ts               # Era boundaries (1950, 2023, etc.) and API queue limits
+│   │   │   │   ├── urls.ts             # Default external service endpoints & allowed hosts
+│   │   │   │   └── index.ts            # Constants export barrel
+│   │   │   ├── utils/                  # Shared backend utilities
+│   │   │   │   ├── http.ts             # Standardized Cache-Control headers
+│   │   │   │   ├── season.ts           # Season resolution & race weekend helpers
+│   │   │   │   ├── validation.ts       # Season & round validation
+│   │   │   │   └── index.ts            # Utilities export barrel
 │   │   │   ├── middleware/
 │   │   │   │   └── errorHandler.ts     # Centralized error handler
 │   │   │   ├── routes/
@@ -118,6 +128,11 @@ f1-data-demo/
 │       │   │   └── season-selector.tsx
 │       │   └── ui/                     # shadcn/ui base primitives
 │       ├── lib/
+│       │   ├── constants/              # Centralized frontend constants
+│       │   │   ├── tyres.ts            # Pirelli compound configurations (colors, badges, labels)
+│       │   │   ├── urls.ts             # Backend URL and external CDN endpoints
+│       │   │   └── index.ts            # Constants export barrel
+│       │   ├── formatters.ts           # Motorsport time formatting (lap times, gaps, intervals)
 │       │   ├── api.ts                  # Server-side API client (Next.js fetch with ISR revalidation)
 │       │   ├── api-client.ts           # Client-side API hooks (SWR)
 │       │   ├── calendar-links.ts       # Provider calendar link generators (Google, Outlook, Webcal)
